@@ -73,19 +73,19 @@ export default function ScriptsPage() {
 
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col gap-4 rounded-xl border border-brand-300 bg-white p-6 shadow-sm"
+        className="flex flex-col gap-4 rounded-2xl border border-brand-300/60 bg-white/95 p-6 shadow-card backdrop-blur-sm"
       >
-        <label className="flex flex-col gap-1 text-sm font-medium text-brand-700">
+        <label className="flex flex-col gap-2 font-display text-[11px] font-semibold tracking-wider text-brand-700 uppercase">
           Arquivo .sql (até 50 MB)
           <input
             type="file"
             accept=".sql"
             disabled={running}
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="text-sm font-normal text-brand-900 file:mr-4 file:rounded-md file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-brand-700"
+            className="font-sans text-xs font-normal text-brand-900 file:mr-4 file:cursor-pointer file:rounded-lg file:border file:border-brand-300/60 file:bg-brand-50 file:px-3.5 file:py-1.5 file:text-xs file:font-semibold file:text-brand-700 hover:file:bg-brand-300/30"
           />
         </label>
-        <p className="text-xs text-brand-700">
+        <p className="text-xs text-brand-700/90">
           O script roda com ON_ERROR_STOP em uma transação: se algum comando falhar, tudo é
           revertido e o erro do banco é exibido.
         </p>

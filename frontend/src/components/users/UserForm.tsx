@@ -63,9 +63,9 @@ export function UserForm({ user, onSaved, onCancel }: UserFormProps) {
     <form
       onSubmit={handleSubmit}
       noValidate
-      className="rounded-xl border border-brand-300 bg-white p-6 shadow-sm"
+      className="rounded-2xl border border-brand-300/60 bg-white/95 p-6 shadow-card backdrop-blur-sm"
     >
-      <h2 className="mb-4 text-lg font-semibold text-brand-900">
+      <h2 className="mb-5 font-display text-base font-bold tracking-tight text-brand-900">
         {isEditing ? `Editar ${user.username}` : 'Novo usuário'}
       </h2>
       <div className="grid gap-4 sm:grid-cols-2">

@@ -21,20 +21,20 @@ export function SqlEditor({ value, onChange, onRun, running, disabled }: SqlEdit
   const nearLimit = value.length >= MAX_SQL_LENGTH * 0.9;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 rounded-2xl border border-brand-300/60 bg-white/95 p-5 shadow-card backdrop-blur-sm">
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         maxLength={MAX_SQL_LENGTH}
         spellCheck={false}
-        rows={10}
+        rows={9}
         aria-label="Consulta SQL"
         placeholder="SELECT * FROM ..."
-        className="w-full resize-y rounded-xl border border-brand-300 bg-white p-4 font-mono text-sm outline-none focus:border-primary focus:ring-2 focus:ring-accent"
+        className="w-full resize-y rounded-xl border border-brand-300/60 bg-brand-50/35 p-4 font-mono text-xs leading-relaxed text-brand-900 transition-colors outline-none focus:border-primary focus:bg-white focus:ring-2 focus:ring-accent/60"
       />
       <div className="flex items-center justify-between">
-        <span className={`text-xs ${nearLimit ? 'text-danger' : 'text-brand-700'}`}>
+        <span className={`font-mono text-[11px] ${nearLimit ? 'text-danger' : 'text-brand-700/80'}`}>
           {value.length}/{MAX_SQL_LENGTH} caracteres · Ctrl/⌘ + Enter para executar
         </span>
         <Button onClick={onRun} disabled={disabled || running || !value.trim()}>

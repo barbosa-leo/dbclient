@@ -14,11 +14,21 @@
   --color-accent: var(--color-brand-300);
   --color-danger: #b42318;
 
-  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: var(--font-inter), system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: var(--font-montserrat), var(--font-inter), sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --shadow-card: 0 10px 30px -10px rgba(15, 33, 61, 0.08), 0 4px 12px -4px rgba(15, 33, 61, 0.04);
+  --shadow-card-hover: 0 18px 38px -12px rgba(15, 33, 61, 0.14), 0 6px 16px -6px rgba(15, 33, 61, 0.06);
+  --shadow-glow: 0 6px 20px -3px rgba(71, 124, 209, 0.45);
 }
 
 @layer base {
   body {
-    @apply bg-surface text-ink font-sans antialiased;
+    @apply bg-surface text-ink font-sans antialiased selection:bg-brand-500 selection:text-white;
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(153, 182, 230, 0.35), transparent 45%),
+      radial-gradient(circle at 85% 100%, rgba(71, 124, 209, 0.12), transparent 50%);
+    background-attachment: fixed;
   }
 }

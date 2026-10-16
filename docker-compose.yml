@@ -1,0 +1,16 @@
+services:
+  dbclient:
+    build: .
+    image: dbclient:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DBCLIENT_ENCRYPTION_KEY: ${DBCLIENT_ENCRYPTION_KEY:?defina DBCLIENT_ENCRYPTION_KEY no .env (openssl rand -base64 32)}
+      DBCLIENT_DUMP_TTL: ${DBCLIENT_DUMP_TTL:-24h}
+      DBCLIENT_SESSION_TTL: ${DBCLIENT_SESSION_TTL:-12h}
+    volumes:
+      - dbclient-data:/data
+
+volumes:
+  dbclient-data:

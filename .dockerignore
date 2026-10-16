@@ -1,0 +1,9 @@
+**/node_modules
+**/.next
+frontend/out
+backend/web/dist
+**/*.db
+**/*.db-*
+.git
+.env*
+docs

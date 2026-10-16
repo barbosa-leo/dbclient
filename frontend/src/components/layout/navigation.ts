@@ -6,11 +6,31 @@ export interface NavItem {
   roles?: Role[];
 }
 
-export const navItems: NavItem[] = [
-  { href: '/connections', label: 'Conexões' },
-  { href: '/explorer', label: 'Explorador' },
-  { href: '/query', label: 'Editor SQL' },
-  { href: '/scripts', label: 'Scripts' },
-  { href: '/dumps', label: 'Dumps' },
-  { href: '/users', label: 'Usuários', roles: ['admin'] },
+export interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
+export const navSections: NavSection[] = [
+  {
+    title: 'SQL',
+    items: [
+      { href: '/explorer', label: 'Explorador' },
+      { href: '/query', label: 'Editor SQL' },
+    ],
+  },
+  {
+    title: 'Ferramentas',
+    items: [
+      { href: '/scripts', label: 'Scripts' },
+      { href: '/dumps', label: 'Dumps' },
+    ],
+  },
+  {
+    title: 'Gestão',
+    items: [
+      { href: '/connections', label: 'Conexões' },
+      { href: '/users', label: 'Usuários', roles: ['admin'] },
+    ],
+  },
 ];

@@ -28,12 +28,30 @@ const schemas = [
   { name: 'archive', tables: [] },
 ];
 
-const allRows = Array.from({ length: 120 }, (_, i) => [
+const allRows = Array.from({ length: 500 }, (_, i) => [
   i + 1,
   `Customer ${i + 1}`,
   i % 7 === 0 ? null : `user${i + 1}@example.com`,
   new Date(Date.UTC(2026, 0, 1 + i)).toISOString(),
 ]);
+
+function columnsForTable(tableName) {
+  if (tableName === 'orders') {
+    return [
+      { name: 'id', dataType: 'bigint', nullable: false, defaultValue: "nextval('orders_id_seq'::regclass)", isPrimaryKey: true },
+      { name: 'customer_id', dataType: 'bigint', nullable: false, defaultValue: null, isPrimaryKey: false },
+      { name: 'total_cents', dataType: 'integer', nullable: false, defaultValue: '0', isPrimaryKey: false },
+      { name: 'status', dataType: 'character varying(32)', nullable: false, defaultValue: "'pending'::varchar", isPrimaryKey: false },
+      { name: 'placed_at', dataType: 'timestamp with time zone', nullable: false, defaultValue: 'now()', isPrimaryKey: false },
+    ];
+  }
+  return [
+    { name: 'id', dataType: 'bigint', nullable: false, defaultValue: "nextval('customers_id_seq'::regclass)", isPrimaryKey: true },
+    { name: 'name', dataType: 'character varying(120)', nullable: false, defaultValue: null, isPrimaryKey: false },
+    { name: 'email', dataType: 'character varying(255)', nullable: true, defaultValue: null, isPrimaryKey: false },
+    { name: 'created_at', dataType: 'timestamp with time zone', nullable: false, defaultValue: 'now()', isPrimaryKey: false },
+  ];
+}
 
 function send(res, status, body, headers = {}) {
   const payload = body === undefined ? '' : JSON.stringify(body);
@@ -100,18 +118,16 @@ function runQuery(body) {
   if (!/^\s*select/i.test(sql)) {
     return {
       status: 200,
-      body: { columns: [], rows: [], hasMore: false, rowsAffected: 1, durationMs: 4 },
+      body: { columns: [], rows: [], rowsAffected: 1, durationMs: 4 },
     };
   }
-  const pageSize = Number(body.pageSize) || 50;
-  const page = Number(body.page) || 1;
-  const start = (page - 1) * pageSize;
+  const rawLimit = Number(body.limit) || 50;
+  const limit = Math.min(10000, Math.max(10, Math.floor(rawLimit)));
   return {
     status: 200,
     body: {
       columns: ['id', 'name', 'email', 'created_at'],
-      rows: allRows.slice(start, start + pageSize),
-      hasMore: start + pageSize < allRows.length,
+      rows: allRows.slice(0, limit),
       rowsAffected: null,
       durationMs: 12,
     },
@@ -212,6 +228,11 @@ const server = http.createServer(async (req, res) => {
       return send(res, 204);
     }
     if (action === 'schemas') return send(res, 200, schemas);
+    const columnsMatch = /^schemas\/([^/]+)\/tables\/([^/]+)\/columns$/.exec(action || '');
+    if (columnsMatch && req.method === 'GET') {
+      const tableName = decodeURIComponent(columnsMatch[2]);
+      return send(res, 200, columnsForTable(tableName));
+    }
     if (action === 'query' && req.method === 'POST') {
       const result = runQuery(body);
       return send(res, result.status, result.body);

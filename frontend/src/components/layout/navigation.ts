@@ -4,6 +4,7 @@ export interface NavItem {
   href: string;
   label: string;
   roles?: Role[];
+  kind?: 'link' | 'schemas';
 }
 
 export interface NavSection {
@@ -15,7 +16,7 @@ export const navSections: NavSection[] = [
   {
     title: 'SQL',
     items: [
-      { href: '/explorer', label: 'Explorador' },
+      { href: '/schemas', label: 'Schemas', kind: 'schemas' },
       { href: '/query', label: 'Editor SQL' },
     ],
   },

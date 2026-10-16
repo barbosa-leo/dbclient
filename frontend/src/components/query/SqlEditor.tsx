@@ -28,7 +28,7 @@ export function SqlEditor({ value, onChange, onRun, running, disabled }: SqlEdit
         onKeyDown={handleKeyDown}
         maxLength={MAX_SQL_LENGTH}
         spellCheck={false}
-        rows={9}
+        rows={6}
         aria-label="Consulta SQL"
         placeholder="SELECT * FROM ..."
         className="w-full resize-y rounded-xl border border-brand-300/60 bg-brand-50/35 p-4 font-mono text-xs leading-relaxed text-brand-900 transition-colors outline-none focus:border-primary focus:bg-white focus:ring-2 focus:ring-accent/60"

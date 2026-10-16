@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Suspense } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { SidebarSchemas } from '@/components/layout/SidebarSchemas';
 import { navSections } from '@/components/layout/navigation';
 
 export function Sidebar() {
@@ -25,7 +27,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-6 px-3.5 py-6">
+      <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3.5 py-6">
         {navSections.map((section) => {
           const visibleItems = section.items.filter(
             (item) => !item.roles || (user && item.roles.includes(user.role)),
@@ -39,6 +41,14 @@ export function Sidebar() {
               </span>
               <div className="flex flex-col gap-0.5">
                 {visibleItems.map((item) => {
+                  if (item.kind === 'schemas') {
+                    return (
+                      <Suspense key={item.href} fallback={null}>
+                        <SidebarSchemas />
+                      </Suspense>
+                    );
+                  }
+
                   const active = pathname.startsWith(item.href);
                   return (
                     <Link

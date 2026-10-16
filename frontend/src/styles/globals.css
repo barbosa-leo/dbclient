@@ -1,12 +1,24 @@
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-50: #ebf0fa;
+  --color-brand-300: #99b6e6;
+  --color-brand-500: #477cd1;
+  --color-brand-700: #244d8f;
+  --color-brand-900: #0f213d;
+
+  --color-surface: var(--color-brand-50);
+  --color-ink: var(--color-brand-900);
+  --color-primary: var(--color-brand-500);
+  --color-primary-strong: var(--color-brand-700);
+  --color-accent: var(--color-brand-300);
+  --color-danger: #b42318;
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  color: #0f172a;
-  background: #f8fafc;
+@layer base {
+  body {
+    @apply bg-surface text-ink font-sans antialiased;
+  }
 }

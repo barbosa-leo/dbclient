@@ -23,9 +23,24 @@ const schemas = [
       { name: 'order_totals', kind: 'view' },
       { name: 'daily_revenue', kind: 'materialized_view' },
     ],
+    procedures: ['sp_reconcile_orders', 'sp_archive_inactive_customers'],
+    functions: ['fn_calculate_tax', 'fn_customer_lifetime_value'],
+    triggers: ['trg_orders_updated_at', 'trg_customers_audit'],
   },
-  { name: 'audit', tables: [{ name: 'events', kind: 'table' }] },
-  { name: 'archive', tables: [] },
+  {
+    name: 'audit',
+    tables: [{ name: 'events', kind: 'table' }],
+    procedures: ['sp_purge_old_events'],
+    functions: ['fn_format_audit_payload'],
+    triggers: ['trg_events_immutable'],
+  },
+  {
+    name: 'archive',
+    tables: [],
+    procedures: [],
+    functions: [],
+    triggers: [],
+  },
 ];
 
 const allRows = Array.from({ length: 500 }, (_, i) => [
@@ -234,7 +249,66 @@ const server = http.createServer(async (req, res) => {
       const uniqueDbs = Array.from(new Set([baseDb, ...extraDbs]));
       return send(res, 200, uniqueDbs);
     }
-    if (action === 'schemas') return send(res, 200, schemas);
+    if (action === 'schemas') {
+      const dbParam = url.searchParams.get('database');
+      if (dbParam === 'analytics') {
+        return send(res, 200, [
+          {
+            name: 'public',
+            tables: [{ name: 'sessions', kind: 'table' }],
+            procedures: ['sp_refresh_daily_kpis'],
+            functions: ['fn_session_duration_sec'],
+            triggers: ['trg_sessions_touch'],
+          },
+          {
+            name: 'metrics',
+            tables: [{ name: 'daily_kpis', kind: 'materialized_view' }],
+            procedures: [],
+            functions: ['fn_conversion_rate'],
+            triggers: [],
+          },
+          {
+            name: 'events',
+            tables: [{ name: 'page_views', kind: 'table' }],
+            procedures: ['sp_compact_events'],
+            functions: [],
+            triggers: ['trg_page_views_partition'],
+          },
+        ]);
+      }
+      if (dbParam === 'billing') {
+        return send(res, 200, [
+          {
+            name: 'public',
+            tables: [{ name: 'subscriptions', kind: 'table' }],
+            procedures: ['sp_close_billing_cycle'],
+            functions: ['fn_mrr_cents'],
+            triggers: ['trg_subscriptions_status'],
+          },
+          {
+            name: 'invoicing',
+            tables: [
+              { name: 'invoices', kind: 'table' },
+              { name: 'open_invoices', kind: 'view' },
+            ],
+            procedures: ['sp_issue_invoice'],
+            functions: ['fn_invoice_net_amount'],
+            triggers: ['trg_invoices_numbering'],
+          },
+          {
+            name: 'ledger',
+            tables: [{ name: 'entries', kind: 'table' }],
+            procedures: [],
+            functions: ['fn_account_balance'],
+            triggers: ['trg_entries_balance_check'],
+          },
+        ]);
+      }
+      if (dbParam === 'postgres') {
+        return send(res, 200, [{ name: 'public', tables: [], procedures: [], functions: [], triggers: [] }]);
+      }
+      return send(res, 200, schemas);
+    }
     const columnsMatch = /^schemas\/([^/]+)\/tables\/([^/]+)\/columns$/.exec(action || '');
     if (columnsMatch && req.method === 'GET') {
       const tableName = decodeURIComponent(columnsMatch[2]);

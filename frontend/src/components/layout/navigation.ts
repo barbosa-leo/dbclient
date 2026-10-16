@@ -1,13 +1,13 @@
 import type { Role } from '@/services/auth';
 
-export type NavIconName = 'schemas' | 'query' | 'scripts' | 'dumps' | 'connections' | 'users';
+export type NavIconName = 'explorer' | 'query' | 'scripts' | 'dumps' | 'connections' | 'users';
 
 export interface NavItem {
   href: string;
   label: string;
   icon: NavIconName;
   roles?: Role[];
-  kind?: 'link' | 'schemas';
+  kind?: 'link' | 'explorer';
 }
 
 export interface NavSection {
@@ -19,7 +19,7 @@ export const navSections: NavSection[] = [
   {
     title: 'SQL',
     items: [
-      { href: '/schemas', label: 'Schemas', icon: 'schemas', kind: 'schemas' },
+      { href: '/explorer', label: 'Explorar', icon: 'explorer', kind: 'explorer' },
       { href: '/query', label: 'Editor SQL', icon: 'query' },
     ],
   },

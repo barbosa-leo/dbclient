@@ -3,13 +3,13 @@
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
-import { TableStructure } from '@/components/schemas/TableStructure';
+import { TableStructure } from '@/components/explorer/TableStructure';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ResultTable } from '@/components/query/ResultTable';
 import { RowLimitSelector } from '@/components/query/RowLimitSelector';
 import { Button } from '@/components/ui/Button';
-import { listColumns } from '@/services/schemas';
-import type { ColumnInfo, TableKind } from '@/services/schemas';
+import { listColumns } from '@/services/explorer';
+import type { ColumnInfo, TableKind } from '@/services/explorer';
 import {
   MIN_ROW_LIMIT,
   calculateAutoRowLimit,
@@ -30,11 +30,12 @@ function quoteIdentifier(identifier: string): string {
   return `"${identifier.replace(/"/g, '""')}"`;
 }
 
-function SchemasContent() {
+function ExplorerContent() {
   const searchParams = useSearchParams();
   const { active } = useConnections();
   const activeId = active?.id;
 
+  const database = searchParams.get('database') ?? active?.database ?? null;
   const schema = searchParams.get('schema');
   const table = searchParams.get('table');
   const kindParam = searchParams.get('kind') as TableKind | null;
@@ -62,7 +63,7 @@ function SchemasContent() {
       setError(null);
       try {
         const sql = `SELECT * FROM ${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
-        setDataResult(await executeQuery(activeId, sql, clamped));
+        setDataResult(await executeQuery(activeId, sql, clamped, database ?? undefined));
         setLimit(clamped);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Falha ao carregar os dados da tabela');
@@ -70,7 +71,7 @@ function SchemasContent() {
         setLoading(false);
       }
     },
-    [activeId, schema, table],
+    [activeId, database, schema, table],
   );
 
   const loadStructure = useCallback(async () => {
@@ -78,13 +79,13 @@ function SchemasContent() {
     setLoading(true);
     setError(null);
     try {
-      setColumns(await listColumns(activeId, schema, table));
+      setColumns(await listColumns(activeId, schema, table, database ?? undefined));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao carregar a estrutura da tabela');
     } finally {
       setLoading(false);
     }
-  }, [activeId, schema, table]);
+  }, [activeId, database, schema, table]);
 
   useEffect(() => {
     setDataResult(null);
@@ -112,18 +113,24 @@ function SchemasContent() {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader
-          title="Schemas"
+          title="Explorar"
           description={
             active
-              ? `Expanda um schema no menu lateral e selecione uma tabela de ${active.name} (${active.database}).`
-              : 'Cadastre e selecione uma conexão para explorar os schemas.'
+              ? `Expanda um banco na barra lateral de ${active.name} para visualizar seus schemas.`
+              : 'Cadastre e selecione uma conexão para explorar os bancos disponíveis.'
           }
         />
         <div className="rounded-xl border border-dashed border-line bg-panel p-12 text-center shadow-card">
-          <p className="text-sm font-semibold text-ink">Nenhuma tabela selecionada</p>
+          <p className="font-mono text-sm font-semibold text-ink">
+            {database && schema
+              ? `${database}.${schema}`
+              : database
+                ? database
+                : 'Nenhum banco selecionado'}
+          </p>
           <p className="mt-1 text-xs text-ink-muted">
-            Abra <strong>Schemas</strong> na barra lateral, escolha um schema e clique em uma tabela
-            para visualizar seus dados e estrutura.
+            Expanda um banco no painel <strong>Explorar</strong> da barra lateral para visualizar os
+            schemas daquele banco.
           </p>
         </div>
       </div>
@@ -144,7 +151,7 @@ function SchemasContent() {
             </span>
           </div>
           <p className="mt-1 text-xs text-ink-muted">
-            {active ? `Conexão ${active.name} (${active.database})` : 'Sem conexão ativa'}
+            {active ? `Conexão ${active.name} (${database ?? active.database})` : 'Sem conexão ativa'}
           </p>
         </div>
 
@@ -222,10 +229,10 @@ function SchemasContent() {
   );
 }
 
-export default function SchemasPage() {
+export default function ExplorerPage() {
   return (
     <Suspense fallback={null}>
-      <SchemasContent />
+      <ExplorerContent />
     </Suspense>
   );
 }

@@ -4,13 +4,13 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { SidebarSchemas } from '@/components/layout/SidebarSchemas';
+import { SidebarExplorer } from '@/components/layout/SidebarExplorer';
 import { navSections } from '@/components/layout/navigation';
 import type { NavIconName } from '@/components/layout/navigation';
 
 function NavIcon({ name }: { name: NavIconName }) {
   switch (name) {
-    case 'schemas':
+    case 'explorer':
       return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-[18px] w-[18px] shrink-0">
           <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -86,7 +86,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
-  const [schemasDrawerOpen, setSchemasDrawerOpen] = useState(true);
+  const [explorerDrawerOpen, setExplorerDrawerOpen] = useState(true);
 
   const visibleSections = navSections
     .map((section) => ({
@@ -97,7 +97,7 @@ export function Sidebar() {
     }))
     .filter((section) => section.items.length > 0);
 
-  const showSecondarySchemasBar = schemasDrawerOpen && pathname.startsWith('/schemas');
+  const showSecondaryExplorerBar = explorerDrawerOpen && pathname.startsWith('/explorer');
 
   return (
     <div className="flex shrink-0">
@@ -118,18 +118,18 @@ export function Sidebar() {
                 {section.items.map((item) => {
                   const active = pathname.startsWith(item.href);
 
-                  if (item.kind === 'schemas') {
+                  if (item.kind === 'explorer') {
                     return (
                       <button
                         key={item.href}
                         type="button"
                         aria-label={item.label}
                         onClick={() => {
-                          if (pathname.startsWith('/schemas')) {
-                            setSchemasDrawerOpen((prev) => !prev);
+                          if (pathname.startsWith('/explorer')) {
+                            setExplorerDrawerOpen((prev) => !prev);
                           } else {
-                            setSchemasDrawerOpen(true);
-                            router.push('/schemas');
+                            setExplorerDrawerOpen(true);
+                            router.push('/explorer');
                           }
                         }}
                         className={`group relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg transition-colors ${
@@ -167,14 +167,14 @@ export function Sidebar() {
         </nav>
       </aside>
 
-      {showSecondarySchemasBar && (
+      {showSecondaryExplorerBar && (
         <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-panel px-3 py-4">
           <div className="mb-3 flex items-center justify-between px-2">
-            <span className="text-xs font-semibold tracking-tight text-ink">Schemas</span>
+            <span className="text-xs font-semibold tracking-tight text-ink">Explorar</span>
             <button
               type="button"
-              aria-label="Ocultar painel de schemas"
-              onClick={() => setSchemasDrawerOpen(false)}
+              aria-label="Ocultar painel explorar"
+              onClick={() => setExplorerDrawerOpen(false)}
               className="cursor-pointer rounded-md p-1 text-ink-muted transition-colors hover:bg-muted hover:text-ink"
             >
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-3.5 w-3.5">
@@ -184,7 +184,7 @@ export function Sidebar() {
           </div>
           <div className="flex-1 overflow-y-auto">
             <Suspense fallback={null}>
-              <SidebarSchemas />
+              <SidebarExplorer />
             </Suspense>
           </div>
         </aside>

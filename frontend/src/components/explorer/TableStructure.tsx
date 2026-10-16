@@ -1,4 +1,4 @@
-import type { ColumnInfo } from '@/services/schemas';
+import type { ColumnInfo } from '@/services/explorer';
 
 export function TableStructure({ columns }: { columns: ColumnInfo[] }) {
   if (columns.length === 0) {

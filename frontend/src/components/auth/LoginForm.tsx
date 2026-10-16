@@ -22,7 +22,7 @@ export function LoginForm() {
     setSubmitting(true);
     try {
       await signIn(username, password);
-      router.replace('/schemas');
+      router.replace('/explorer');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao entrar');
     } finally {

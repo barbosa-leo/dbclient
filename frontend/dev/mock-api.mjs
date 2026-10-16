@@ -49,10 +49,37 @@ function readBody(req) {
       try {
         resolve(raw ? JSON.parse(raw) : {});
       } catch {
-        resolve({});
+        resolve({ raw });
       }
     });
   });
+}
+
+const jobs = new Map();
+let nextJobId = 1;
+
+function createJob(kind, fileName) {
+  const job = {
+    id: String(nextJobId++),
+    kind,
+    fileName,
+    startedAt: Date.now(),
+    shouldFail: /falha/i.test(fileName),
+  };
+  jobs.set(job.id, job);
+  return job;
+}
+
+function jobView(job) {
+  if (job.frozen) return job.frozen;
+  const elapsed = Date.now() - job.startedAt;
+  const progress = Math.min(100, Math.floor((elapsed / 8000) * 100));
+  const base = { id: job.id, kind: job.kind, fileName: job.fileName, progress, error: null };
+  if (job.shouldFail && progress >= 50) {
+    return { ...base, progress: 50, status: 'failed', error: 'ERROR: syntax error at or near "SELEC"' };
+  }
+  if (progress >= 100) return { ...base, status: 'done' };
+  return { ...base, status: elapsed < 1000 ? 'pending' : 'running' };
 }
 
 function publicUser({ password: _password, ...user }) {
@@ -189,6 +216,25 @@ const server = http.createServer(async (req, res) => {
       const result = runQuery(body);
       return send(res, result.status, result.body);
     }
+    if (action === 'scripts' && req.method === 'POST') {
+      const fileName = /filename="([^"]+)"/.exec(body.raw || '')?.[1] ?? 'script.sql';
+      const job = createJob('script', fileName);
+      return send(res, 202, jobView(job));
+    }
+  }
+
+  const jobRoute = /^\/api\/jobs\/([\w-]+)(?:\/(cancel))?$/.exec(path);
+  if (jobRoute) {
+    const job = jobs.get(jobRoute[1]);
+    if (!job) return send(res, 404, { error: 'Job não encontrado' });
+    if (jobRoute[2] === 'cancel' && req.method === 'POST') {
+      const view = jobView(job);
+      if (view.status === 'pending' || view.status === 'running') {
+        job.frozen = { ...view, status: 'failed', error: 'Cancelado pelo usuário' };
+      }
+      return send(res, 200, jobView(job));
+    }
+    return send(res, 200, jobView(job));
   }
 
   return send(res, 404, { error: 'Não encontrado' });

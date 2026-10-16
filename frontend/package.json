@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "mock": "node dev/mock-api.mjs",
     "build": "next build",
     "lint": "tsc --noEmit"
   },

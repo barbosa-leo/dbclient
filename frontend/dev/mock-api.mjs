@@ -195,7 +195,7 @@ const server = http.createServer(async (req, res) => {
     return send(res, 201, created);
   }
 
-  const connectionRoute = /^\/api\/connections\/(\d+)(?:\/(\w+))?$/.exec(path);
+  const connectionRoute = /^\/api\/connections\/(\d+)(?:\/([\w/]+))?$/.exec(path);
   if (connectionRoute) {
     const id = Number(connectionRoute[1]);
     const action = connectionRoute[2];
@@ -221,18 +221,44 @@ const server = http.createServer(async (req, res) => {
       const job = createJob('script', fileName);
       return send(res, 202, jobView(job));
     }
+    if (action === 'dumps/export' && req.method === 'POST') {
+      const conn = connections.find((c) => c.id === id);
+      const dbName = conn ? conn.database : 'database';
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      const job = createJob('dump_export', `${dbName}-${stamp}.sql`);
+      return send(res, 202, jobView(job));
+    }
+    if (action === 'dumps/import' && req.method === 'POST') {
+      const fileName = /filename="([^"]+)"/.exec(body.raw || '')?.[1] ?? 'dump.sql';
+      const job = createJob('dump_import', fileName);
+      return send(res, 202, jobView(job));
+    }
   }
 
-  const jobRoute = /^\/api\/jobs\/([\w-]+)(?:\/(cancel))?$/.exec(path);
+  const jobRoute = /^\/api\/jobs\/([\w-]+)(?:\/(cancel|download))?$/.exec(path);
   if (jobRoute) {
     const job = jobs.get(jobRoute[1]);
     if (!job) return send(res, 404, { error: 'Job não encontrado' });
-    if (jobRoute[2] === 'cancel' && req.method === 'POST') {
+    const subAction = jobRoute[2];
+    if (subAction === 'cancel' && req.method === 'POST') {
       const view = jobView(job);
       if (view.status === 'pending' || view.status === 'running') {
         job.frozen = { ...view, status: 'failed', error: 'Cancelado pelo usuário' };
       }
       return send(res, 200, jobView(job));
+    }
+    if (subAction === 'download' && req.method === 'GET') {
+      const view = jobView(job);
+      if (job.kind !== 'dump_export' || view.status !== 'done') {
+        return send(res, 409, { error: 'Dump ainda não está disponível para download' });
+      }
+      const sqlContent = `-- PostgreSQL database dump (${job.fileName})\nSET statement_timeout = 0;\nCREATE TABLE IF NOT EXISTS public.customers (id serial PRIMARY KEY, name text);\n`;
+      res.writeHead(200, {
+        'Content-Type': 'application/sql; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${job.fileName}"`,
+      });
+      res.end(sqlContent);
+      return;
     }
     return send(res, 200, jobView(job));
   }

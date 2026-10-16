@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
 import { isJobFinished } from '@/services/jobs';
 import type { Job, JobStatus } from '@/services/jobs';
@@ -13,9 +14,10 @@ interface JobStatusCardProps {
   job: Job;
   onCancel: () => void;
   canceling: boolean;
+  actions?: ReactNode;
 }
 
-export function JobStatusCard({ job, onCancel, canceling }: JobStatusCardProps) {
+export function JobStatusCard({ job, onCancel, canceling, actions }: JobStatusCardProps) {
   const finished = isJobFinished(job);
   const barColor = job.status === 'failed' ? 'bg-danger' : 'bg-primary';
 
@@ -26,11 +28,14 @@ export function JobStatusCard({ job, onCancel, canceling }: JobStatusCardProps) 
           <p className="font-medium text-brand-900">{job.fileName}</p>
           <p className="text-sm text-brand-700">{statusLabels[job.status]}</p>
         </div>
-        {!finished && (
-          <Button variant="danger" onClick={onCancel} disabled={canceling}>
-            {canceling ? 'Cancelando...' : 'Cancelar'}
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          {actions}
+          {!finished && (
+            <Button variant="danger" onClick={onCancel} disabled={canceling}>
+              {canceling ? 'Cancelando...' : 'Cancelar'}
+            </Button>
+          )}
+        </div>
       </div>
       <div
         role="progressbar"

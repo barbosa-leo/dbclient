@@ -138,7 +138,7 @@ function ExplorerContent() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex min-h-0 flex-1 flex-col gap-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
@@ -199,7 +199,7 @@ function ExplorerContent() {
         </div>
       </div>
 
-      <div ref={tableAnchorRef} className="flex flex-col gap-3">
+      <div ref={tableAnchorRef} className="flex min-h-0 flex-1 flex-col gap-3">
         {loading && <p className="text-xs font-medium text-ink-muted">Carregando...</p>}
 
         {error && (

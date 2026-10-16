@@ -8,7 +8,7 @@ function formatCell(value: unknown): string {
 export function ResultTable({ result }: { result: QueryResult }) {
   if (result.columns.length === 0) {
     return (
-      <p className="rounded-xl border border-line bg-panel p-5 text-xs font-medium text-ink shadow-card">
+      <p className="rounded-xl border border-line bg-panel p-4 text-xs font-medium text-ink shadow-card">
         Comando executado
         {result.rowsAffected !== null && ` — ${result.rowsAffected} linha(s) afetada(s)`} em{' '}
         <span className="font-mono font-semibold text-online">{result.durationMs} ms</span>.
@@ -17,12 +17,12 @@ export function ResultTable({ result }: { result: QueryResult }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-line bg-panel shadow-card">
-      <table className="w-full text-left font-mono text-[11px] leading-relaxed">
-        <thead className="border-b border-line bg-subtle font-sans text-xs font-medium text-ink-muted">
+    <div className="min-h-0 overflow-auto rounded-xl border border-line bg-panel shadow-card">
+      <table className="w-full text-left font-mono text-[11px] leading-tight">
+        <thead className="sticky top-0 z-10 border-b border-line bg-subtle font-sans text-[11px] font-medium text-ink-muted">
           <tr>
             {result.columns.map((column) => (
-              <th key={column} className="whitespace-nowrap px-4 py-2.5">
+              <th key={column} className="whitespace-nowrap px-3.5 py-1.5">
                 {column}
               </th>
             ))}
@@ -32,9 +32,9 @@ export function ResultTable({ result }: { result: QueryResult }) {
           {result.rows.map((row, rowIndex) => (
             <tr key={rowIndex} className="transition-colors hover:bg-muted/50">
               {row.map((cell, cellIndex) => (
-                <td key={cellIndex} className="whitespace-nowrap px-4 py-2 text-ink">
+                <td key={cellIndex} className="whitespace-nowrap px-3.5 py-1 text-ink">
                   {cell === null ? (
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-ink-muted">
+                    <span className="rounded bg-muted px-1 py-0.2 text-[10px] font-medium text-ink-muted">
                       NULL
                     </span>
                   ) : (
@@ -47,7 +47,7 @@ export function ResultTable({ result }: { result: QueryResult }) {
         </tbody>
       </table>
       {result.rows.length === 0 && (
-        <p className="p-6 text-center font-sans text-xs text-ink-muted">
+        <p className="p-5 text-center font-sans text-xs text-ink-muted">
           A consulta não retornou linhas.
         </p>
       )}

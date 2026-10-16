@@ -171,7 +171,7 @@ export function SidebarExplorer() {
   }
 
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-px leading-tight">
       {databases.map((db) => {
         const isOpen = Boolean(openDatabases[db]);
         const schemas = schemasByDb[db] ?? [];
@@ -183,7 +183,7 @@ export function SidebarExplorer() {
               type="button"
               onClick={() => toggleDatabase(db)}
               aria-expanded={isOpen}
-              className="flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 text-left font-mono text-xs text-ink-secondary transition-colors hover:bg-muted/70 hover:text-ink"
+              className="flex cursor-pointer items-center justify-between rounded-md px-2 py-1 text-left font-mono text-xs text-ink-secondary transition-colors hover:bg-muted/70 hover:text-ink"
             >
               <span className="flex items-center gap-1.5 truncate">
                 <svg
@@ -220,14 +220,14 @@ export function SidebarExplorer() {
             </button>
 
             {isOpen && (
-              <div className="ml-3 flex flex-col gap-0.5 border-l border-line py-0.5 pl-2">
+              <div className="ml-3 flex flex-col gap-px border-l border-line py-0.5 pl-2">
                 {isLoadingSchemas && (
-                  <span className="px-2 py-1 text-[11px] text-ink-muted">
+                  <span className="px-2 py-0.5 text-[11px] text-ink-muted">
                     Carregando schemas...
                   </span>
                 )}
                 {!isLoadingSchemas && schemas.length === 0 && (
-                  <span className="px-2 py-1 text-[11px] text-ink-muted">Nenhum schema</span>
+                  <span className="px-2 py-0.5 text-[11px] text-ink-muted">Nenhum schema</span>
                 )}
                 {!isLoadingSchemas &&
                   schemas.map((schema) => {
@@ -240,7 +240,7 @@ export function SidebarExplorer() {
                           type="button"
                           onClick={() => toggleSchema(db, schema.name)}
                           aria-expanded={schemaOpen}
-                          className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1 text-left font-mono text-[11px] text-ink-secondary transition-colors hover:bg-muted/70 hover:text-ink"
+                          className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-0.5 text-left font-mono text-[11px] text-ink-secondary transition-colors hover:bg-muted/70 hover:text-ink"
                         >
                           <span className="flex items-center gap-1.5 truncate">
                             <svg
@@ -275,7 +275,7 @@ export function SidebarExplorer() {
                         </button>
 
                         {schemaOpen && (
-                          <div className="ml-3 flex flex-col gap-0.5 border-l border-line py-0.5 pl-2">
+                          <div className="ml-3 flex flex-col gap-px border-l border-line py-0.5 pl-2">
                             {SCHEMA_CATEGORIES.map((category) => {
                               const categoryKey = `${db}:${schema.name}:${category.key}`;
                               const categoryOpen = Boolean(openCategories[categoryKey]);
@@ -289,7 +289,7 @@ export function SidebarExplorer() {
                                       toggleCategory(db, schema.name, category.key)
                                     }
                                     aria-expanded={categoryOpen}
-                                    className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1 text-left font-mono text-[11px] text-ink-secondary transition-colors hover:bg-muted/70 hover:text-ink"
+                                    className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-0.5 text-left font-mono text-[11px] text-ink-secondary transition-colors hover:bg-muted/70 hover:text-ink"
                                   >
                                     <span className="flex items-center gap-1.5 truncate">
                                       <svg
@@ -315,7 +315,7 @@ export function SidebarExplorer() {
                                   </button>
 
                                   {categoryOpen && (
-                                    <ul className="ml-3 flex flex-col gap-0.5 border-l border-line py-0.5 pl-2">
+                                    <ul className="ml-3 flex flex-col gap-px border-l border-line py-0.5 pl-2">
                                       {items.map((item) => {
                                         const isTabular =
                                           category.key === 'tables' ||
@@ -351,7 +351,7 @@ export function SidebarExplorer() {
                                             <Link
                                               href={href}
                                               aria-current={selected ? 'page' : undefined}
-                                              className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 font-mono text-[11px] transition-colors ${
+                                              className={`flex items-center justify-between gap-2 rounded-md px-2 py-0.5 font-mono text-[11px] transition-colors ${
                                                 selected
                                                   ? 'bg-cta font-semibold text-cta-fg'
                                                   : 'text-ink-secondary hover:bg-muted/70 hover:text-ink'
@@ -374,7 +374,7 @@ export function SidebarExplorer() {
                                         );
                                       })}
                                       {items.length === 0 && (
-                                        <li className="px-2 py-1 text-[11px] text-ink-muted">
+                                        <li className="px-2 py-0.5 text-[11px] text-ink-muted">
                                           Vazio
                                         </li>
                                       )}

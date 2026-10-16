@@ -63,7 +63,7 @@ export default function QueryPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-6">
       <PageHeader
         title="Editor SQL"
         description={
@@ -82,7 +82,7 @@ export default function QueryPage() {
         running={running}
         disabled={!active}
       />
-      <div ref={resultAnchorRef} className="flex flex-col gap-3">
+      <div ref={resultAnchorRef} className="flex min-h-0 flex-1 flex-col gap-3">
         {error && (
           <pre
             role="alert"

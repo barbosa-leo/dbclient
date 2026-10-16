@@ -20,8 +20,8 @@ export function clampRowLimit(value: number): number {
 
 export function calculateAutoRowLimit(topOffsetPx: number): number {
   if (typeof window === 'undefined') return MIN_ROW_LIMIT;
-  const chromeBelowRowsPx = 132;
-  const rowHeightPx = 35;
+  const chromeBelowRowsPx = 116;
+  const rowHeightPx = 25;
   const availablePx = window.innerHeight - topOffsetPx - chromeBelowRowsPx;
   return clampRowLimit(Math.floor(availablePx / rowHeightPx));
 }

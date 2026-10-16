@@ -36,7 +36,7 @@ export default function ConnectionsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
         <PageHeader title="Conexões" description="Cadastre e gerencie as conexões PostgreSQL." />
         {canManage && editing === null && <Button onClick={() => setEditing('new')}>Nova conexão</Button>}

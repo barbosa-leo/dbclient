@@ -10,26 +10,26 @@ interface UserListProps {
 
 export function UserList({ users, currentUserId, onEdit, onDelete }: UserListProps) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-line bg-panel shadow-card">
-      <table className="w-full text-left text-xs">
-        <thead className="border-b border-line bg-subtle text-xs font-medium text-ink-muted">
+    <div className="min-h-0 overflow-auto rounded-xl border border-line bg-panel shadow-card">
+      <table className="w-full text-left text-xs leading-tight">
+        <thead className="sticky top-0 z-10 border-b border-line bg-subtle text-[11px] font-medium text-ink-muted">
           <tr>
-            <th className="px-5 py-3">Usuário</th>
-            <th className="px-5 py-3">Papel</th>
-            <th className="px-5 py-3">Situação</th>
-            <th className="px-5 py-3 text-right">Ações</th>
+            <th className="px-4 py-1.5">Usuário</th>
+            <th className="px-4 py-1.5">Papel</th>
+            <th className="px-4 py-1.5">Situação</th>
+            <th className="px-4 py-1.5 text-right">Ações</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
           {users.map((user) => (
             <tr key={user.id} className="transition-colors hover:bg-muted/50">
-              <td className="px-5 py-3 font-semibold text-ink">{user.username}</td>
-              <td className="px-5 py-3">
-                <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-ink-secondary uppercase">
+              <td className="px-4 py-1.5 font-semibold text-ink">{user.username}</td>
+              <td className="px-4 py-1.5">
+                <span className="rounded bg-muted px-1.5 py-0.2 text-[10px] font-medium text-ink-secondary uppercase">
                   {user.role}
                 </span>
               </td>
-              <td className="px-5 py-3 text-[11px] text-ink-secondary">
+              <td className="px-4 py-1.5 text-[11px] text-ink-secondary">
                 {user.mustChangePassword ? (
                   <span className="text-ink-muted">Troca de senha pendente</span>
                 ) : (
@@ -39,12 +39,17 @@ export function UserList({ users, currentUserId, onEdit, onDelete }: UserListPro
                   </span>
                 )}
               </td>
-              <td className="flex justify-end gap-2 px-5 py-2.5">
-                <Button variant="secondary" onClick={() => onEdit(user)}>
+              <td className="flex justify-end gap-1.5 px-4 py-1">
+                <Button
+                  variant="secondary"
+                  className="px-2.5 py-1 text-[11px]"
+                  onClick={() => onEdit(user)}
+                >
                   Editar
                 </Button>
                 <Button
                   variant="danger"
+                  className="px-2.5 py-1 text-[11px]"
                   disabled={user.id === currentUserId}
                   onClick={() => onDelete(user)}
                 >

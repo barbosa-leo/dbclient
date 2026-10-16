@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { ConnectionForm } from '@/components/connections/ConnectionForm';
 import { ConnectionList } from '@/components/connections/ConnectionList';
-import { useConnections } from '@/components/connections/useConnections';
+import { useConnections } from '@/components/connections/ConnectionsProvider';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { deleteConnection } from '@/services/connections';

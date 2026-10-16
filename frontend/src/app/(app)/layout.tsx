@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
+import { ConnectionsProvider } from '@/components/connections/ConnectionsProvider';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 
@@ -20,12 +21,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   if (user.mustChangePassword) return <ChangePasswordForm />;
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar />
-        <main className="flex-1 p-6">{children}</main>
+    <ConnectionsProvider>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Topbar />
+          <main className="flex-1 p-6">{children}</main>
+        </div>
       </div>
-    </div>
+    </ConnectionsProvider>
   );
 }

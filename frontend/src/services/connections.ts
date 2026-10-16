@@ -45,3 +45,7 @@ export function updateConnection(id: number, input: ConnectionInput) {
 export function deleteConnection(id: number) {
   return apiRequest<void>(`/connections/${id}`, { method: 'DELETE' });
 }
+
+export function listDatabases(connectionId: number) {
+  return apiRequest<string[]>(`/connections/${connectionId}/databases`);
+}

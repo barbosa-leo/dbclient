@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
+import { useConnectionDatabases } from '@/components/connections/useConnectionDatabases';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ResultTable } from '@/components/query/ResultTable';
 import { RowLimitSelector } from '@/components/query/RowLimitSelector';
@@ -16,8 +17,10 @@ import type { QueryResult } from '@/services/query';
 
 export default function QueryPage() {
   const { active } = useConnections();
+  const { databases, selectedDatabase, setSelectedDatabase } = useConnectionDatabases(active);
   const [sql, setSql] = useState('');
   const [executedSql, setExecutedSql] = useState('');
+  const [executedDatabase, setExecutedDatabase] = useState('');
   const [result, setResult] = useState<QueryResult | null>(null);
   const [autoLimit, setAutoLimit] = useState(MIN_ROW_LIMIT);
   const [limit, setLimit] = useState(MIN_ROW_LIMIT);
@@ -42,14 +45,15 @@ export default function QueryPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, [measureAutoLimit]);
 
-  async function run(statement: string, targetLimit: number) {
-    if (!active || !statement.trim()) return;
+  async function run(statement: string, targetLimit: number, targetDatabase: string) {
+    if (!active || !targetDatabase || !statement.trim()) return;
     const clamped = clampRowLimit(targetLimit);
     setRunning(true);
     setError(null);
     try {
-      setResult(await executeQuery(active.id, statement, clamped));
+      setResult(await executeQuery(active.id, statement, clamped, targetDatabase));
       setExecutedSql(statement);
+      setExecutedDatabase(targetDatabase);
       setLimit(clamped);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao executar a consulta');
@@ -64,14 +68,17 @@ export default function QueryPage() {
         title="Editor SQL"
         description={
           active
-            ? `Executando em ${active.name} (${active.database}).`
+            ? `Executando na conexão ${active.name}${selectedDatabase ? ` (${selectedDatabase})` : ''}.`
             : 'Cadastre e selecione uma conexão para executar consultas.'
         }
       />
       <SqlEditor
         value={sql}
         onChange={setSql}
-        onRun={() => run(sql, limit)}
+        databases={databases}
+        selectedDatabase={selectedDatabase}
+        onSelectDatabase={setSelectedDatabase}
+        onRun={() => run(sql, limit, selectedDatabase)}
         running={running}
         disabled={!active}
       />
@@ -79,7 +86,7 @@ export default function QueryPage() {
         {error && (
           <pre
             role="alert"
-            className="whitespace-pre-wrap rounded-xl border border-danger bg-white p-4 font-mono text-xs text-danger"
+            className="whitespace-pre-wrap rounded-xl border border-danger/50 bg-panel p-4 font-mono text-xs text-danger"
           >
             {error}
           </pre>
@@ -93,7 +100,9 @@ export default function QueryPage() {
                 autoValue={autoLimit}
                 rowCount={result.rows.length}
                 disabled={running}
-                onChange={(next) => run(executedSql, next)}
+                onChange={(next) =>
+                  run(executedSql, next, executedDatabase || selectedDatabase)
+                }
               />
             )}
           </>

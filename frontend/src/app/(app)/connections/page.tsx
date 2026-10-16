@@ -58,7 +58,7 @@ export default function ConnectionsPage() {
       )}
 
       {loading ? (
-        <p className="text-sm text-brand-700">Carregando...</p>
+        <p className="text-xs text-ink-muted">Carregando...</p>
       ) : (
         <ConnectionList
           connections={connections}

@@ -26,9 +26,18 @@ export function calculateAutoRowLimit(topOffsetPx: number): number {
   return clampRowLimit(Math.floor(availablePx / rowHeightPx));
 }
 
-export function executeQuery(connectionId: number, sql: string, limit: number) {
+export function executeQuery(
+  connectionId: number,
+  sql: string,
+  limit: number,
+  database?: string,
+) {
   return apiRequest<QueryResult>(`/connections/${connectionId}/query`, {
     method: 'POST',
-    body: JSON.stringify({ sql, limit: clampRowLimit(limit) }),
+    body: JSON.stringify({
+      sql,
+      limit: clampRowLimit(limit),
+      ...(database ? { database } : {}),
+    }),
   });
 }

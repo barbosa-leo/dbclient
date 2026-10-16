@@ -13,7 +13,7 @@ export function TextField({ label, error, ...props }: TextFieldProps) {
     <div className="flex flex-col gap-1.5">
       <label
         htmlFor={id}
-        className="font-display text-[11px] font-semibold tracking-wider text-brand-700 uppercase"
+        className="text-xs font-medium text-ink-secondary"
       >
         {label}
       </label>
@@ -21,8 +21,10 @@ export function TextField({ label, error, ...props }: TextFieldProps) {
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className={`rounded-lg border bg-white/90 px-3.5 py-2 text-sm text-brand-900 shadow-xs transition-all outline-none focus:bg-white focus:ring-2 focus:ring-accent/60 ${
-          error ? 'border-danger' : 'border-brand-300/70 focus:border-primary'
+        className={`rounded-lg border bg-panel px-3 py-2 text-xs text-ink transition-colors outline-none focus:ring-1 ${
+          error
+            ? 'border-danger focus:ring-danger'
+            : 'border-line focus:border-line-strong focus:ring-line-strong'
         }`}
         {...props}
       />

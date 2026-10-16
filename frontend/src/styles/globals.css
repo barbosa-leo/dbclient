@@ -1,34 +1,66 @@
 @import 'tailwindcss';
 
-@theme {
-  --color-brand-50: #ebf0fa;
-  --color-brand-300: #99b6e6;
-  --color-brand-500: #477cd1;
-  --color-brand-700: #244d8f;
-  --color-brand-900: #0f213d;
+:root {
+  --bg-canvas: #fafafa;
+  --bg-surface: #ffffff;
+  --bg-muted: #f4f4f5;
+  --bg-subtle: #f8f8f9;
+  --border-line: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --fg-primary: #09090b;
+  --fg-secondary: #52525b;
+  --fg-muted: #71717a;
+  --cta-bg: #18181b;
+  --cta-bg-hover: #27272a;
+  --cta-fg: #ffffff;
+  --status-online: #10b981;
+  --status-danger: #f43f5e;
+}
 
-  --color-surface: var(--color-brand-50);
-  --color-ink: var(--color-brand-900);
-  --color-primary: var(--color-brand-500);
-  --color-primary-strong: var(--color-brand-700);
-  --color-accent: var(--color-brand-300);
-  --color-danger: #b42318;
+.dark {
+  --bg-canvas: #0d0d0f;
+  --bg-surface: #161618;
+  --bg-muted: #222226;
+  --bg-subtle: #1b1b1f;
+  --border-line: #27272a;
+  --border-strong: #3f3f46;
+  --fg-primary: #fafafa;
+  --fg-secondary: #a1a1aa;
+  --fg-muted: #71717a;
+  --cta-bg: #f4f4f5;
+  --cta-bg-hover: #ffffff;
+  --cta-fg: #09090b;
+  --status-online: #10b981;
+  --status-danger: #f43f5e;
+}
+
+@theme inline {
+  --color-canvas: var(--bg-canvas);
+  --color-panel: var(--bg-surface);
+  --color-muted: var(--bg-muted);
+  --color-subtle: var(--bg-subtle);
+  --color-line: var(--border-line);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--fg-primary);
+  --color-ink-secondary: var(--fg-secondary);
+  --color-ink-muted: var(--fg-muted);
+  --color-cta: var(--cta-bg);
+  --color-cta-hover: var(--cta-bg-hover);
+  --color-cta-fg: var(--cta-fg);
+  --color-online: var(--status-online);
+  --color-danger: var(--status-danger);
 
   --font-sans: var(--font-inter), system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: var(--font-montserrat), var(--font-inter), sans-serif;
+  --font-display: var(--font-inter), system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
 
-  --shadow-card: 0 10px 30px -10px rgba(15, 33, 61, 0.08), 0 4px 12px -4px rgba(15, 33, 61, 0.04);
-  --shadow-card-hover: 0 18px 38px -12px rgba(15, 33, 61, 0.14), 0 6px 16px -6px rgba(15, 33, 61, 0.06);
-  --shadow-glow: 0 6px 20px -3px rgba(71, 124, 209, 0.45);
+  --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  --shadow-card-hover: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
 }
 
 @layer base {
   body {
-    @apply bg-surface text-ink font-sans antialiased selection:bg-brand-500 selection:text-white;
-    background-image:
-      radial-gradient(circle at 15% 0%, rgba(153, 182, 230, 0.35), transparent 45%),
-      radial-gradient(circle at 85% 100%, rgba(71, 124, 209, 0.12), transparent 50%);
-    background-attachment: fixed;
+    @apply bg-canvas text-ink font-sans antialiased selection:bg-cta selection:text-cta-fg;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 }

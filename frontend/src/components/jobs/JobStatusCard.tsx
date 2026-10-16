@@ -19,15 +19,22 @@ interface JobStatusCardProps {
 
 export function JobStatusCard({ job, onCancel, canceling, actions }: JobStatusCardProps) {
   const finished = isJobFinished(job);
-  const barColor = job.status === 'failed' ? 'bg-danger' : 'bg-gradient-to-r from-brand-500 to-brand-700';
+  const barColor = job.status === 'failed' ? 'bg-danger' : 'bg-cta';
 
   return (
-    <div className="rounded-2xl border border-brand-300/60 bg-white/95 p-6 shadow-card backdrop-blur-sm">
+    <div className="rounded-xl border border-line bg-panel p-5 shadow-card">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="font-mono text-xs font-semibold text-brand-900">{job.fileName}</p>
-          <p className="mt-0.5 font-display text-[11px] font-semibold tracking-wider text-brand-700 uppercase">
-            {statusLabels[job.status]} · {job.progress}%
+          <p className="font-mono text-xs font-semibold text-ink">{job.fileName}</p>
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-muted">
+            <span
+              className={`font-semibold ${
+                job.status === 'failed' ? 'text-danger' : 'text-online'
+              }`}
+            >
+              {job.progress}%
+            </span>
+            <span>{statusLabels[job.status]}</span>
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -44,12 +51,12 @@ export function JobStatusCard({ job, onCancel, canceling, actions }: JobStatusCa
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={job.progress}
-        className="mt-4 h-2 overflow-hidden rounded-full bg-brand-50"
+        className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted"
       >
-        <div className={`h-full transition-all duration-300 ${barColor}`} style={{ width: `${job.progress}%` }} />
+        <div className={`h-full rounded-full transition-all duration-300 ${barColor}`} style={{ width: `${job.progress}%` }} />
       </div>
       {job.error && (
-        <pre className="mt-4 whitespace-pre-wrap rounded-xl bg-brand-50/60 p-3 font-mono text-[11px] text-danger">
+        <pre className="mt-4 whitespace-pre-wrap rounded-lg border border-line bg-subtle p-3 font-mono text-[11px] text-danger">
           {job.error}
         </pre>
       )}

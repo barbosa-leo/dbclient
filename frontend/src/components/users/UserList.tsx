@@ -10,27 +10,34 @@ interface UserListProps {
 
 export function UserList({ users, currentUserId, onEdit, onDelete }: UserListProps) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-brand-300/60 bg-white/95 shadow-card backdrop-blur-sm">
+    <div className="overflow-x-auto rounded-xl border border-line bg-panel shadow-card">
       <table className="w-full text-left text-xs">
-        <thead className="border-b border-brand-300/50 bg-brand-50/70 font-display text-[10px] font-semibold tracking-wider text-brand-700 uppercase">
+        <thead className="border-b border-line bg-subtle text-xs font-medium text-ink-muted">
           <tr>
-            <th className="px-5 py-3.5">Usuário</th>
-            <th className="px-5 py-3.5">Papel</th>
-            <th className="px-5 py-3.5">Situação</th>
-            <th className="px-5 py-3.5 text-right">Ações</th>
+            <th className="px-5 py-3">Usuário</th>
+            <th className="px-5 py-3">Papel</th>
+            <th className="px-5 py-3">Situação</th>
+            <th className="px-5 py-3 text-right">Ações</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-brand-300/35">
+        <tbody className="divide-y divide-line">
           {users.map((user) => (
-            <tr key={user.id} className="transition-colors hover:bg-brand-50/50">
-              <td className="px-5 py-3 font-semibold text-brand-900">{user.username}</td>
+            <tr key={user.id} className="transition-colors hover:bg-muted/50">
+              <td className="px-5 py-3 font-semibold text-ink">{user.username}</td>
               <td className="px-5 py-3">
-                <span className="rounded-full border border-brand-300/60 bg-brand-50 px-2.5 py-0.5 font-display text-[10px] font-semibold tracking-wider text-brand-700 uppercase">
+                <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-ink-secondary uppercase">
                   {user.role}
                 </span>
               </td>
-              <td className="px-5 py-3 text-[11px] text-brand-700">
-                {user.mustChangePassword ? 'Troca de senha pendente' : 'Ativo'}
+              <td className="px-5 py-3 text-[11px] text-ink-secondary">
+                {user.mustChangePassword ? (
+                  <span className="text-ink-muted">Troca de senha pendente</span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-ink">
+                    <span className="h-1.5 w-1.5 rounded-full bg-online" />
+                    Ativo
+                  </span>
+                )}
               </td>
               <td className="flex justify-end gap-2 px-5 py-2.5">
                 <Button variant="secondary" onClick={() => onEdit(user)}>

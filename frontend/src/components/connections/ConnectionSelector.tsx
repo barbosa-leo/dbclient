@@ -12,7 +12,7 @@ export function ConnectionSelector() {
     return (
       <Link
         href="/connections"
-        className="text-xs font-medium text-primary-strong underline decoration-brand-300 underline-offset-4 hover:text-brand-900"
+        className="text-xs font-medium text-ink-secondary underline decoration-line-strong underline-offset-4 hover:text-ink"
       >
         Nenhuma conexão cadastrada
       </Link>
@@ -20,14 +20,12 @@ export function ConnectionSelector() {
   }
 
   return (
-    <label className="flex items-center gap-2.5">
-      <span className="font-display text-[10px] font-semibold tracking-widest text-brand-700/80 uppercase">
-        Conexão
-      </span>
+    <label className="flex items-center gap-2">
+      <span className="text-xs font-medium text-ink-muted">Conexão</span>
       <select
         value={active?.id ?? ''}
         onChange={(e) => selectConnection(Number(e.target.value))}
-        className="cursor-pointer rounded-lg border border-brand-300/70 bg-white px-3 py-1.5 text-xs font-medium text-brand-900 shadow-xs transition-all outline-none hover:border-brand-500/60 focus:border-primary focus:ring-2 focus:ring-accent/60"
+        className="h-8 cursor-pointer rounded-lg border border-line bg-panel px-2.5 text-xs font-medium text-ink transition-colors outline-none hover:bg-muted focus:border-line-strong"
       >
         {connections.map((connection) => (
           <option key={connection.id} value={connection.id}>

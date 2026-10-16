@@ -1,82 +1,194 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Suspense } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { SidebarSchemas } from '@/components/layout/SidebarSchemas';
 import { navSections } from '@/components/layout/navigation';
+import type { NavIconName } from '@/components/layout/navigation';
+
+function NavIcon({ name }: { name: NavIconName }) {
+  switch (name) {
+    case 'schemas':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-[18px] w-[18px] shrink-0">
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        </svg>
+      );
+    case 'query':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-[18px] w-[18px] shrink-0">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="m8 10 3 2.5L8 15" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M13 15h3" strokeLinecap="round" />
+        </svg>
+      );
+    case 'scripts':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-[18px] w-[18px] shrink-0">
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" strokeLinejoin="round" />
+          <path d="M14 3v5h5" strokeLinejoin="round" />
+          <path d="M9 13h6M9 17h4" strokeLinecap="round" />
+        </svg>
+      );
+    case 'dumps':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-[18px] w-[18px] shrink-0">
+          <path d="M12 3 4 7.5 12 12l8-4.5L12 3Z" strokeLinejoin="round" />
+          <path d="M4 12.5 12 17l8-4.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M4 17 12 21.5 20 17" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case 'connections':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-[18px] w-[18px] shrink-0">
+          <rect x="3" y="4" width="18" height="6" rx="1.5" />
+          <rect x="3" y="14" width="18" height="6" rx="1.5" />
+          <circle cx="7" cy="7" r="1" fill="currentColor" />
+          <circle cx="7" cy="17" r="1" fill="currentColor" />
+        </svg>
+      );
+    case 'users':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-[18px] w-[18px] shrink-0">
+          <circle cx="9" cy="8" r="3.5" />
+          <path d="M3.5 19.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" strokeLinecap="round" />
+          <circle cx="17" cy="9.5" r="2.5" />
+          <path d="M16 14.8c2.2.3 4 1.8 4 4.2" strokeLinecap="round" />
+        </svg>
+      );
+  }
+}
+
+function TooltipBadge({ label, category }: { label: string; category: string }) {
+  return (
+    <span
+      role="tooltip"
+      className="pointer-events-none absolute top-1/2 left-full z-50 ml-3 flex -translate-y-1/2 translate-x-1 items-center gap-1.5 whitespace-nowrap rounded-lg bg-cta px-2.5 py-1.5 text-xs font-medium text-cta-fg opacity-0 shadow-card-hover transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100"
+    >
+      <span
+        aria-hidden="true"
+        className="absolute top-1/2 -left-1 h-2 w-2 -translate-y-1/2 rotate-45 bg-cta"
+      />
+      <span className="relative">{label}</span>
+      <span className="relative rounded bg-cta-fg/15 px-1.5 py-0.2 text-[9px] font-semibold tracking-wider text-cta-fg/80 uppercase">
+        {category}
+      </span>
+    </span>
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuth();
+  const [schemasDrawerOpen, setSchemasDrawerOpen] = useState(true);
+
+  const visibleSections = navSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) => !item.roles || (user && item.roles.includes(user.role)),
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
+
+  const showSecondarySchemasBar = schemasDrawerOpen && pathname.startsWith('/schemas');
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-brand-700/40 bg-gradient-to-b from-brand-900 via-brand-900 to-brand-700/95 text-brand-50 shadow-2xl">
-      <div className="flex items-center gap-3 border-b border-brand-700/40 px-6 py-5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 font-display text-xs font-bold tracking-wider text-white shadow-glow">
-          DB
-        </span>
-        <div className="flex flex-col">
-          <span className="font-display text-base font-bold tracking-tight text-white">
-            DBClient
-          </span>
-          <span className="text-[10px] font-medium tracking-widest text-brand-300/70 uppercase">
-            PostgreSQL Studio
-          </span>
-        </div>
-      </div>
+    <div className="flex shrink-0">
+      <aside className="relative z-30 flex w-14 shrink-0 flex-col items-center border-r border-line bg-panel py-4">
+        <nav className="flex flex-1 flex-col items-center gap-2">
+          {visibleSections.map((section, sectionIndex) => (
+            <div key={section.title} className="flex flex-col items-center gap-1.5">
+              {sectionIndex > 0 && (
+                <span
+                  aria-hidden="true"
+                  className="py-1 font-mono text-xs tracking-widest text-ink-muted select-none"
+                >
+                  ...
+                </span>
+              )}
 
-      <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3.5 py-6">
-        {navSections.map((section) => {
-          const visibleItems = section.items.filter(
-            (item) => !item.roles || (user && item.roles.includes(user.role)),
-          );
-          if (visibleItems.length === 0) return null;
+              <div className="flex flex-col items-center gap-1">
+                {section.items.map((item) => {
+                  const active = pathname.startsWith(item.href);
 
-          return (
-            <div key={section.title} className="flex flex-col gap-1.5">
-              <span className="px-3 font-display text-[10px] font-medium tracking-[0.22em] text-brand-300/65 uppercase">
-                {section.title}
-              </span>
-              <div className="flex flex-col gap-0.5">
-                {visibleItems.map((item) => {
                   if (item.kind === 'schemas') {
                     return (
-                      <Suspense key={item.href} fallback={null}>
-                        <SidebarSchemas />
-                      </Suspense>
+                      <button
+                        key={item.href}
+                        type="button"
+                        aria-label={item.label}
+                        onClick={() => {
+                          if (pathname.startsWith('/schemas')) {
+                            setSchemasDrawerOpen((prev) => !prev);
+                          } else {
+                            setSchemasDrawerOpen(true);
+                            router.push('/schemas');
+                          }
+                        }}
+                        className={`group relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg transition-colors ${
+                          active
+                            ? 'bg-muted text-ink'
+                            : 'text-ink-muted hover:bg-muted/70 hover:text-ink'
+                        }`}
+                      >
+                        <NavIcon name={item.icon} />
+                        <TooltipBadge label={item.label} category={section.title} />
+                      </button>
                     );
                   }
 
-                  const active = pathname.startsWith(item.href);
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
+                      aria-label={item.label}
                       aria-current={active ? 'page' : undefined}
-                      className={`group flex items-center justify-between rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200 ${
+                      className={`group relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
                         active
-                          ? 'bg-gradient-to-r from-brand-500 to-brand-700/90 text-white shadow-glow'
-                          : 'text-brand-50/75 hover:bg-brand-700/35 hover:text-white'
+                          ? 'bg-muted text-ink'
+                          : 'text-ink-muted hover:bg-muted/70 hover:text-ink'
                       }`}
                     >
-                      <span>{item.label}</span>
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full transition-all ${
-                          active
-                            ? 'bg-white shadow-[0_0_8px_#ffffff]'
-                            : 'bg-transparent group-hover:bg-brand-300/50'
-                        }`}
-                      />
+                      <NavIcon name={item.icon} />
+                      <TooltipBadge label={item.label} category={section.title} />
                     </Link>
                   );
                 })}
               </div>
             </div>
-          );
-        })}
-      </nav>
-    </aside>
+          ))}
+        </nav>
+      </aside>
+
+      {showSecondarySchemasBar && (
+        <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-panel px-3 py-4">
+          <div className="mb-3 flex items-center justify-between px-2">
+            <span className="text-xs font-semibold tracking-tight text-ink">Schemas</span>
+            <button
+              type="button"
+              aria-label="Ocultar painel de schemas"
+              onClick={() => setSchemasDrawerOpen(false)}
+              className="cursor-pointer rounded-md p-1 text-ink-muted transition-colors hover:bg-muted hover:text-ink"
+            >
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-3.5 w-3.5">
+                <path d="M10 4 6 8l4 4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <Suspense fallback={null}>
+              <SidebarSchemas />
+            </Suspense>
+          </div>
+        </aside>
+      )}
+    </div>
   );
 }

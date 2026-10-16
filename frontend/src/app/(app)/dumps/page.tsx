@@ -79,7 +79,7 @@ export default function DumpsPage() {
       <a
         href={getDumpDownloadUrl(job.id)}
         download={job.fileName}
-        className="rounded-lg bg-gradient-to-r from-brand-500 to-brand-700 px-4 py-2 text-xs font-semibold tracking-wide text-white shadow-glow transition-all hover:from-brand-700 hover:to-brand-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="rounded-lg bg-cta px-3.5 py-2 text-xs font-medium text-cta-fg transition-colors hover:bg-cta-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-line-strong"
       >
         Baixar .sql
       </a>
@@ -96,17 +96,17 @@ export default function DumpsPage() {
         }
       />
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <section className="flex flex-col justify-between gap-4 rounded-2xl border border-brand-300/60 bg-white/95 p-6 shadow-card transition-shadow hover:shadow-card-hover">
+      <div className="grid gap-5 md:grid-cols-2">
+        <section className="flex flex-col justify-between gap-4 rounded-xl border border-line bg-panel p-5 shadow-card">
           <div className="flex flex-col gap-2">
-            <h2 className="font-display text-base font-bold tracking-tight text-brand-900">
+            <h2 className="text-sm font-semibold tracking-tight text-ink">
               Exportar dump
             </h2>
-            <p className="text-xs leading-relaxed text-brand-700">
+            <p className="text-xs leading-relaxed text-ink-secondary">
               Gera um arquivo .sql em formato SQL puro via pg_dump. A exportação é abortada se o
               arquivo ultrapassar 50 MB.
             </p>
-            <p className="text-[11px] text-brand-700/80">
+            <p className="text-[11px] text-ink-muted">
               Arquivos temporários expiram após o TTL configurado e não sobrevivem à reinicialização
               do container.
             </p>
@@ -120,23 +120,23 @@ export default function DumpsPage() {
 
         <form
           onSubmit={handleImport}
-          className="flex flex-col justify-between gap-4 rounded-2xl border border-brand-300/60 bg-white/95 p-6 shadow-card transition-shadow hover:shadow-card-hover"
+          className="flex flex-col justify-between gap-4 rounded-xl border border-line bg-panel p-5 shadow-card"
         >
           <div className="flex flex-col gap-3">
-            <h2 className="font-display text-base font-bold tracking-tight text-brand-900">
+            <h2 className="text-sm font-semibold tracking-tight text-ink">
               Importar dump
             </h2>
-            <label className="flex flex-col gap-2 font-display text-[11px] font-semibold tracking-wider text-brand-700 uppercase">
+            <label className="flex flex-col gap-2 text-xs font-medium text-ink-secondary">
               Arquivo .sql (até 50 MB)
               <input
                 type="file"
                 accept=".sql"
                 disabled={running}
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="font-sans text-xs font-normal text-brand-900 file:mr-4 file:cursor-pointer file:rounded-lg file:border file:border-brand-300/60 file:bg-brand-50 file:px-3.5 file:py-1.5 file:text-xs file:font-semibold file:text-brand-700 hover:file:bg-brand-300/30"
+                className="font-sans text-xs font-normal text-ink file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-line file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink hover:file:bg-line"
               />
             </label>
-            <p className="text-[11px] text-brand-700/80">
+            <p className="text-[11px] text-ink-muted">
               Restaura o dump na conexão selecionada em uma única transação com ON_ERROR_STOP.
             </p>
           </div>

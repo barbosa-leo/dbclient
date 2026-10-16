@@ -22,11 +22,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <ConnectionsProvider>
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <Topbar />
-          <main className="mx-auto w-full max-w-6xl flex-1 p-8">{children}</main>
+      <div className="flex min-h-screen flex-col bg-canvas">
+        <Topbar />
+        <div className="flex min-h-0 flex-1">
+          <Sidebar />
+          <main className="mx-auto w-full max-w-7xl min-w-0 flex-1 p-6">{children}</main>
         </div>
       </div>
     </ConnectionsProvider>

@@ -79,19 +79,17 @@ export function RowLimitSelector({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-      <span className="font-mono text-[11px] text-brand-700/85">
-        Exibindo <strong className="font-semibold text-brand-900">{rowCount}</strong> linha(s)
+      <span className="font-mono text-[11px] text-ink-muted">
+        Exibindo <strong className="font-semibold text-ink">{rowCount}</strong> linha(s)
       </span>
 
       <div className="flex items-center gap-2.5">
-        <span className="font-display text-[10px] font-semibold tracking-wider text-brand-700 uppercase">
-          Linhas (limit)
-        </span>
+        <span className="text-xs font-medium text-ink-secondary">Linhas (limit)</span>
 
         <div ref={containerRef} className="relative">
-          <div className="flex items-center rounded-xl border border-brand-300/80 bg-white shadow-xs transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-accent/60">
+          <div className="flex items-center rounded-lg border border-line bg-panel transition-colors focus-within:border-line-strong">
             {isAuto && (
-              <span className="ml-2.5 rounded bg-brand-50 px-1.5 py-0.5 font-display text-[9px] font-semibold tracking-wider text-brand-500 uppercase">
+              <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-online">
                 Auto
               </span>
             )}
@@ -105,7 +103,7 @@ export function RowLimitSelector({
               onChange={(e) => setDraft(e.target.value.replace(/[^\d]/g, ''))}
               onBlur={() => commitValue(draft)}
               onKeyDown={handleKeyDown}
-              className="w-20 bg-transparent px-2.5 py-1.5 font-mono text-xs font-semibold text-brand-900 outline-none disabled:opacity-50"
+              className="w-20 bg-transparent px-2.5 py-1.5 font-mono text-xs font-semibold text-ink outline-none disabled:opacity-50"
             />
             <button
               type="button"
@@ -116,7 +114,7 @@ export function RowLimitSelector({
                 e.preventDefault();
                 setOpen((prev) => !prev);
               }}
-              className="cursor-pointer border-l border-brand-300/50 px-2 py-1.5 text-brand-700 transition-colors hover:text-brand-900 disabled:opacity-50"
+              className="cursor-pointer border-l border-line px-2 py-1.5 text-ink-muted transition-colors hover:text-ink disabled:opacity-50"
             >
               <svg
                 viewBox="0 0 16 16"
@@ -139,7 +137,7 @@ export function RowLimitSelector({
             <div
               role="listbox"
               aria-label="Opções de limite"
-              className="absolute right-0 bottom-full z-20 mb-1.5 max-h-60 w-44 overflow-y-auto rounded-xl border border-brand-300/70 bg-white/98 p-1 shadow-card-hover backdrop-blur-md"
+              className="absolute right-0 bottom-full z-20 mb-1.5 max-h-60 w-44 overflow-y-auto rounded-xl border border-line bg-panel p-1 shadow-card-hover"
             >
               <button
                 type="button"
@@ -151,17 +149,15 @@ export function RowLimitSelector({
                 }}
                 className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-2.5 py-1.5 text-left font-mono text-[11px] transition-colors ${
                   isAuto
-                    ? 'bg-brand-50 font-semibold text-brand-900'
-                    : 'text-brand-700 hover:bg-brand-50/60 hover:text-brand-900'
+                    ? 'bg-muted font-semibold text-ink'
+                    : 'text-ink-secondary hover:bg-muted/70 hover:text-ink'
                 }`}
               >
                 <span>Auto ({autoValue})</span>
-                <span className="font-display text-[9px] font-semibold tracking-wider text-brand-500 uppercase">
-                  Tela
-                </span>
+                <span className="font-sans text-[10px] font-medium text-online">Tela</span>
               </button>
 
-              <div className="my-1 border-t border-brand-300/35" />
+              <div className="my-1 border-t border-line" />
 
               {ROW_LIMIT_PRESETS.map((preset) => {
                 const selected = value === preset && !isAuto;
@@ -177,12 +173,12 @@ export function RowLimitSelector({
                     }}
                     className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-2.5 py-1.5 text-left font-mono text-[11px] transition-colors ${
                       value === preset
-                        ? 'bg-brand-50 font-semibold text-brand-900'
-                        : 'text-brand-700 hover:bg-brand-50/60 hover:text-brand-900'
+                        ? 'bg-muted font-semibold text-ink'
+                        : 'text-ink-secondary hover:bg-muted/70 hover:text-ink'
                     }`}
                   >
                     <span>{preset.toLocaleString('pt-BR')}</span>
-                    {selected && <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />}
+                    {selected && <span className="h-1.5 w-1.5 rounded-full bg-online" />}
                   </button>
                 );
               })}
@@ -190,7 +186,7 @@ export function RowLimitSelector({
           )}
         </div>
 
-        <span className="hidden font-mono text-[10px] text-brand-700/70 sm:inline">
+        <span className="hidden font-mono text-[10px] text-ink-muted sm:inline">
           ({MIN_ROW_LIMIT}–{MAX_ROW_LIMIT.toLocaleString('pt-BR')})
         </span>
       </div>

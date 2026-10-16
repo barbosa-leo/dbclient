@@ -119,11 +119,9 @@ function SchemasContent() {
               : 'Cadastre e selecione uma conexão para explorar os schemas.'
           }
         />
-        <div className="rounded-2xl border border-dashed border-brand-300/80 bg-white/60 p-12 text-center shadow-card">
-          <p className="font-display text-xs font-semibold tracking-wider text-brand-700 uppercase">
-            Nenhuma tabela selecionada
-          </p>
-          <p className="mt-1.5 text-xs text-brand-700/85">
+        <div className="rounded-xl border border-dashed border-line bg-panel p-12 text-center shadow-card">
+          <p className="text-sm font-semibold text-ink">Nenhuma tabela selecionada</p>
+          <p className="mt-1 text-xs text-ink-muted">
             Abra <strong>Schemas</strong> na barra lateral, escolha um schema e clique em uma tabela
             para visualizar seus dados e estrutura.
           </p>
@@ -133,38 +131,38 @@ function SchemasContent() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="font-mono text-xl font-bold tracking-tight text-brand-900">
-              <span className="text-brand-700/75">{schema}.</span>
+            <h1 className="font-mono text-xl font-bold tracking-tight text-ink">
+              <span className="text-ink-muted">{schema}.</span>
               {table}
             </h1>
-            <span className="rounded-full border border-brand-300/60 bg-white px-2.5 py-0.5 font-display text-[10px] font-semibold tracking-wider text-brand-700 uppercase shadow-xs">
+            <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-ink-secondary">
               {kindLabel}
             </span>
           </div>
-          <p className="mt-1 text-xs text-brand-700/90">
+          <p className="mt-1 text-xs text-ink-muted">
             {active ? `Conexão ${active.name} (${active.database})` : 'Sem conexão ativa'}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <div
             role="tablist"
             aria-label="Visualização da tabela"
-            className="flex rounded-xl border border-brand-300/60 bg-white/90 p-1 shadow-xs"
+            className="flex rounded-lg bg-muted p-1"
           >
             <button
               type="button"
               role="tab"
               aria-selected={tab === 'data'}
               onClick={() => setTab('data')}
-              className={`cursor-pointer rounded-lg px-4 py-1.5 font-display text-xs font-semibold tracking-wide transition-all ${
+              className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                 tab === 'data'
-                  ? 'bg-gradient-to-r from-brand-500 to-brand-700 text-white shadow-glow'
-                  : 'text-brand-700 hover:text-brand-900'
+                  ? 'bg-panel text-ink shadow-card'
+                  : 'text-ink-muted hover:text-ink'
               }`}
             >
               Dados
@@ -174,10 +172,10 @@ function SchemasContent() {
               role="tab"
               aria-selected={tab === 'structure'}
               onClick={() => setTab('structure')}
-              className={`cursor-pointer rounded-lg px-4 py-1.5 font-display text-xs font-semibold tracking-wide transition-all ${
+              className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                 tab === 'structure'
-                  ? 'bg-gradient-to-r from-brand-500 to-brand-700 text-white shadow-glow'
-                  : 'text-brand-700 hover:text-brand-900'
+                  ? 'bg-panel text-ink shadow-card'
+                  : 'text-ink-muted hover:text-ink'
               }`}
             >
               Estrutura
@@ -195,7 +193,7 @@ function SchemasContent() {
       </div>
 
       <div ref={tableAnchorRef} className="flex flex-col gap-3">
-        {loading && <p className="text-xs font-medium text-brand-700">Carregando...</p>}
+        {loading && <p className="text-xs font-medium text-ink-muted">Carregando...</p>}
 
         {error && (
           <p role="alert" className="text-xs font-medium text-danger">

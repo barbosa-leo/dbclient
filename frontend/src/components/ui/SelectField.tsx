@@ -12,13 +12,13 @@ export function SelectField({ label, options, ...props }: SelectFieldProps) {
     <div className="flex flex-col gap-1.5">
       <label
         htmlFor={id}
-        className="font-display text-[11px] font-semibold tracking-wider text-brand-700 uppercase"
+        className="text-xs font-medium text-ink-secondary"
       >
         {label}
       </label>
       <select
         id={id}
-        className="cursor-pointer rounded-lg border border-brand-300/70 bg-white/90 px-3.5 py-2 text-sm text-brand-900 shadow-xs transition-all outline-none focus:border-primary focus:bg-white focus:ring-2 focus:ring-accent/60"
+        className="cursor-pointer rounded-lg border border-line bg-panel px-3 py-2 text-xs text-ink transition-colors outline-none focus:border-line-strong focus:ring-1 focus:ring-line-strong"
         {...props}
       >
         {options.map((option) => (

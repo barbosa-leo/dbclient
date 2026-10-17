@@ -125,18 +125,73 @@ function sessionUser(req) {
   return found ? publicUser(found) : undefined;
 }
 
+function parseMockSqlLiteral(raw) {
+  const trimmed = raw.trim();
+  if (/^NULL$/i.test(trimmed)) return null;
+  if (/^TRUE$/i.test(trimmed)) return true;
+  if (/^FALSE$/i.test(trimmed)) return false;
+  if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    return trimmed.slice(1, -1).replace(/''/g, "'");
+  }
+  const num = Number(trimmed);
+  if (!Number.isNaN(num)) return num;
+  return trimmed;
+}
+
+function parseColumnAssignments(clause) {
+  const pairs = [];
+  const regex = /"([^"]+)"\s*(?:=\s*('(?:''|[^'])*'|[^\s,]+)|IS\s+(NULL))/gi;
+  let m;
+  while ((m = regex.exec(clause)) !== null) {
+    const col = m[1];
+    const rawVal = m[3] ? 'NULL' : m[2];
+    pairs.push([col, parseMockSqlLiteral(rawVal)]);
+  }
+  return pairs;
+}
+
 function runQuery(body) {
   const sql = String(body.sql || '');
   if (/erro/i.test(sql)) {
     return { status: 400, body: { error: 'ERROR: relation "erro" does not exist' } };
   }
+  const columns = ['id', 'name', 'email', 'created_at'];
+
+  const updateMatch = /^\s*UPDATE\s+.+?\s+SET\s+(.+?)\s+WHERE\s+(.+)$/is.exec(sql);
+  if (updateMatch) {
+    const setPairs = parseColumnAssignments(updateMatch[1]);
+    const wherePairs = parseColumnAssignments(updateMatch[2]);
+    let affected = 0;
+
+    for (const row of allRows) {
+      const matches = wherePairs.every(([col, val]) => {
+        const idx = columns.indexOf(col);
+        if (idx === -1) return false;
+        return row[idx] === val || String(row[idx]) === String(val);
+      });
+      if (matches) {
+        for (const [col, val] of setPairs) {
+          const idx = columns.indexOf(col);
+          if (idx !== -1) {
+            row[idx] = val;
+          }
+        }
+        affected++;
+      }
+    }
+
+    return {
+      status: 200,
+      body: { columns: [], rows: [], rowsAffected: affected, durationMs: 5 },
+    };
+  }
+
   if (!/^\s*select/i.test(sql)) {
     return {
       status: 200,
       body: { columns: [], rows: [], rowsAffected: 1, durationMs: 4 },
     };
   }
-  const columns = ['id', 'name', 'email', 'created_at'];
   let rows = [...allRows];
 
   const ilikeRegex = /"([^"]+)"\s*(?:\)|)\s*ILIKE\s*'%((?:''|[^'])*)%'/gi;

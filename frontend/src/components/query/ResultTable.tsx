@@ -12,6 +12,12 @@ export interface ColumnSort {
 
 type CopyFormat = 'csv' | 'json' | 'sql';
 
+export interface CellUpdate {
+  rowIndex: number;
+  originalRow: unknown[];
+  changes: Record<string, unknown>;
+}
+
 interface ResultTableProps {
   result: QueryResult;
   tableName?: string;
@@ -19,11 +25,35 @@ interface ResultTableProps {
   onSortChange?: (sort: ColumnSort | null) => void;
   filters?: Record<string, string>;
   onFilterChange?: (column: string, value: string) => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
+  onSaveChanges?: (updates: CellUpdate[]) => Promise<void> | void;
+  savingChanges?: boolean;
 }
 
 function formatCell(value: unknown): string {
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
+}
+
+function parseDraftCellValue(draft: string, originalValue: unknown): unknown {
+  if (draft.trim().toUpperCase() === 'NULL') return null;
+  if (typeof originalValue === 'number') {
+    const parsed = Number(draft);
+    if (draft.trim() !== '' && Number.isFinite(parsed)) return parsed;
+  }
+  if (typeof originalValue === 'boolean') {
+    const lower = draft.trim().toLowerCase();
+    if (lower === 'true') return true;
+    if (lower === 'false') return false;
+  }
+  return draft;
+}
+
+function isSameCellValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a === null || b === null || a === undefined || b === undefined) return false;
+  return formatCell(a) === formatCell(b);
 }
 
 function quoteSqlIdentifier(identifier: string): string {
@@ -142,16 +172,27 @@ export function ResultTable({
   onSortChange,
   filters,
   onFilterChange,
+  onRefresh,
+  refreshing = false,
+  onSaveChanges,
+  savingChanges = false,
 }: ResultTableProps) {
   const [selectedRows, setSelectedRows] = useState<Set<number>>(() => new Set());
   const [editingCol, setEditingCol] = useState<string | null>(null);
   const [filterDraft, setFilterDraft] = useState('');
+  const [editingCell, setEditingCell] = useState<{ rowIndex: number; cellIndex: number } | null>(
+    null,
+  );
+  const [cellDraft, setCellDraft] = useState('');
+  const [pendingEdits, setPendingEdits] = useState<Record<number, Record<number, unknown>>>({});
   const [copyMenuOpen, setCopyMenuOpen] = useState(false);
   const [copiedFormat, setCopiedFormat] = useState<CopyFormat | null>(null);
   const copyMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSelectedRows(new Set());
+    setEditingCell(null);
+    setPendingEdits({});
     setCopyMenuOpen(false);
   }, [result]);
 
@@ -178,6 +219,17 @@ export function ResultTable({
   const totalRows = result.rows.length;
   const selectedCount = selectedRows.size;
   const allSelected = totalRows > 0 && selectedCount === totalRows;
+
+  const pendingRowCount = Object.keys(pendingEdits).length;
+  const pendingCellCount = Object.values(pendingEdits).reduce(
+    (acc, rowMap) => acc + Object.keys(rowMap).length,
+    0,
+  );
+  const hasPendingChanges = pendingCellCount > 0 || editingCell !== null;
+  const canRefresh = Boolean(onRefresh) && !refreshing && !savingChanges;
+  const canCopy = selectedCount > 0;
+  const canSaveOrCancel = Boolean(onSaveChanges) && hasPendingChanges && !savingChanges;
+  const canCancel = hasPendingChanges || selectedCount > 0;
 
   function toggleAllRows() {
     if (totalRows === 0) return;
@@ -222,11 +274,100 @@ export function ResultTable({
     onFilterChange?.(column, value.trim());
   }
 
+  function getEffectiveCellValue(rowIndex: number, cellIndex: number): unknown {
+    const rowEdits = pendingEdits[rowIndex];
+    if (rowEdits && Object.prototype.hasOwnProperty.call(rowEdits, cellIndex)) {
+      return rowEdits[cellIndex];
+    }
+    return result.rows[rowIndex]?.[cellIndex];
+  }
+
+  function startCellEditing(rowIndex: number, cellIndex: number) {
+    if (!onSaveChanges) return;
+    const currentVal = getEffectiveCellValue(rowIndex, cellIndex);
+    setEditingCell({ rowIndex, cellIndex });
+    setCellDraft(currentVal === null || currentVal === undefined ? '' : formatCell(currentVal));
+  }
+
+  function applyCellDraft(
+    baseEdits: Record<number, Record<number, unknown>>,
+    rowIndex: number,
+    cellIndex: number,
+    draft: string,
+  ): Record<number, Record<number, unknown>> {
+    const originalVal = result.rows[rowIndex]?.[cellIndex];
+    const nextVal = parseDraftCellValue(draft, originalVal);
+    const next = { ...baseEdits };
+    const rowMap = { ...(next[rowIndex] ?? {}) };
+
+    if (isSameCellValue(nextVal, originalVal)) {
+      delete rowMap[cellIndex];
+    } else {
+      rowMap[cellIndex] = nextVal;
+    }
+
+    if (Object.keys(rowMap).length === 0) {
+      delete next[rowIndex];
+    } else {
+      next[rowIndex] = rowMap;
+    }
+    return next;
+  }
+
+  function commitCellEdit(rowIndex: number, cellIndex: number, draft: string) {
+    setEditingCell(null);
+    setPendingEdits((prev) => applyCellDraft(prev, rowIndex, cellIndex, draft));
+  }
+
+  function handleCancelAll() {
+    setEditingCell(null);
+    setPendingEdits({});
+    setSelectedRows(new Set());
+    setCopyMenuOpen(false);
+  }
+
+  async function handleSaveAll() {
+    if (!onSaveChanges) return;
+    let finalEdits = pendingEdits;
+    if (editingCell) {
+      finalEdits = applyCellDraft(
+        pendingEdits,
+        editingCell.rowIndex,
+        editingCell.cellIndex,
+        cellDraft,
+      );
+      setEditingCell(null);
+      setPendingEdits(finalEdits);
+    }
+
+    const updates: CellUpdate[] = Object.entries(finalEdits)
+      .map(([rowIdxStr, colMap]) => {
+        const rowIndex = Number(rowIdxStr);
+        const originalRow = result.rows[rowIndex];
+        if (!originalRow) return null;
+        const changes: Record<string, unknown> = {};
+        for (const [colIdxStr, val] of Object.entries(colMap)) {
+          const colName = result.columns[Number(colIdxStr)];
+          if (colName !== undefined) {
+            changes[colName] = val;
+          }
+        }
+        if (Object.keys(changes).length === 0) return null;
+        return { rowIndex, originalRow, changes };
+      })
+      .filter((item): item is CellUpdate => item !== null);
+
+    if (updates.length === 0) return;
+    await onSaveChanges(updates);
+  }
+
   async function handleCopyAs(format: CopyFormat) {
     if (selectedCount === 0) return;
     const orderedIndices = Array.from(selectedRows).sort((a, b) => a - b);
     const chosenRows = orderedIndices
-      .map((idx) => result.rows[idx])
+      .map((idx) =>
+        result.rows[idx]?.map((_, cellIdx) => getEffectiveCellValue(idx, cellIdx)),
+      )
       .filter((row): row is unknown[] => row !== undefined);
 
     const payload = serializeRows(result.columns, chosenRows, format, tableName || 'table_name');
@@ -240,51 +381,104 @@ export function ResultTable({
 
   return (
     <div className="flex min-h-0 flex-col gap-2">
-      {selectedCount > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-panel px-3 py-1.5 text-xs shadow-card">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[11px] font-medium text-ink">
-              <strong>{selectedCount}</strong> linha(s) selecionada(s)
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-panel px-3 py-1.5 text-xs shadow-card">
+        <div className="flex min-w-0 flex-wrap items-center gap-3 font-mono text-[11px] text-ink-muted">
+          {selectedCount > 0 && (
+            <span className="text-ink">
+              <strong className="font-semibold">{selectedCount}</strong> linha(s) selecionada(s)
             </span>
-            <button
-              type="button"
-              onClick={() => setSelectedRows(new Set())}
-              className="cursor-pointer rounded px-1.5 py-0.5 text-[11px] text-ink-muted transition-colors hover:bg-muted hover:text-ink"
+          )}
+          {hasPendingChanges && (
+            <span className="text-ink">
+              {pendingCellCount > 0 ? (
+                <>
+                  <strong className="font-semibold">{pendingCellCount}</strong> alteração(ões) em{' '}
+                  <strong className="font-semibold">{pendingRowCount}</strong> linha(s)
+                </>
+              ) : (
+                'Editando célula...'
+              )}
+            </span>
+          )}
+          {selectedCount === 0 && !hasPendingChanges && (
+            <span>Selecione linhas para copiar ou dê duplo clique em uma célula para editar</span>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            disabled={!canRefresh}
+            aria-label="Atualizar"
+            title="Atualizar"
+            onClick={() => onRefresh?.()}
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+          >
+            <svg
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              aria-hidden="true"
+              className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`}
             >
-              Limpar
-            </button>
-          </div>
+              <path
+                d="M13.5 8a5.5 5.5 0 1 1-1.35-3.6M13.5 2.5v2.3h-2.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
 
           <div ref={copyMenuRef} className="relative">
             <button
               type="button"
+              disabled={!canCopy}
+              aria-label="Copiar como"
+              title={
+                copiedFormat
+                  ? `Copiado (${copiedFormat.toUpperCase()})`
+                  : 'Copiar linhas selecionadas como...'
+              }
               aria-haspopup="menu"
               aria-expanded={copyMenuOpen}
               onClick={() => setCopyMenuOpen((prev) => !prev)}
-              className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-line bg-subtle px-2.5 py-1 text-xs font-medium text-ink transition-colors hover:bg-muted"
+              className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
+                copiedFormat
+                  ? 'bg-online/15 text-online'
+                  : 'bg-subtle text-ink hover:bg-muted disabled:hover:bg-subtle'
+              }`}
             >
-              <span>
-                {copiedFormat ? `Copiado (${copiedFormat.toUpperCase()})` : 'Copiar como'}
-              </span>
-              <svg
-                viewBox="0 0 16 16"
-                fill="none"
-                aria-hidden="true"
-                className={`h-3.5 w-3.5 text-ink-muted transition-transform duration-150 ${
-                  copyMenuOpen ? 'rotate-180' : ''
-                }`}
-              >
-                <path
-                  d="M4 6l4 4 4-4"
+              {copiedFormat ? (
+                <svg
+                  viewBox="0 0 16 16"
+                  fill="none"
                   stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+                  strokeWidth="1.8"
+                  aria-hidden="true"
+                  className="h-3.5 w-3.5"
+                >
+                  <path d="M3.5 8.5 6.5 11.5 12.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  aria-hidden="true"
+                  className="h-3.5 w-3.5"
+                >
+                  <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+                  <path
+                    d="M10.5 5.5V3.75A1.25 1.25 0 0 0 9.25 2.5h-5.5A1.25 1.25 0 0 0 2.5 3.75v5.5a1.25 1.25 0 0 0 1.25 1.25H5.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              )}
             </button>
 
-            {copyMenuOpen && (
+            {copyMenuOpen && canCopy && (
               <div
                 role="menu"
                 aria-label="Formatos de cópia"
@@ -310,8 +504,50 @@ export function ResultTable({
               </div>
             )}
           </div>
+
+          <button
+            type="button"
+            disabled={!canSaveOrCancel}
+            aria-label="Salvar alterações"
+            title="Salvar alterações"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => void handleSaveAll()}
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted enabled:border-cta enabled:bg-cta enabled:text-cta-fg enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+          >
+            <svg
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              aria-hidden="true"
+              className="h-3.5 w-3.5"
+            >
+              <path d="M3.5 8.5 6.5 11.5 12.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            disabled={!canCancel || savingChanges}
+            aria-label="Cancelar"
+            title="Cancelar alterações / limpar seleção"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={handleCancelAll}
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+          >
+            <svg
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              aria-hidden="true"
+              className="h-3.5 w-3.5"
+            >
+              <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" strokeLinecap="round" />
+            </svg>
+          </button>
         </div>
-      )}
+      </div>
 
       <div className="min-h-0 overflow-auto rounded-xl border border-line bg-panel shadow-card">
         <table className="w-full text-left font-mono text-[11px] leading-tight">
@@ -434,17 +670,64 @@ export function ResultTable({
                   >
                     {rowIndex + 1}
                   </td>
-                  {row.map((cell, cellIndex) => (
-                    <td key={cellIndex} className="whitespace-nowrap px-3.5 py-1 text-ink">
-                      {cell === null ? (
-                        <span className="rounded bg-muted px-1 py-0.2 text-[10px] font-medium text-ink-muted">
-                          NULL
+                  {row.map((_, cellIndex) => {
+                    const effectiveVal = getEffectiveCellValue(rowIndex, cellIndex);
+                    const isCellEditing =
+                      editingCell?.rowIndex === rowIndex && editingCell?.cellIndex === cellIndex;
+                    const isCellDirty =
+                      pendingEdits[rowIndex] !== undefined &&
+                      Object.prototype.hasOwnProperty.call(pendingEdits[rowIndex], cellIndex);
+
+                    return (
+                      <td
+                        key={cellIndex}
+                        onDoubleClick={(e) => {
+                          if (!onSaveChanges) return;
+                          e.stopPropagation();
+                          startCellEditing(rowIndex, cellIndex);
+                        }}
+                        title={onSaveChanges ? 'Duplo clique para editar' : undefined}
+                        className={`relative whitespace-nowrap px-3.5 py-1 text-ink ${
+                          isCellDirty ? 'bg-online/10 font-semibold' : ''
+                        }`}
+                      >
+                        <span className={isCellEditing ? 'invisible' : ''}>
+                          {effectiveVal === null ? (
+                            <span className="rounded bg-muted px-1 py-0.2 text-[10px] font-medium text-ink-muted">
+                              NULL
+                            </span>
+                          ) : (
+                            formatCell(effectiveVal)
+                          )}
                         </span>
-                      ) : (
-                        formatCell(cell)
-                      )}
-                    </td>
-                  ))}
+
+                        {isCellEditing && (
+                          <input
+                            type="text"
+                            autoFocus
+                            size={1}
+                            value={cellDraft}
+                            placeholder="NULL"
+                            aria-label={`Editar ${result.columns[cellIndex] ?? 'célula'}`}
+                            onClick={(e) => e.stopPropagation()}
+                            onDoubleClick={(e) => e.stopPropagation()}
+                            onChange={(e) => setCellDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                commitCellEdit(rowIndex, cellIndex, cellDraft);
+                              } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                setEditingCell(null);
+                              }
+                            }}
+                            onBlur={() => commitCellEdit(rowIndex, cellIndex, cellDraft)}
+                            className="absolute inset-0.5 w-[calc(100%-4px)] min-w-0 rounded border border-line-strong bg-panel px-2 py-0.5 font-mono text-[11px] font-normal text-ink outline-none"
+                          />
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               );
             })}

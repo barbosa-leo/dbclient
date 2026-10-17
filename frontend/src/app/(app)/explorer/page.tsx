@@ -6,9 +6,8 @@ import { useConnections } from '@/components/connections/ConnectionsProvider';
 import { TableStructure } from '@/components/explorer/TableStructure';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ResultTable } from '@/components/query/ResultTable';
-import type { ColumnSort } from '@/components/query/ResultTable';
+import type { CellUpdate, ColumnSort } from '@/components/query/ResultTable';
 import { RowLimitSelector } from '@/components/query/RowLimitSelector';
-import { Button } from '@/components/ui/Button';
 import { listColumns } from '@/services/explorer';
 import type { ColumnInfo, TableKind } from '@/services/explorer';
 import {
@@ -33,6 +32,50 @@ function quoteIdentifier(identifier: string): string {
 
 function escapeSqlLiteral(value: string): string {
   return value.replace(/'/g, "''");
+}
+
+function formatSqlValue(value: unknown): string {
+  if (value === null || value === undefined) return 'NULL';
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(value) : 'NULL';
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'TRUE' : 'FALSE';
+  }
+  if (typeof value === 'object') {
+    return `'${escapeSqlLiteral(JSON.stringify(value))}'`;
+  }
+  return `'${escapeSqlLiteral(String(value))}'`;
+}
+
+function buildUpdateStatement(
+  schema: string,
+  table: string,
+  resultColumns: string[],
+  primaryKeyColumns: string[],
+  update: CellUpdate,
+): string {
+  const tableRef = `${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
+  const setClauses = Object.entries(update.changes).map(
+    ([col, val]) => `${quoteIdentifier(col)} = ${formatSqlValue(val)}`,
+  );
+
+  const matchColumns =
+    primaryKeyColumns.length > 0
+      ? primaryKeyColumns.filter((pk) => resultColumns.includes(pk))
+      : resultColumns;
+
+  const whereColumns = matchColumns.length > 0 ? matchColumns : resultColumns;
+  const whereClauses = whereColumns.map((col) => {
+    const colIdx = resultColumns.indexOf(col);
+    const originalVal = colIdx >= 0 ? update.originalRow[colIdx] : null;
+    if (originalVal === null || originalVal === undefined) {
+      return `${quoteIdentifier(col)} IS NULL`;
+    }
+    return `${quoteIdentifier(col)} = ${formatSqlValue(originalVal)}`;
+  });
+
+  return `UPDATE ${tableRef} SET ${setClauses.join(', ')} WHERE ${whereClauses.join(' AND ')}`;
 }
 
 function buildTableQuery(
@@ -79,6 +122,7 @@ function ExplorerContent() {
   const [dataResult, setDataResult] = useState<QueryResult | null>(null);
   const [columns, setColumns] = useState<ColumnInfo[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [savingChanges, setSavingChanges] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const tableAnchorRef = useRef<HTMLDivElement>(null);
 
@@ -163,6 +207,29 @@ function ExplorerContent() {
     void loadData(limit, nextFilters, sort);
   }
 
+  async function handleSaveChanges(updates: CellUpdate[]) {
+    if (activeId === undefined || !schema || !table || !dataResult) return;
+    setSavingChanges(true);
+    setError(null);
+    try {
+      let colMeta = columns;
+      if (!colMeta) {
+        colMeta = await listColumns(activeId, schema, table, database ?? undefined);
+        setColumns(colMeta);
+      }
+      const pkCols = colMeta.filter((c) => c.isPrimaryKey).map((c) => c.name);
+      for (const update of updates) {
+        const sql = buildUpdateStatement(schema, table, dataResult.columns, pkCols, update);
+        await executeQuery(activeId, sql, limit, database ?? undefined);
+      }
+      await loadData(limit, filters, sort);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao atualizar os dados da tabela');
+    } finally {
+      setSavingChanges(false);
+    }
+  }
+
   if (!schema || !table) {
     return (
       <div className="flex flex-col gap-6">
@@ -242,14 +309,6 @@ function ExplorerContent() {
               Estrutura
             </button>
           </div>
-
-          <Button
-            variant="secondary"
-            disabled={loading}
-            onClick={() => (tab === 'data' ? loadData(limit, filters, sort) : loadStructure())}
-          >
-            Atualizar
-          </Button>
         </div>
       </div>
 
@@ -271,6 +330,10 @@ function ExplorerContent() {
               onSortChange={handleSortChange}
               filters={filters}
               onFilterChange={handleFilterChange}
+              onRefresh={() => void loadData(limit, filters, sort)}
+              refreshing={loading}
+              onSaveChanges={handleSaveChanges}
+              savingChanges={savingChanges}
             />
             {dataResult.columns.length > 0 && (
               <RowLimitSelector

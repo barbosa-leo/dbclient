@@ -93,7 +93,11 @@ export default function QueryPage() {
         )}
         {result && (
           <>
-            <ResultTable result={result} />
+            <ResultTable
+              result={result}
+              onRefresh={() => void run(executedSql, limit, executedDatabase || selectedDatabase)}
+              refreshing={running}
+            />
             {result.columns.length > 0 && (
               <RowLimitSelector
                 value={limit}

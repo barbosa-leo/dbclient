@@ -6,6 +6,7 @@ import { useConnections } from '@/components/connections/ConnectionsProvider';
 import { TableStructure } from '@/components/explorer/TableStructure';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ResultTable } from '@/components/query/ResultTable';
+import type { ColumnSort } from '@/components/query/ResultTable';
 import { RowLimitSelector } from '@/components/query/RowLimitSelector';
 import { Button } from '@/components/ui/Button';
 import { listColumns } from '@/services/explorer';
@@ -30,6 +31,35 @@ function quoteIdentifier(identifier: string): string {
   return `"${identifier.replace(/"/g, '""')}"`;
 }
 
+function escapeSqlLiteral(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+function buildTableQuery(
+  schema: string,
+  table: string,
+  filters: Record<string, string>,
+  sort: ColumnSort | null,
+): string {
+  const tableRef = `${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
+  const conditions = Object.entries(filters)
+    .map(([col, val]) => [col, val.trim()] as const)
+    .filter(([, val]) => val.length > 0)
+    .map(
+      ([col, val]) =>
+        `CAST(${tableRef}.${quoteIdentifier(col)} AS TEXT) ILIKE '%${escapeSqlLiteral(val)}%'`,
+    );
+
+  let sql = `SELECT * FROM ${tableRef}`;
+  if (conditions.length > 0) {
+    sql += ` WHERE ${conditions.join(' AND ')}`;
+  }
+  if (sort) {
+    sql += ` ORDER BY ${tableRef}.${quoteIdentifier(sort.column)} ${sort.direction.toUpperCase()}`;
+  }
+  return sql;
+}
+
 function ExplorerContent() {
   const searchParams = useSearchParams();
   const { active } = useConnections();
@@ -44,6 +74,8 @@ function ExplorerContent() {
   const [tab, setTab] = useState<Tab>('data');
   const [autoLimit, setAutoLimit] = useState(MIN_ROW_LIMIT);
   const [limit, setLimit] = useState(MIN_ROW_LIMIT);
+  const [sort, setSort] = useState<ColumnSort | null>(null);
+  const [filters, setFilters] = useState<Record<string, string>>({});
   const [dataResult, setDataResult] = useState<QueryResult | null>(null);
   const [columns, setColumns] = useState<ColumnInfo[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,13 +88,17 @@ function ExplorerContent() {
   }, []);
 
   const loadData = useCallback(
-    async (targetLimit: number) => {
+    async (
+      targetLimit: number,
+      targetFilters: Record<string, string>,
+      targetSort: ColumnSort | null,
+    ) => {
       if (activeId === undefined || !schema || !table) return;
       const clamped = clampRowLimit(targetLimit);
       setLoading(true);
       setError(null);
       try {
-        const sql = `SELECT * FROM ${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
+        const sql = buildTableQuery(schema, table, targetFilters, targetSort);
         setDataResult(await executeQuery(activeId, sql, clamped, database ?? undefined));
         setLimit(clamped);
       } catch (err) {
@@ -90,12 +126,14 @@ function ExplorerContent() {
   useEffect(() => {
     setDataResult(null);
     setColumns(null);
+    setSort(null);
+    setFilters({});
     if (!schema || !table || activeId === undefined) return;
     if (tab === 'data') {
       const computedAuto = measureAutoLimit();
       setAutoLimit(computedAuto);
       setLimit(computedAuto);
-      void loadData(computedAuto);
+      void loadData(computedAuto, {}, null);
     } else {
       void loadStructure();
     }
@@ -108,6 +146,22 @@ function ExplorerContent() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [measureAutoLimit]);
+
+  function handleSortChange(nextSort: ColumnSort | null) {
+    setSort(nextSort);
+    void loadData(limit, filters, nextSort);
+  }
+
+  function handleFilterChange(column: string, value: string) {
+    const nextFilters = { ...filters };
+    if (value) {
+      nextFilters[column] = value;
+    } else {
+      delete nextFilters[column];
+    }
+    setFilters(nextFilters);
+    void loadData(limit, nextFilters, sort);
+  }
 
   if (!schema || !table) {
     return (
@@ -192,7 +246,7 @@ function ExplorerContent() {
           <Button
             variant="secondary"
             disabled={loading}
-            onClick={() => (tab === 'data' ? loadData(limit) : loadStructure())}
+            onClick={() => (tab === 'data' ? loadData(limit, filters, sort) : loadStructure())}
           >
             Atualizar
           </Button>
@@ -210,14 +264,21 @@ function ExplorerContent() {
 
         {!loading && tab === 'data' && dataResult && (
           <>
-            <ResultTable result={dataResult} />
+            <ResultTable
+              result={dataResult}
+              tableName={`${schema}.${table}`}
+              sort={sort}
+              onSortChange={handleSortChange}
+              filters={filters}
+              onFilterChange={handleFilterChange}
+            />
             {dataResult.columns.length > 0 && (
               <RowLimitSelector
                 value={limit}
                 autoValue={autoLimit}
                 rowCount={dataResult.rows.length}
                 disabled={loading}
-                onChange={(next) => loadData(next)}
+                onChange={(next) => loadData(next, filters, sort)}
               />
             )}
           </>

@@ -136,13 +136,50 @@ function runQuery(body) {
       body: { columns: [], rows: [], rowsAffected: 1, durationMs: 4 },
     };
   }
+  const columns = ['id', 'name', 'email', 'created_at'];
+  let rows = [...allRows];
+
+  const ilikeRegex = /"([^"]+)"\s*(?:\)|)\s*ILIKE\s*'%((?:''|[^'])*)%'/gi;
+  let match;
+  while ((match = ilikeRegex.exec(sql)) !== null) {
+    const colName = match[1];
+    const term = match[2].replace(/''/g, "'").toLowerCase();
+    const colIdx = columns.indexOf(colName);
+    if (colIdx !== -1) {
+      rows = rows.filter((row) => {
+        const val = row[colIdx];
+        if (val === null || val === undefined) return false;
+        return String(val).toLowerCase().includes(term);
+      });
+    }
+  }
+
+  const orderMatch = /ORDER\s+BY\s+(?:"[^"]+"\.)*"([^"]+)"\s+(ASC|DESC)/i.exec(sql);
+  if (orderMatch) {
+    const colIdx = columns.indexOf(orderMatch[1]);
+    const dir = orderMatch[2].toUpperCase() === 'DESC' ? -1 : 1;
+    if (colIdx !== -1) {
+      rows.sort((a, b) => {
+        const va = a[colIdx];
+        const vb = b[colIdx];
+        if (va === vb) return 0;
+        if (va === null || va === undefined) return 1;
+        if (vb === null || vb === undefined) return -1;
+        if (typeof va === 'number' && typeof vb === 'number') {
+          return (va - vb) * dir;
+        }
+        return String(va).localeCompare(String(vb)) * dir;
+      });
+    }
+  }
+
   const rawLimit = Number(body.limit) || 50;
   const limit = Math.min(10000, Math.max(10, Math.floor(rawLimit)));
   return {
     status: 200,
     body: {
-      columns: ['id', 'name', 'email', 'created_at'],
-      rows: allRows.slice(0, limit),
+      columns,
+      rows: rows.slice(0, limit),
       rowsAffected: null,
       durationMs: 12,
     },

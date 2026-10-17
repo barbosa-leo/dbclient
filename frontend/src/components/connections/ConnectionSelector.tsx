@@ -35,7 +35,9 @@ export function ConnectionSelector() {
 
   const targetConnection =
     connections.find((conn) => String(conn.id) === selectedConnectionId) ?? null;
-  const canConnect = targetConnection !== null && !connecting;
+  const hasChangedSelection =
+    targetConnection !== null && targetConnection.id !== active?.id;
+  const canConnect = hasChangedSelection && !connecting;
 
   async function handleConnect() {
     if (!targetConnection) return;
@@ -94,7 +96,7 @@ export function ConnectionSelector() {
             type="button"
             disabled={!canConnect}
             onClick={() => void handleConnect()}
-            className="h-8 cursor-pointer rounded-lg bg-cta px-3 text-xs font-semibold text-cta-fg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="h-8 cursor-pointer rounded-lg border border-transparent bg-cta px-3 text-xs font-semibold text-cta-fg transition-colors hover:bg-cta-hover disabled:cursor-not-allowed disabled:border-line disabled:bg-transparent disabled:text-ink-muted"
           >
             {connecting ? 'Conectando...' : 'Conectar'}
           </button>

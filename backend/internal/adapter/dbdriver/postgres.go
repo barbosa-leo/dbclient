@@ -22,34 +22,6 @@ func NewPostgresDriver() *PostgresDriver {
 	return &PostgresDriver{}
 }
 
-func (d *PostgresDriver) ListDatabases(ctx context.Context, creds domain.ConnectionCredentials) ([]string, error) {
-	conn, cancel, err := connect(ctx, creds, defaultConnectTimeout)
-	if err != nil {
-		return nil, err
-	}
-	defer cancel()
-	defer conn.Close(ctx)
-
-	rows, err := conn.Query(
-		ctx,
-		`SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname ASC`,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	dbs := make([]string, 0)
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			return nil, err
-		}
-		dbs = append(dbs, name)
-	}
-	return dbs, rows.Err()
-}
-
 func (d *PostgresDriver) ListSchemas(ctx context.Context, creds domain.ConnectionCredentials) ([]domain.SchemaInfo, error) {
 	conn, cancel, err := connect(ctx, creds, defaultConnectTimeout)
 	if err != nil {

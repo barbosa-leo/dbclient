@@ -30,10 +30,6 @@ import (
 
 type fakeDriver struct{}
 
-func (f *fakeDriver) ListDatabases(ctx context.Context, creds domain.ConnectionCredentials) ([]string, error) {
-	return []string{creds.Database, "analytics"}, nil
-}
-
 func (f *fakeDriver) ListSchemas(ctx context.Context, creds domain.ConnectionCredentials) ([]domain.SchemaInfo, error) {
 	return []domain.SchemaInfo{
 		{
@@ -133,7 +129,6 @@ func TestEndToEndFlow(t *testing.T) {
 		Environments: handler.NewEnvironmentHandler(listEnvsUC, createEnvUC, deleteEnvUC),
 		Connections:  handler.NewConnectionHandler(listConnsUC, createConnUC, updateConnUC, deleteConnUC),
 		Explorer: handler.NewExplorerHandler(
-			explorer.NewListDatabases(resolveUC, drv),
 			explorer.NewListSchemas(resolveUC, drv),
 			explorer.NewListColumns(resolveUC, drv),
 		),

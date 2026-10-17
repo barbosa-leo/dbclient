@@ -3,12 +3,10 @@
 import { useCallback, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
-import { useConnectionDatabases } from '@/components/connections/useConnectionDatabases';
 import { JobStatusCard } from '@/components/jobs/JobStatusCard';
 import { useJobPolling } from '@/components/jobs/useJobPolling';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
-import { SelectField } from '@/components/ui/SelectField';
 import { cancelJob, isJobFinished, MAX_FILE_SIZE } from '@/services/jobs';
 import type { Job } from '@/services/jobs';
 import { runScript } from '@/services/scripts';
@@ -22,7 +20,6 @@ function validateFile(file: File | null): string | null {
 
 export default function ScriptsPage() {
   const { active } = useConnections();
-  const { databases, selectedDatabase, setSelectedDatabase } = useConnectionDatabases(active);
   const [file, setFile] = useState<File | null>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,14 +33,14 @@ export default function ScriptsPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!active || !selectedDatabase) return;
+    if (!active) return;
     const validation = validateFile(file);
     setError(validation);
     if (validation || !file) return;
 
     setSubmitting(true);
     try {
-      setJob(await runScript(active.id, selectedDatabase, file));
+      setJob(await runScript(active.id, file));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao enviar o script');
     } finally {
@@ -69,7 +66,7 @@ export default function ScriptsPage() {
         title="Scripts"
         description={
           active
-            ? `Execute um arquivo .sql na conexão ${active.name}${selectedDatabase ? ` (${selectedDatabase})` : ''} em uma única transação.`
+            ? `Execute um arquivo .sql na conexão ${active.name} (${active.database}) em uma única transação.`
             : 'Cadastre e selecione uma conexão para executar scripts.'
         }
       />
@@ -78,26 +75,16 @@ export default function ScriptsPage() {
         onSubmit={handleSubmit}
         className="flex flex-col gap-4 rounded-xl border border-line bg-panel p-5 shadow-card"
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <SelectField
-            label="Banco de dados"
-            options={databases}
-            value={selectedDatabase}
-            disabled={!active || running || databases.length === 0}
-            onChange={(e) => setSelectedDatabase(e.target.value)}
+        <label className="flex flex-col gap-1.5 text-xs font-medium text-ink-secondary">
+          Arquivo .sql (até 50 MB)
+          <input
+            type="file"
+            accept=".sql"
+            disabled={running}
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="font-sans text-xs font-normal text-ink file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-line file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink hover:file:bg-line"
           />
-
-          <label className="flex flex-col gap-1.5 text-xs font-medium text-ink-secondary">
-            Arquivo .sql (até 50 MB)
-            <input
-              type="file"
-              accept=".sql"
-              disabled={running}
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="font-sans text-xs font-normal text-ink file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-line file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink hover:file:bg-line"
-            />
-          </label>
-        </div>
+        </label>
 
         <p className="text-xs text-ink-muted">
           O script roda com ON_ERROR_STOP em uma transação: se algum comando falhar, tudo é
@@ -109,7 +96,7 @@ export default function ScriptsPage() {
           </p>
         )}
         <div className="flex justify-end">
-          <Button type="submit" disabled={!active || !selectedDatabase || running || submitting}>
+          <Button type="submit" disabled={!active || running || submitting}>
             {submitting ? 'Enviando...' : 'Executar script'}
           </Button>
         </div>

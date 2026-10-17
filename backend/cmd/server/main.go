@@ -92,7 +92,6 @@ func main() {
 	deleteConnectionUC := connection.NewDeleteConnection(connectionRepo)
 	resolveCredsUC := connection.NewResolveCredentials(connectionRepo, cipher)
 
-	listDatabasesUC := explorer.NewListDatabases(resolveCredsUC, pgDriver)
 	listSchemasUC := explorer.NewListSchemas(resolveCredsUC, pgDriver)
 	listColumnsUC := explorer.NewListColumns(resolveCredsUC, pgDriver)
 
@@ -111,7 +110,7 @@ func main() {
 		Users:         handler.NewUserHandler(listUsersUC, createUserUC, updateUserUC, deleteUserUC),
 		Environments:  handler.NewEnvironmentHandler(listEnvironmentsUC, createEnvironmentUC, deleteEnvironmentUC),
 		Connections:   handler.NewConnectionHandler(listConnectionsUC, createConnectionUC, updateConnectionUC, deleteConnectionUC),
-		Explorer:      handler.NewExplorerHandler(listDatabasesUC, listSchemasUC, listColumnsUC),
+		Explorer:      handler.NewExplorerHandler(listSchemasUC, listColumnsUC),
 		Query:         handler.NewQueryHandler(executeQueryUC),
 		Script:        handler.NewScriptHandler(runScriptUC, cfg.MaxFileSize),
 		Dump:          handler.NewDumpHandler(exportDumpUC, importDumpUC, jobManager, cfg.MaxFileSize),

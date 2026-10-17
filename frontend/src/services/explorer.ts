@@ -70,21 +70,18 @@ export function getSchemaCategoryItems(
   }
 }
 
-export function listSchemas(connectionId: number, database?: string) {
-  const query = database ? `?database=${encodeURIComponent(database)}` : '';
-  return apiRequest<SchemaInfo[]>(`/connections/${connectionId}/schemas${query}`);
+export function listSchemas(connectionId: number) {
+  return apiRequest<SchemaInfo[]>(`/connections/${connectionId}/schemas`);
 }
 
 export function listColumns(
   connectionId: number,
   schema: string,
   table: string,
-  database?: string,
 ) {
   const s = encodeURIComponent(schema);
   const t = encodeURIComponent(table);
-  const query = database ? `?database=${encodeURIComponent(database)}` : '';
   return apiRequest<ColumnInfo[]>(
-    `/connections/${connectionId}/schemas/${s}/tables/${t}/columns${query}`,
+    `/connections/${connectionId}/schemas/${s}/tables/${t}/columns`,
   );
 }

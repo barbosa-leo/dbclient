@@ -42,7 +42,6 @@ func (h *ScriptHandler) Run(w http.ResponseWriter, r *http.Request) {
 	createdJob, err := h.runScript.Execute(r.Context(), script.RunScriptInput{
 		ActorUsername: user.Username,
 		ConnectionID:  connID,
-		Database:      r.URL.Query().Get("database"),
 		FileName:      fileName,
 		Content:       filePart,
 	})

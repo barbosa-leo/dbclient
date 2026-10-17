@@ -5,9 +5,7 @@ import { MAX_SQL_LENGTH } from '@/services/query';
 interface SqlEditorProps {
   value: string;
   onChange: (value: string) => void;
-  databases: readonly string[];
-  selectedDatabase: string;
-  onSelectDatabase: (database: string) => void;
+  databaseName: string | null;
   onRun: () => void;
   running: boolean;
   disabled: boolean;
@@ -16,9 +14,7 @@ interface SqlEditorProps {
 export function SqlEditor({
   value,
   onChange,
-  databases,
-  selectedDatabase,
-  onSelectDatabase,
+  databaseName,
   onRun,
   running,
   disabled,
@@ -35,21 +31,12 @@ export function SqlEditor({
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-line bg-panel p-5 shadow-card">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2">
-          <span className="text-xs font-medium text-ink-secondary">Banco de dados</span>
-          <select
-            value={selectedDatabase}
-            disabled={disabled || running || databases.length === 0}
-            onChange={(e) => onSelectDatabase(e.target.value)}
-            className="h-8 cursor-pointer rounded-lg border border-line bg-panel px-2.5 font-mono text-xs font-medium text-ink transition-colors outline-none hover:bg-muted focus:border-line-strong disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {databases.map((db) => (
-              <option key={db} value={db}>
-                {db}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="flex items-center gap-2 text-xs text-ink-secondary">
+          <span className="font-medium">Banco de dados:</span>
+          <span className="rounded-md bg-muted px-2 py-0.5 font-mono font-medium text-ink">
+            {databaseName ?? '—'}
+          </span>
+        </div>
 
         <span className={`font-mono text-[11px] ${nearLimit ? 'text-danger' : 'text-ink-muted'}`}>
           {value.length}/{MAX_SQL_LENGTH} caracteres · Ctrl/⌘ + Enter para executar
@@ -69,7 +56,7 @@ export function SqlEditor({
       />
 
       <div className="flex items-center justify-end">
-        <Button onClick={onRun} disabled={disabled || running || !selectedDatabase || !value.trim()}>
+        <Button onClick={onRun} disabled={disabled || running || !value.trim()}>
           {running ? 'Executando...' : 'Executar'}
         </Button>
       </div>

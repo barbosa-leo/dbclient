@@ -167,8 +167,8 @@ function ExplorerContent() {
   const searchParams = useSearchParams();
   const { active } = useConnections();
   const activeId = active?.id;
+  const database = active?.database ?? null;
 
-  const database = searchParams.get('database') ?? active?.database ?? null;
   const schema = searchParams.get('schema');
   const table = searchParams.get('table');
   const kindParam = searchParams.get('kind') as TableKind | null;
@@ -211,7 +211,7 @@ function ExplorerContent() {
       setError(null);
       try {
         const sql = buildTableQuery(schema, table, targetFilters, targetSort);
-        setDataResult(await executeQuery(activeId, sql, clamped, database ?? undefined));
+        setDataResult(await executeQuery(activeId, sql, clamped));
         setLimit(clamped);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Falha ao carregar os dados da tabela');
@@ -219,7 +219,7 @@ function ExplorerContent() {
         setLoading(false);
       }
     },
-    [activeId, database, schema, table],
+    [activeId, schema, table],
   );
 
   const loadStructure = useCallback(async () => {
@@ -227,13 +227,13 @@ function ExplorerContent() {
     setLoading(true);
     setError(null);
     try {
-      setColumns(await listColumns(activeId, schema, table, database ?? undefined));
+      setColumns(await listColumns(activeId, schema, table));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao carregar a estrutura da tabela');
     } finally {
       setLoading(false);
     }
-  }, [activeId, database, schema, table]);
+  }, [activeId, schema, table]);
 
   useEffect(() => {
     setDataResult(null);
@@ -282,13 +282,13 @@ function ExplorerContent() {
     try {
       let colMeta = columns;
       if (!colMeta) {
-        colMeta = await listColumns(activeId, schema, table, database ?? undefined);
+        colMeta = await listColumns(activeId, schema, table);
         setColumns(colMeta);
       }
       const pkCols = colMeta.filter((c) => c.isPrimaryKey).map((c) => c.name);
       for (const update of updates) {
         const sql = buildUpdateStatement(schema, table, dataResult.columns, pkCols, update);
-        await executeQuery(activeId, sql, limit, database ?? undefined);
+        await executeQuery(activeId, sql, limit);
       }
       await loadData(limit, filters, sort);
     } catch (err) {
@@ -305,7 +305,7 @@ function ExplorerContent() {
     try {
       const statements = buildAlterTableStatements(schema, table, columns, updates);
       for (const sql of statements) {
-        await executeQuery(activeId, sql, limit, database ?? undefined);
+        await executeQuery(activeId, sql, limit);
       }
       await loadStructure();
     } catch (err) {
@@ -322,8 +322,8 @@ function ExplorerContent() {
           title="Explorar"
           description={
             active
-              ? `Expanda um banco na barra lateral de ${active.name} para visualizar seus schemas.`
-              : 'Cadastre e selecione uma conexão para explorar os bancos disponíveis.'
+              ? `Selecione uma tabela na barra lateral de ${active.name} (${active.database}).`
+              : 'Cadastre e selecione uma conexão para explorar o banco configurado.'
           }
         />
         <div className="rounded-xl border border-dashed border-line bg-panel p-12 text-center shadow-card">
@@ -332,11 +332,11 @@ function ExplorerContent() {
               ? `${database}.${schema}`
               : database
                 ? database
-                : 'Nenhum banco selecionado'}
+                : 'Nenhuma conexão selecionada'}
           </p>
           <p className="mt-1 text-xs text-ink-muted">
-            Expanda um banco no painel <strong>Explorar</strong> da barra lateral para visualizar os
-            schemas daquele banco.
+            Expanda um schema no painel <strong>Explorar</strong> da barra lateral para visualizar
+            suas tabelas, views, procedures, functions e triggers.
           </p>
         </div>
       </div>
@@ -357,7 +357,7 @@ function ExplorerContent() {
             </span>
           </div>
           <p className="mt-1 text-xs text-ink-muted">
-            {active ? `Conexão ${active.name} (${database ?? active.database})` : 'Sem conexão ativa'}
+            {active ? `Conexão ${active.name} (${active.database})` : 'Sem conexão ativa'}
           </p>
         </div>
 

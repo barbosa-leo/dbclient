@@ -30,14 +30,12 @@ export function executeQuery(
   connectionId: number,
   sql: string,
   limit: number,
-  database?: string,
 ) {
   return apiRequest<QueryResult>(`/connections/${connectionId}/query`, {
     method: 'POST',
     body: JSON.stringify({
       sql,
       limit: clampRowLimit(limit),
-      ...(database ? { database } : {}),
     }),
   });
 }

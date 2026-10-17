@@ -19,8 +19,8 @@ func NewListSchemas(resolver *connection.ResolveCredentials, driver domain.Datab
 	}
 }
 
-func (uc *ListSchemas) Execute(ctx context.Context, connectionID int64, database string) ([]domain.SchemaInfo, error) {
-	_, creds, err := uc.resolver.Execute(ctx, connectionID, database)
+func (uc *ListSchemas) Execute(ctx context.Context, connectionID int64) ([]domain.SchemaInfo, error) {
+	_, creds, err := uc.resolver.Execute(ctx, connectionID)
 	if err != nil {
 		return nil, err
 	}

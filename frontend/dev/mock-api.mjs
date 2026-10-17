@@ -452,71 +452,7 @@ const server = http.createServer(async (req, res) => {
       connections = connections.filter((c) => c.id !== id);
       return send(res, 204);
     }
-    if (action === 'databases' && req.method === 'GET') {
-      const conn = connections.find((c) => c.id === id);
-      const baseDb = conn ? conn.database : 'app';
-      const extraDbs = id === 2 ? ['inventory', 'reporting'] : ['analytics', 'billing', 'postgres'];
-      const uniqueDbs = Array.from(new Set([baseDb, ...extraDbs]));
-      return send(res, 200, uniqueDbs);
-    }
     if (action === 'schemas') {
-      const dbParam = url.searchParams.get('database');
-      if (dbParam === 'analytics') {
-        return send(res, 200, [
-          {
-            name: 'public',
-            tables: [{ name: 'sessions', kind: 'table' }],
-            procedures: ['sp_refresh_daily_kpis'],
-            functions: ['fn_session_duration_sec'],
-            triggers: ['trg_sessions_touch'],
-          },
-          {
-            name: 'metrics',
-            tables: [{ name: 'daily_kpis', kind: 'materialized_view' }],
-            procedures: [],
-            functions: ['fn_conversion_rate'],
-            triggers: [],
-          },
-          {
-            name: 'events',
-            tables: [{ name: 'page_views', kind: 'table' }],
-            procedures: ['sp_compact_events'],
-            functions: [],
-            triggers: ['trg_page_views_partition'],
-          },
-        ]);
-      }
-      if (dbParam === 'billing') {
-        return send(res, 200, [
-          {
-            name: 'public',
-            tables: [{ name: 'subscriptions', kind: 'table' }],
-            procedures: ['sp_close_billing_cycle'],
-            functions: ['fn_mrr_cents'],
-            triggers: ['trg_subscriptions_status'],
-          },
-          {
-            name: 'invoicing',
-            tables: [
-              { name: 'invoices', kind: 'table' },
-              { name: 'open_invoices', kind: 'view' },
-            ],
-            procedures: ['sp_issue_invoice'],
-            functions: ['fn_invoice_net_amount'],
-            triggers: ['trg_invoices_numbering'],
-          },
-          {
-            name: 'ledger',
-            tables: [{ name: 'entries', kind: 'table' }],
-            procedures: [],
-            functions: ['fn_account_balance'],
-            triggers: ['trg_entries_balance_check'],
-          },
-        ]);
-      }
-      if (dbParam === 'postgres') {
-        return send(res, 200, [{ name: 'public', tables: [], procedures: [], functions: [], triggers: [] }]);
-      }
       return send(res, 200, schemas);
     }
     const columnsMatch = /^schemas\/([^/]+)\/tables\/([^/]+)\/columns$/.exec(action || '');
@@ -530,9 +466,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (action === 'scripts' && req.method === 'POST') {
       const fileName = /filename="([^"]+)"/.exec(body.raw || '')?.[1] ?? 'script.sql';
-      const targetDb = url.searchParams.get('database');
-      const label = targetDb ? `${fileName} (${targetDb})` : fileName;
-      const job = createJob('script', label);
+      const job = createJob('script', fileName);
       return send(res, 202, jobView(job));
     }
     if (action === 'dumps/export' && req.method === 'POST') {

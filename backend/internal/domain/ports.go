@@ -51,7 +51,6 @@ type Cipher interface {
 }
 
 type DatabaseDriver interface {
-	ListDatabases(ctx context.Context, creds ConnectionCredentials) ([]string, error)
 	ListSchemas(ctx context.Context, creds ConnectionCredentials) ([]SchemaInfo, error)
 	ListColumns(ctx context.Context, creds ConnectionCredentials, schema, table string) ([]ColumnInfo, error)
 	ExecuteQuery(ctx context.Context, creds ConnectionCredentials, sql string, limit int) (QueryResult, error)

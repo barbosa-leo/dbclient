@@ -20,7 +20,6 @@ const (
 type ExecuteQueryInput struct {
 	ActorUsername string
 	ConnectionID  int64
-	Database      string
 	SQL           string
 	Limit         int
 }
@@ -59,7 +58,7 @@ func (uc *ExecuteQuery) Execute(ctx context.Context, input ExecuteQueryInput) (d
 		limit = MaxRowLimit
 	}
 
-	conn, creds, err := uc.resolver.Execute(ctx, input.ConnectionID, input.Database)
+	conn, creds, err := uc.resolver.Execute(ctx, input.ConnectionID)
 	if err != nil {
 		return domain.QueryResult{}, err
 	}

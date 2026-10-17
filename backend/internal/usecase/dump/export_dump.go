@@ -40,7 +40,7 @@ func NewExportDump(
 }
 
 func (uc *ExportDump) Execute(ctx context.Context, actorUsername string, connectionID int64) (domain.Job, error) {
-	conn, creds, err := uc.resolver.Execute(ctx, connectionID, "")
+	conn, creds, err := uc.resolver.Execute(ctx, connectionID)
 	if err != nil {
 		return domain.Job{}, err
 	}

@@ -23,7 +23,7 @@ func NewListColumns(resolver *connection.ResolveCredentials, driver domain.Datab
 func (uc *ListColumns) Execute(
 	ctx context.Context,
 	connectionID int64,
-	schema, table, database string,
+	schema, table string,
 ) ([]domain.ColumnInfo, error) {
 	schema = strings.TrimSpace(schema)
 	table = strings.TrimSpace(table)
@@ -31,7 +31,7 @@ func (uc *ListColumns) Execute(
 		return nil, domain.NewValidationError("Schema e tabela são obrigatórios")
 	}
 
-	_, creds, err := uc.resolver.Execute(ctx, connectionID, database)
+	_, creds, err := uc.resolver.Execute(ctx, connectionID)
 	if err != nil {
 		return nil, err
 	}

@@ -2,7 +2,6 @@ package script
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"path/filepath"
@@ -17,7 +16,6 @@ import (
 type RunScriptInput struct {
 	ActorUsername string
 	ConnectionID  int64
-	Database      string
 	FileName      string
 	Content       io.Reader
 }
@@ -55,7 +53,7 @@ func (uc *RunScript) Execute(ctx context.Context, input RunScriptInput) (domain.
 		return domain.Job{}, domain.NewValidationError("Apenas arquivos .sql são permitidos")
 	}
 
-	conn, creds, err := uc.resolver.Execute(ctx, input.ConnectionID, input.Database)
+	conn, creds, err := uc.resolver.Execute(ctx, input.ConnectionID)
 	if err != nil {
 		return domain.Job{}, err
 	}
@@ -65,14 +63,9 @@ func (uc *RunScript) Execute(ctx context.Context, input RunScriptInput) (domain.
 		return domain.Job{}, err
 	}
 
-	label := fileName
-	if strings.TrimSpace(input.Database) != "" {
-		label = fmt.Sprintf("%s (%s)", fileName, creds.Database)
-	}
-
 	created := uc.jobs.Start(
 		domain.JobKindScript,
-		label,
+		fileName,
 		savedPath,
 		func(jobCtx context.Context, setProgress func(int)) error {
 			defer func() { _ = uc.files.Remove(savedPath) }()

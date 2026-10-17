@@ -2,7 +2,6 @@ package connection
 
 import (
 	"context"
-	"strings"
 
 	"dbclient/backend/internal/domain"
 )
@@ -25,7 +24,6 @@ func NewResolveCredentials(
 func (uc *ResolveCredentials) Execute(
 	ctx context.Context,
 	connectionID int64,
-	databaseOverride string,
 ) (domain.Connection, domain.ConnectionCredentials, error) {
 	conn, err := uc.connections.FindByID(ctx, connectionID)
 	if err != nil {
@@ -37,15 +35,10 @@ func (uc *ResolveCredentials) Execute(
 		return domain.Connection{}, domain.ConnectionCredentials{}, err
 	}
 
-	dbName := conn.Database
-	if trimmed := strings.TrimSpace(databaseOverride); trimmed != "" {
-		dbName = trimmed
-	}
-
 	return conn, domain.ConnectionCredentials{
 		Host:     conn.Host,
 		Port:     conn.Port,
-		Database: dbName,
+		Database: conn.Database,
 		Username: conn.Username,
 		Password: password,
 		SSLMode:  conn.SSLMode,

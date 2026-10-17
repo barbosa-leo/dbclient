@@ -10,11 +10,17 @@ export interface ColumnStructureUpdate {
   updated: ColumnInfo;
 }
 
+export interface TableStructureChanges {
+  updates: ColumnStructureUpdate[];
+  added: ColumnInfo[];
+  deleted: string[];
+}
+
 interface TableStructureProps {
   columns: ColumnInfo[];
   onRefresh?: () => void;
   refreshing?: boolean;
-  onSaveChanges?: (updates: ColumnStructureUpdate[]) => Promise<void> | void;
+  onSaveChanges?: (changes: TableStructureChanges) => Promise<void> | void;
   savingChanges?: boolean;
 }
 
@@ -34,22 +40,22 @@ function formatFieldDraft(column: ColumnInfo, field: EditableColumnField): strin
 }
 
 function parseFieldDraft(
-  original: ColumnInfo,
+  fallback: ColumnInfo,
   field: EditableColumnField,
   draft: string,
 ): ColumnInfo[EditableColumnField] {
   const trimmed = draft.trim();
   switch (field) {
     case 'name':
-      return trimmed || original.name;
+      return trimmed || fallback.name;
     case 'dataType':
-      return trimmed || original.dataType;
+      return trimmed || fallback.dataType;
     case 'nullable': {
       const upper = trimmed.toUpperCase();
       if (upper === 'YES' || upper === 'TRUE' || upper === '1' || upper === 'SIM') return true;
       if (upper === 'NO' || upper === 'FALSE' || upper === '0' || upper === 'NAO' || upper === 'NÃO')
         return false;
-      return original.nullable;
+      return fallback.nullable;
     }
     case 'defaultValue':
       if (!trimmed || trimmed.toUpperCase() === 'NULL') return null;
@@ -60,9 +66,18 @@ function parseFieldDraft(
         return true;
       if (upper === '' || upper === 'NO' || upper === 'FALSE' || upper === '0' || upper === 'NULL')
         return false;
-      return original.isPrimaryKey;
+      return fallback.isPrimaryKey;
     }
   }
+}
+
+function generateDefaultColumnName(existingNames: string[]): string {
+  const set = new Set(existingNames.map((n) => n.toLowerCase()));
+  let idx = 1;
+  while (set.has(`nova_coluna_${idx}`)) {
+    idx++;
+  }
+  return `nova_coluna_${idx}`;
 }
 
 export function TableStructure({
@@ -73,18 +88,23 @@ export function TableStructure({
   savingChanges = false,
 }: TableStructureProps) {
   const [editingCell, setEditingCell] = useState<{
+    target: 'existing' | 'added';
     rowIndex: number;
     field: EditableColumnField;
   } | null>(null);
   const [cellDraft, setCellDraft] = useState('');
   const [pendingEdits, setPendingEdits] = useState<Record<number, Partial<ColumnInfo>>>({});
+  const [addedColumns, setAddedColumns] = useState<ColumnInfo[]>([]);
+  const [deletedRows, setDeletedRows] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     setEditingCell(null);
     setPendingEdits({});
+    setAddedColumns([]);
+    setDeletedRows({});
   }, [columns]);
 
-  if (columns.length === 0) {
+  if (columns.length === 0 && addedColumns.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-line bg-panel p-8 text-center text-xs font-medium text-ink-muted shadow-card">
         Nenhuma coluna encontrada para este objeto.
@@ -92,13 +112,16 @@ export function TableStructure({
     );
   }
 
-  const pendingRowCount = Object.keys(pendingEdits).length;
-  const pendingCellCount = Object.values(pendingEdits).reduce(
-    (acc, rowPatch) => acc + Object.keys(rowPatch).length,
-    0,
-  );
-  const hasPendingChanges = pendingCellCount > 0 || editingCell !== null;
+  const deletedCount = Object.values(deletedRows).filter(Boolean).length;
+  const addedCount = addedColumns.length;
+  const editedExistingCount = Object.entries(pendingEdits).filter(
+    ([idxStr, patch]) => !deletedRows[Number(idxStr)] && Object.keys(patch).length > 0,
+  ).length;
+  const totalOperationsCount = editedExistingCount + addedCount + deletedCount;
+
+  const hasPendingChanges = totalOperationsCount > 0 || editingCell !== null;
   const canRefresh = Boolean(onRefresh) && !refreshing && !savingChanges;
+  const canAddRow = Boolean(onSaveChanges) && !savingChanges;
   const canSaveOrCancel = Boolean(onSaveChanges) && hasPendingChanges && !savingChanges;
 
   function getEffectiveColumn(rowIndex: number): ColumnInfo {
@@ -108,18 +131,25 @@ export function TableStructure({
   }
 
   function isFieldDirty(rowIndex: number, field: EditableColumnField): boolean {
+    if (deletedRows[rowIndex]) return false;
     const patch = pendingEdits[rowIndex];
     return Boolean(patch && Object.prototype.hasOwnProperty.call(patch, field));
   }
 
-  function startEditing(rowIndex: number, field: EditableColumnField) {
+  function startEditing(
+    target: 'existing' | 'added',
+    rowIndex: number,
+    field: EditableColumnField,
+  ) {
     if (!onSaveChanges) return;
-    const effective = getEffectiveColumn(rowIndex);
-    setEditingCell({ rowIndex, field });
-    setCellDraft(formatFieldDraft(effective, field));
+    if (target === 'existing' && deletedRows[rowIndex]) return;
+    const col =
+      target === 'existing' ? getEffectiveColumn(rowIndex) : addedColumns[rowIndex]!;
+    setEditingCell({ target, rowIndex, field });
+    setCellDraft(formatFieldDraft(col, field));
   }
 
-  function applyDraft(
+  function applyExistingDraft(
     baseEdits: Record<number, Partial<ColumnInfo>>,
     rowIndex: number,
     field: EditableColumnField,
@@ -145,33 +175,114 @@ export function TableStructure({
     return next;
   }
 
-  function commitEdit(rowIndex: number, field: EditableColumnField, draft: string) {
+  function applyAddedDraft(
+    baseAdded: ColumnInfo[],
+    rowIndex: number,
+    field: EditableColumnField,
+    draft: string,
+  ): ColumnInfo[] {
+    const current = baseAdded[rowIndex];
+    if (!current) return baseAdded;
+    const parsed = parseFieldDraft(current, field, draft);
+    return baseAdded.map((item, idx) =>
+      idx === rowIndex ? { ...item, [field]: parsed } : item,
+    );
+  }
+
+  function commitEdit(
+    target: 'existing' | 'added',
+    rowIndex: number,
+    field: EditableColumnField,
+    draft: string,
+  ) {
     setEditingCell(null);
-    setPendingEdits((prev) => applyDraft(prev, rowIndex, field, draft));
+    if (target === 'existing') {
+      setPendingEdits((prev) => applyExistingDraft(prev, rowIndex, field, draft));
+    } else {
+      setAddedColumns((prev) => applyAddedDraft(prev, rowIndex, field, draft));
+    }
+  }
+
+  function handleAddColumn() {
+    if (!canAddRow) return;
+    const existingNames = [
+      ...columns.map((_, i) => getEffectiveColumn(i).name),
+      ...addedColumns.map((c) => c.name),
+    ];
+    const newCol: ColumnInfo = {
+      name: generateDefaultColumnName(existingNames),
+      dataType: 'varchar(255)',
+      nullable: true,
+      defaultValue: null,
+      isPrimaryKey: false,
+    };
+    const nextIndex = addedColumns.length;
+    setAddedColumns((prev) => [...prev, newCol]);
+    setEditingCell({ target: 'added', rowIndex: nextIndex, field: 'name' });
+    setCellDraft(newCol.name);
+  }
+
+  function toggleDeleteExistingRow(rowIndex: number) {
+    if (!onSaveChanges || savingChanges) return;
+    if (editingCell?.target === 'existing' && editingCell.rowIndex === rowIndex) {
+      setEditingCell(null);
+    }
+    setDeletedRows((prev) => {
+      const next = { ...prev };
+      if (next[rowIndex]) {
+        delete next[rowIndex];
+      } else {
+        next[rowIndex] = true;
+      }
+      return next;
+    });
+  }
+
+  function removeAddedRow(rowIndex: number) {
+    if (!onSaveChanges || savingChanges) return;
+    if (editingCell?.target === 'added') {
+      setEditingCell(null);
+    }
+    setAddedColumns((prev) => prev.filter((_, idx) => idx !== rowIndex));
   }
 
   function handleCancelAll() {
     setEditingCell(null);
     setPendingEdits({});
+    setAddedColumns([]);
+    setDeletedRows({});
   }
 
   async function handleSaveAll() {
     if (!onSaveChanges) return;
     let finalEdits = pendingEdits;
+    let finalAdded = addedColumns;
+
     if (editingCell) {
-      finalEdits = applyDraft(
-        pendingEdits,
-        editingCell.rowIndex,
-        editingCell.field,
-        cellDraft,
-      );
+      if (editingCell.target === 'existing') {
+        finalEdits = applyExistingDraft(
+          pendingEdits,
+          editingCell.rowIndex,
+          editingCell.field,
+          cellDraft,
+        );
+        setPendingEdits(finalEdits);
+      } else {
+        finalAdded = applyAddedDraft(
+          addedColumns,
+          editingCell.rowIndex,
+          editingCell.field,
+          cellDraft,
+        );
+        setAddedColumns(finalAdded);
+      }
       setEditingCell(null);
-      setPendingEdits(finalEdits);
     }
 
     const updates: ColumnStructureUpdate[] = Object.entries(finalEdits)
       .map(([rowIdxStr, patch]) => {
         const idx = Number(rowIdxStr);
+        if (deletedRows[idx]) return null;
         const original = columns[idx];
         if (!original || !patch || Object.keys(patch).length === 0) return null;
         return {
@@ -181,17 +292,34 @@ export function TableStructure({
       })
       .filter((item): item is ColumnStructureUpdate => item !== null);
 
-    if (updates.length === 0) return;
-    await onSaveChanges(updates);
+    const deleted = Object.entries(deletedRows)
+      .filter(([, isDel]) => isDel)
+      .map(([idxStr]) => columns[Number(idxStr)]?.name)
+      .filter((name): name is string => Boolean(name));
+
+    if (updates.length === 0 && finalAdded.length === 0 && deleted.length === 0) return;
+
+    await onSaveChanges({
+      updates,
+      added: finalAdded,
+      deleted,
+    });
   }
 
   function renderEditableOverlay(
+    target: 'existing' | 'added',
     rowIndex: number,
     field: EditableColumnField,
     placeholder: string,
     alignRight = false,
   ) {
-    if (editingCell?.rowIndex !== rowIndex || editingCell.field !== field) return null;
+    if (
+      editingCell?.target !== target ||
+      editingCell.rowIndex !== rowIndex ||
+      editingCell.field !== field
+    ) {
+      return null;
+    }
     return (
       <input
         type="text"
@@ -206,13 +334,13 @@ export function TableStructure({
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
-            commitEdit(rowIndex, field, cellDraft);
+            commitEdit(target, rowIndex, field, cellDraft);
           } else if (e.key === 'Escape') {
             e.preventDefault();
             setEditingCell(null);
           }
         }}
-        onBlur={() => commitEdit(rowIndex, field, cellDraft)}
+        onBlur={() => commitEdit(target, rowIndex, field, cellDraft)}
         className={`absolute inset-0.5 w-[calc(100%-4px)] min-w-0 rounded border border-line-strong bg-panel px-2 py-0.5 font-mono text-[11px] font-normal text-ink outline-none ${
           alignRight ? 'text-right' : ''
         }`}
@@ -226,17 +354,17 @@ export function TableStructure({
         <div className="flex min-w-0 flex-wrap items-center gap-3 font-mono text-[11px] text-ink-muted">
           {hasPendingChanges ? (
             <span className="text-ink">
-              {pendingCellCount > 0 ? (
+              {totalOperationsCount > 0 ? (
                 <>
-                  <strong className="font-semibold">{pendingCellCount}</strong> alteração(ões) em{' '}
-                  <strong className="font-semibold">{pendingRowCount}</strong> coluna(s)
+                  <strong className="font-semibold">{totalOperationsCount}</strong> coluna(s) com
+                  alteração pendente
                 </>
               ) : (
                 'Editando coluna...'
               )}
             </span>
           ) : (
-            <span>Dê duplo clique em uma célula para editar a estrutura (ALTER TABLE)</span>
+            <span>Dê duplo clique para editar ou adicione/remova colunas (ALTER TABLE)</span>
           )}
         </div>
 
@@ -262,6 +390,27 @@ export function TableStructure({
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            disabled={!canAddRow}
+            aria-label="Adicionar coluna"
+            title="Adicionar coluna"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={handleAddColumn}
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+          >
+            <svg
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              aria-hidden="true"
+              className="h-3.5 w-3.5"
+            >
+              <path d="M8 3.5v9M3.5 8h9" strokeLinecap="round" />
             </svg>
           </button>
 
@@ -318,49 +467,70 @@ export function TableStructure({
               <th className="px-4 py-1.5">Nulo</th>
               <th className="px-4 py-1.5">Padrão</th>
               <th className="px-4 py-1.5 text-right">Chave</th>
+              <th className="w-10 px-2 py-1.5 text-center" aria-label="Ações" />
             </tr>
           </thead>
           <tbody className="divide-y divide-line font-mono text-[11px] leading-tight">
             {columns.map((originalCol, rowIndex) => {
               const col = getEffectiveColumn(rowIndex);
+              const isDeleted = Boolean(deletedRows[rowIndex]);
               const isEditingName =
-                editingCell?.rowIndex === rowIndex && editingCell.field === 'name';
+                editingCell?.target === 'existing' &&
+                editingCell.rowIndex === rowIndex &&
+                editingCell.field === 'name';
               const isEditingType =
-                editingCell?.rowIndex === rowIndex && editingCell.field === 'dataType';
+                editingCell?.target === 'existing' &&
+                editingCell.rowIndex === rowIndex &&
+                editingCell.field === 'dataType';
               const isEditingNull =
-                editingCell?.rowIndex === rowIndex && editingCell.field === 'nullable';
+                editingCell?.target === 'existing' &&
+                editingCell.rowIndex === rowIndex &&
+                editingCell.field === 'nullable';
               const isEditingDefault =
-                editingCell?.rowIndex === rowIndex && editingCell.field === 'defaultValue';
+                editingCell?.target === 'existing' &&
+                editingCell.rowIndex === rowIndex &&
+                editingCell.field === 'defaultValue';
               const isEditingPk =
-                editingCell?.rowIndex === rowIndex && editingCell.field === 'isPrimaryKey';
+                editingCell?.target === 'existing' &&
+                editingCell.rowIndex === rowIndex &&
+                editingCell.field === 'isPrimaryKey';
 
               return (
-                <tr key={originalCol.name} className="transition-colors hover:bg-muted/50">
+                <tr
+                  key={originalCol.name}
+                  className={`transition-colors ${
+                    isDeleted
+                      ? 'bg-danger/10 text-danger line-through opacity-75'
+                      : 'hover:bg-muted/50'
+                  }`}
+                >
                   <td
-                    onDoubleClick={() => startEditing(rowIndex, 'name')}
-                    title={onSaveChanges ? 'Duplo clique para editar nome' : undefined}
+                    onDoubleClick={() => startEditing('existing', rowIndex, 'name')}
+                    title={onSaveChanges && !isDeleted ? 'Duplo clique para editar nome' : undefined}
                     className={`relative whitespace-nowrap px-4 py-1 font-semibold text-ink ${
                       isFieldDirty(rowIndex, 'name') ? 'bg-online/10' : ''
                     }`}
                   >
                     <span className={isEditingName ? 'invisible' : ''}>{col.name}</span>
-                    {renderEditableOverlay(rowIndex, 'name', originalCol.name)}
+                    {renderEditableOverlay('existing', rowIndex, 'name', originalCol.name)}
                   </td>
 
                   <td
-                    onDoubleClick={() => startEditing(rowIndex, 'dataType')}
-                    title={onSaveChanges ? 'Duplo clique para editar tipo' : undefined}
+                    onDoubleClick={() => startEditing('existing', rowIndex, 'dataType')}
+                    title={onSaveChanges && !isDeleted ? 'Duplo clique para editar tipo' : undefined}
                     className={`relative whitespace-nowrap px-4 py-1 text-ink-secondary ${
                       isFieldDirty(rowIndex, 'dataType') ? 'bg-online/10 font-semibold text-ink' : ''
                     }`}
                   >
                     <span className={isEditingType ? 'invisible' : ''}>{col.dataType}</span>
-                    {renderEditableOverlay(rowIndex, 'dataType', originalCol.dataType)}
+                    {renderEditableOverlay('existing', rowIndex, 'dataType', originalCol.dataType)}
                   </td>
 
                   <td
-                    onDoubleClick={() => startEditing(rowIndex, 'nullable')}
-                    title={onSaveChanges ? 'Duplo clique para editar (YES / NO)' : undefined}
+                    onDoubleClick={() => startEditing('existing', rowIndex, 'nullable')}
+                    title={
+                      onSaveChanges && !isDeleted ? 'Duplo clique para editar (YES / NO)' : undefined
+                    }
                     className={`relative whitespace-nowrap px-4 py-1 font-sans ${
                       isFieldDirty(rowIndex, 'nullable') ? 'bg-online/10' : ''
                     }`}
@@ -376,12 +546,16 @@ export function TableStructure({
                     >
                       {col.nullable ? 'YES' : 'NO'}
                     </span>
-                    {renderEditableOverlay(rowIndex, 'nullable', 'YES / NO')}
+                    {renderEditableOverlay('existing', rowIndex, 'nullable', 'YES / NO')}
                   </td>
 
                   <td
-                    onDoubleClick={() => startEditing(rowIndex, 'defaultValue')}
-                    title={onSaveChanges ? 'Duplo clique para editar valor padrão' : undefined}
+                    onDoubleClick={() => startEditing('existing', rowIndex, 'defaultValue')}
+                    title={
+                      onSaveChanges && !isDeleted
+                        ? 'Duplo clique para editar valor padrão'
+                        : undefined
+                    }
                     className={`relative whitespace-nowrap px-4 py-1 text-ink-secondary ${
                       isFieldDirty(rowIndex, 'defaultValue')
                         ? 'bg-online/10 font-semibold text-ink'
@@ -395,12 +569,16 @@ export function TableStructure({
                         </span>
                       )}
                     </span>
-                    {renderEditableOverlay(rowIndex, 'defaultValue', 'NULL')}
+                    {renderEditableOverlay('existing', rowIndex, 'defaultValue', 'NULL')}
                   </td>
 
                   <td
-                    onDoubleClick={() => startEditing(rowIndex, 'isPrimaryKey')}
-                    title={onSaveChanges ? 'Duplo clique para editar chave (PK / NO)' : undefined}
+                    onDoubleClick={() => startEditing('existing', rowIndex, 'isPrimaryKey')}
+                    title={
+                      onSaveChanges && !isDeleted
+                        ? 'Duplo clique para editar chave (PK / NO)'
+                        : undefined
+                    }
                     className={`relative whitespace-nowrap px-4 py-1 text-right font-sans ${
                       isFieldDirty(rowIndex, 'isPrimaryKey') ? 'bg-online/10' : ''
                     }`}
@@ -414,7 +592,143 @@ export function TableStructure({
                         <span className="text-[10px] text-ink-muted">—</span>
                       )}
                     </span>
-                    {renderEditableOverlay(rowIndex, 'isPrimaryKey', 'PK / NO', true)}
+                    {renderEditableOverlay('existing', rowIndex, 'isPrimaryKey', 'PK / NO', true)}
+                  </td>
+
+                  <td className="px-2 py-1 text-center font-sans">
+                    <button
+                      type="button"
+                      disabled={!onSaveChanges || savingChanges}
+                      aria-label={isDeleted ? `Restaurar coluna ${col.name}` : `Excluir coluna ${col.name}`}
+                      title={isDeleted ? 'Desfazer exclusão' : 'Excluir coluna'}
+                      onClick={() => toggleDeleteExistingRow(rowIndex)}
+                      className={`inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
+                        isDeleted
+                          ? 'text-ink hover:bg-muted'
+                          : 'text-ink-muted hover:bg-danger/10 hover:text-danger'
+                      }`}
+                    >
+                      {isDeleted ? (
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-3.5 w-3.5">
+                          <path d="M4 7h6a3 3 0 1 1 0 6H6M4 7l2.5-2.5M4 7l2.5 2.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-3.5 w-3.5">
+                          <path d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5l.5 8.5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+
+            {addedColumns.map((col, addedIndex) => {
+              const isEditingName =
+                editingCell?.target === 'added' &&
+                editingCell.rowIndex === addedIndex &&
+                editingCell.field === 'name';
+              const isEditingType =
+                editingCell?.target === 'added' &&
+                editingCell.rowIndex === addedIndex &&
+                editingCell.field === 'dataType';
+              const isEditingNull =
+                editingCell?.target === 'added' &&
+                editingCell.rowIndex === addedIndex &&
+                editingCell.field === 'nullable';
+              const isEditingDefault =
+                editingCell?.target === 'added' &&
+                editingCell.rowIndex === addedIndex &&
+                editingCell.field === 'defaultValue';
+              const isEditingPk =
+                editingCell?.target === 'added' &&
+                editingCell.rowIndex === addedIndex &&
+                editingCell.field === 'isPrimaryKey';
+
+              return (
+                <tr key={`added-${addedIndex}`} className="bg-online/10 transition-colors">
+                  <td
+                    onDoubleClick={() => startEditing('added', addedIndex, 'name')}
+                    title="Duplo clique para editar nome"
+                    className="relative whitespace-nowrap px-4 py-1 font-semibold text-ink"
+                  >
+                    <span className={isEditingName ? 'invisible' : ''}>{col.name}</span>
+                    {renderEditableOverlay('added', addedIndex, 'name', 'nome_da_coluna')}
+                  </td>
+
+                  <td
+                    onDoubleClick={() => startEditing('added', addedIndex, 'dataType')}
+                    title="Duplo clique para editar tipo"
+                    className="relative whitespace-nowrap px-4 py-1 font-semibold text-ink"
+                  >
+                    <span className={isEditingType ? 'invisible' : ''}>{col.dataType}</span>
+                    {renderEditableOverlay('added', addedIndex, 'dataType', 'varchar(255)')}
+                  </td>
+
+                  <td
+                    onDoubleClick={() => startEditing('added', addedIndex, 'nullable')}
+                    title="Duplo clique para editar (YES / NO)"
+                    className="relative whitespace-nowrap px-4 py-1 font-sans"
+                  >
+                    <span
+                      className={`rounded px-1.5 py-0.2 text-[10px] font-medium ${
+                        isEditingNull ? 'invisible' : ''
+                      } ${
+                        col.nullable
+                          ? 'bg-muted text-ink-secondary'
+                          : 'border border-line bg-panel text-ink'
+                      }`}
+                    >
+                      {col.nullable ? 'YES' : 'NO'}
+                    </span>
+                    {renderEditableOverlay('added', addedIndex, 'nullable', 'YES / NO')}
+                  </td>
+
+                  <td
+                    onDoubleClick={() => startEditing('added', addedIndex, 'defaultValue')}
+                    title="Duplo clique para editar valor padrão"
+                    className="relative whitespace-nowrap px-4 py-1 font-semibold text-ink"
+                  >
+                    <span className={isEditingDefault ? 'invisible' : ''}>
+                      {col.defaultValue ?? (
+                        <span className="rounded bg-muted px-1 py-0.2 font-normal text-[10px] text-ink-muted">
+                          NULL
+                        </span>
+                      )}
+                    </span>
+                    {renderEditableOverlay('added', addedIndex, 'defaultValue', 'NULL')}
+                  </td>
+
+                  <td
+                    onDoubleClick={() => startEditing('added', addedIndex, 'isPrimaryKey')}
+                    title="Duplo clique para editar chave (PK / NO)"
+                    className="relative whitespace-nowrap px-4 py-1 text-right font-sans"
+                  >
+                    <span className={isEditingPk ? 'invisible' : ''}>
+                      {col.isPrimaryKey ? (
+                        <span className="rounded bg-cta px-1.5 py-0.2 text-[10px] font-semibold text-cta-fg">
+                          PK
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-ink-muted">—</span>
+                      )}
+                    </span>
+                    {renderEditableOverlay('added', addedIndex, 'isPrimaryKey', 'PK / NO', true)}
+                  </td>
+
+                  <td className="px-2 py-1 text-center font-sans">
+                    <button
+                      type="button"
+                      disabled={savingChanges}
+                      aria-label={`Remover nova coluna ${col.name}`}
+                      title="Remover coluna"
+                      onClick={() => removeAddedRow(addedIndex)}
+                      className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded text-ink-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-3.5 w-3.5">
+                        <path d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5l.5 8.5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
                   </td>
                 </tr>
               );
@@ -425,4 +739,3 @@ export function TableStructure({
     </div>
   );
 }
-

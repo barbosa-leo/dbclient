@@ -4,7 +4,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
 import { TableStructure } from '@/components/explorer/TableStructure';
-import type { ColumnStructureUpdate } from '@/components/explorer/TableStructure';
+import type { TableStructureChanges } from '@/components/explorer/TableStructure';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ResultTable } from '@/components/query/ResultTable';
 import type { CellUpdate, ColumnSort } from '@/components/query/ResultTable';
@@ -83,12 +83,30 @@ function buildAlterTableStatements(
   schema: string,
   table: string,
   currentColumns: ColumnInfo[],
-  updates: ColumnStructureUpdate[],
+  changes: TableStructureChanges,
 ): string[] {
   const tableRef = `${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
   const statements: string[] = [];
+  const { updates, added, deleted } = changes;
+  const deletedSet = new Set(deleted);
+
+  for (const colName of deleted) {
+    statements.push(`ALTER TABLE ${tableRef} DROP COLUMN ${quoteIdentifier(colName)}`);
+  }
+
+  for (const col of added) {
+    let stmt = `ALTER TABLE ${tableRef} ADD COLUMN ${quoteIdentifier(col.name)} ${col.dataType}`;
+    if (!col.nullable) {
+      stmt += ' NOT NULL';
+    }
+    if (col.defaultValue !== null) {
+      stmt += ` DEFAULT ${col.defaultValue}`;
+    }
+    statements.push(stmt);
+  }
 
   for (const { original, updated } of updates) {
+    if (deletedSet.has(original.name)) continue;
     let colName = original.name;
 
     if (updated.name !== original.name) {
@@ -121,11 +139,21 @@ function buildAlterTableStatements(
     }
   }
 
-  const pkChanged = updates.some((u) => u.original.isPrimaryKey !== u.updated.isPrimaryKey);
-  if (pkChanged) {
+  const pkChangedInUpdates = updates.some(
+    (u) => !deletedSet.has(u.original.name) && u.original.isPrimaryKey !== u.updated.isPrimaryKey,
+  );
+  const pkAdded = added.some((c) => c.isPrimaryKey);
+  const pkDeleted = currentColumns.some((c) => deletedSet.has(c.name) && c.isPrimaryKey);
+
+  if (pkChangedInUpdates || pkAdded || pkDeleted) {
     const updateByOrigName = new Map(updates.map((u) => [u.original.name, u.updated]));
-    const nextCols = currentColumns.map((c) => updateByOrigName.get(c.name) ?? c);
-    const nextPkCols = nextCols.filter((c) => c.isPrimaryKey).map((c) => quoteIdentifier(c.name));
+    const remainingCols = currentColumns
+      .filter((c) => !deletedSet.has(c.name))
+      .map((c) => updateByOrigName.get(c.name) ?? c);
+    const allFinalCols = [...remainingCols, ...added];
+    const nextPkCols = allFinalCols
+      .filter((c) => c.isPrimaryKey)
+      .map((c) => quoteIdentifier(c.name));
     const constraintIdent = quoteIdentifier(`${table}_pkey`);
     statements.push(`ALTER TABLE ${tableRef} DROP CONSTRAINT IF EXISTS ${constraintIdent}`);
     if (nextPkCols.length > 0) {
@@ -298,12 +326,12 @@ function ExplorerContent() {
     }
   }
 
-  async function handleSaveStructureChanges(updates: ColumnStructureUpdate[]) {
+  async function handleSaveStructureChanges(changes: TableStructureChanges) {
     if (activeId === undefined || !schema || !table || !columns) return;
     setSavingChanges(true);
     setError(null);
     try {
-      const statements = buildAlterTableStatements(schema, table, columns, updates);
+      const statements = buildAlterTableStatements(schema, table, columns, changes);
       for (const sql of statements) {
         await executeQuery(activeId, sql, limit);
       }

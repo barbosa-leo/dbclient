@@ -7,6 +7,7 @@ import { AuthCard } from '@/components/auth/AuthCard';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
+import { listEnvironments } from '@/services/connections';
 
 export function LoginForm() {
   const router = useRouter();
@@ -22,7 +23,8 @@ export function LoginForm() {
     setSubmitting(true);
     try {
       await signIn(username, password);
-      router.replace('/explorer');
+      const environments = await listEnvironments().catch(() => []);
+      router.replace(environments.length === 0 ? '/connections' : '/explorer');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao entrar');
     } finally {

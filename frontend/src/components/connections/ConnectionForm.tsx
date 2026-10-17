@@ -8,16 +8,25 @@ import { Button } from '@/components/ui/Button';
 import { SelectField } from '@/components/ui/SelectField';
 import { TextField } from '@/components/ui/TextField';
 import { createConnection, sslModes, updateConnection } from '@/services/connections';
-import type { Connection, SslMode } from '@/services/connections';
+import type { Connection, Environment, SslMode } from '@/services/connections';
 
 interface ConnectionFormProps {
   connection: Connection | null;
+  environments: Environment[];
+  defaultEnvironmentId: number | null;
   onSaved: () => void;
   onCancel: () => void;
 }
 
-function initialValues(connection: Connection | null): ConnectionFormValues {
+function initialValues(
+  connection: Connection | null,
+  environments: Environment[],
+  defaultEnvironmentId: number | null,
+): ConnectionFormValues {
+  const envId =
+    connection?.environmentId ?? defaultEnvironmentId ?? environments[0]?.id ?? '';
   return {
+    environmentId: String(envId),
     name: connection?.name ?? '',
     host: connection?.host ?? '',
     port: String(connection?.port ?? 5432),
@@ -28,8 +37,16 @@ function initialValues(connection: Connection | null): ConnectionFormValues {
   };
 }
 
-export function ConnectionForm({ connection, onSaved, onCancel }: ConnectionFormProps) {
-  const [values, setValues] = useState(() => initialValues(connection));
+export function ConnectionForm({
+  connection,
+  environments,
+  defaultEnvironmentId,
+  onSaved,
+  onCancel,
+}: ConnectionFormProps) {
+  const [values, setValues] = useState(() =>
+    initialValues(connection, environments, defaultEnvironmentId),
+  );
   const [errors, setErrors] = useState<ConnectionFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -48,6 +65,7 @@ export function ConnectionForm({ connection, onSaved, onCancel }: ConnectionForm
     if (Object.keys(validation).length > 0) return;
 
     const input = {
+      environmentId: Number(values.environmentId),
       name: values.name.trim(),
       host: values.host.trim(),
       port: Number(values.port),
@@ -82,6 +100,26 @@ export function ConnectionForm({ connection, onSaved, onCancel }: ConnectionForm
         {isEditing ? 'Editar conexão' : 'Nova conexão'}
       </h2>
       <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="connection-environment" className="text-xs font-medium text-ink">
+            Environment
+          </label>
+          <select
+            id="connection-environment"
+            value={values.environmentId}
+            onChange={(e) => setField('environmentId', e.target.value)}
+            className="h-9 cursor-pointer rounded-lg border border-line bg-panel px-3 text-xs text-ink transition-colors outline-none hover:border-line-strong focus:border-line-strong"
+          >
+            {environments.map((env) => (
+              <option key={env.id} value={env.id}>
+                {env.name}
+              </option>
+            ))}
+          </select>
+          {errors.environmentId && (
+            <span className="text-xs font-medium text-danger">{errors.environmentId}</span>
+          )}
+        </div>
         <TextField
           label="Nome"
           value={values.name}
@@ -145,3 +183,4 @@ export function ConnectionForm({ connection, onSaved, onCancel }: ConnectionForm
     </form>
   );
 }
+

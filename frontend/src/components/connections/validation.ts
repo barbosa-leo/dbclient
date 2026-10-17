@@ -2,6 +2,7 @@ import { sslModes } from '@/services/connections';
 import type { SslMode } from '@/services/connections';
 
 export interface ConnectionFormValues {
+  environmentId: string;
   name: string;
   host: string;
   port: string;
@@ -21,6 +22,11 @@ export function validateConnection(
 ): ConnectionFormErrors {
   const errors: ConnectionFormErrors = {};
 
+  const envId = Number(values.environmentId);
+  if (!values.environmentId || !Number.isInteger(envId) || envId <= 0) {
+    errors.environmentId = REQUIRED;
+  }
+
   if (!values.name.trim()) errors.name = REQUIRED;
   if (!values.host.trim()) errors.host = REQUIRED;
   if (!values.database.trim()) errors.database = REQUIRED;
@@ -38,3 +44,4 @@ export function validateConnection(
 
   return errors;
 }
+

@@ -8,10 +8,18 @@ let userList = [
   { id: 2, username: 'operator', role: 'operator', mustChangePassword: false, password: 'operator' },
 ];
 
-let nextConnectionId = 3;
+let nextEnvironmentId = 4;
+let environments = [
+  { id: 1, name: 'Development' },
+  { id: 2, name: 'Staging' },
+  { id: 3, name: 'Production' },
+];
+
+let nextConnectionId = 4;
 let connections = [
-  { id: 1, name: 'Local', host: 'localhost', port: 5432, database: 'app', username: 'postgres', sslMode: 'prefer' },
-  { id: 2, name: 'Staging', host: 'db.staging.internal', port: 5432, database: 'orders', username: 'readonly', sslMode: 'require' },
+  { id: 1, environmentId: 1, name: 'Local', host: 'localhost', port: 5432, database: 'app', username: 'postgres', sslMode: 'prefer' },
+  { id: 2, environmentId: 2, name: 'Staging', host: 'db.staging.internal', port: 5432, database: 'orders', username: 'readonly', sslMode: 'require' },
+  { id: 3, environmentId: 3, name: 'Primary', host: 'db.prod.internal', port: 5432, database: 'app', username: 'app_user', sslMode: 'verify-full' },
 ];
 
 const schemas = [
@@ -384,12 +392,46 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  if (path === '/api/connections' && req.method === 'GET') return send(res, 200, connections);
+  if (path === '/api/environments' && req.method === 'GET') {
+    return send(res, 200, environments);
+  }
+
+  if (path === '/api/environments' && req.method === 'POST') {
+    if (!isAdmin) return send(res, 403, { error: 'Acesso negado' });
+    const name = String(body.name || '').trim();
+    if (!name) return send(res, 400, { error: 'Nome do environment é obrigatório' });
+    if (environments.some((e) => e.name.toLowerCase() === name.toLowerCase())) {
+      return send(res, 409, { error: 'Já existe um environment com esse nome' });
+    }
+    const created = { id: nextEnvironmentId++, name };
+    environments = [...environments, created];
+    return send(res, 201, created);
+  }
+
+  const envRoute = /^\/api\/environments\/(\d+)$/.exec(path);
+  if (envRoute && req.method === 'DELETE') {
+    if (!isAdmin) return send(res, 403, { error: 'Acesso negado' });
+    const envId = Number(envRoute[1]);
+    if (connections.some((c) => c.environmentId === envId)) {
+      return send(res, 409, { error: 'Remova ou mova as conexões deste environment antes de excluí-lo' });
+    }
+    environments = environments.filter((e) => e.id !== envId);
+    return send(res, 204);
+  }
+
+  if (path === '/api/connections' && req.method === 'GET') {
+    const envParam = Number(url.searchParams.get('environmentId'));
+    if (envParam) {
+      return send(res, 200, connections.filter((c) => c.environmentId === envParam));
+    }
+    return send(res, 200, connections);
+  }
 
   if (path === '/api/connections' && req.method === 'POST') {
     if (!isAdmin) return send(res, 403, { error: 'Acesso negado' });
     const { password: _password, ...fields } = body;
-    const created = { id: nextConnectionId++, ...fields };
+    const environmentId = Number(fields.environmentId) || environments[0]?.id || 1;
+    const created = { id: nextConnectionId++, ...fields, environmentId };
     connections = [...connections, created];
     return send(res, 201, created);
   }

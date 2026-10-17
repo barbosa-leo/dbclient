@@ -4,8 +4,14 @@ export const sslModes = ['disable', 'allow', 'prefer', 'require', 'verify-ca', '
 
 export type SslMode = (typeof sslModes)[number];
 
+export interface Environment {
+  id: number;
+  name: string;
+}
+
 export interface Connection {
   id: number;
+  environmentId: number;
   name: string;
   host: string;
   port: number;
@@ -15,6 +21,7 @@ export interface Connection {
 }
 
 export interface ConnectionInput {
+  environmentId: number;
   name: string;
   host: string;
   port: number;
@@ -24,8 +31,24 @@ export interface ConnectionInput {
   sslMode: SslMode;
 }
 
-export function listConnections() {
-  return apiRequest<Connection[]>('/connections');
+export function listEnvironments() {
+  return apiRequest<Environment[]>('/environments');
+}
+
+export function createEnvironment(name: string) {
+  return apiRequest<Environment>('/environments', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function deleteEnvironment(id: number) {
+  return apiRequest<void>(`/environments/${id}`, { method: 'DELETE' });
+}
+
+export function listConnections(environmentId?: number) {
+  const query = environmentId ? `?environmentId=${environmentId}` : '';
+  return apiRequest<Connection[]>(`/connections${query}`);
 }
 
 export function createConnection(input: ConnectionInput) {
@@ -49,3 +72,4 @@ export function deleteConnection(id: number) {
 export function listDatabases(connectionId: number) {
   return apiRequest<string[]>(`/connections/${connectionId}/databases`);
 }
+

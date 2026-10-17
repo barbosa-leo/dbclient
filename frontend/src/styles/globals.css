@@ -15,6 +15,9 @@
   --cta-fg: #ededf0;
   --status-online: #10b981;
   --status-danger: #f43f5e;
+  --scrollbar-track: #dbdbe0;
+  --scrollbar-thumb: #9696a0;
+  --scrollbar-thumb-hover: #71717a;
 }
 
 .dark {
@@ -32,6 +35,9 @@
   --cta-fg: #09090b;
   --status-online: #10b981;
   --status-danger: #f43f5e;
+  --scrollbar-track: #1b1b1f;
+  --scrollbar-thumb: #3f3f46;
+  --scrollbar-thumb-hover: #52525b;
 }
 
 @theme inline {
@@ -62,5 +68,29 @@
   body {
     @apply bg-canvas text-ink font-sans antialiased selection:bg-cta selection:text-cta-fg;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  *::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background-color: var(--scrollbar-track);
+    border-radius: 9999px;
+    margin: 2px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 9999px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background-color: transparent;
   }
 }

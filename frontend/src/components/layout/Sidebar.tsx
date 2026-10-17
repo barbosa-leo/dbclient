@@ -2,11 +2,19 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { SidebarExplorer } from '@/components/layout/SidebarExplorer';
 import { navSections } from '@/components/layout/navigation';
 import type { NavIconName } from '@/components/layout/navigation';
+
+const MIN_EXPLORER_WIDTH_PCT = 20;
+const MAX_EXPLORER_WIDTH_PCT = 35;
+
+function clampExplorerWidthPct(value: number): number {
+  return Math.min(MAX_EXPLORER_WIDTH_PCT, Math.max(MIN_EXPLORER_WIDTH_PCT, value));
+}
 
 function NavIcon({ name }: { name: NavIconName }) {
   switch (name) {
@@ -87,6 +95,43 @@ export function Sidebar() {
   const router = useRouter();
   const { user } = useAuth();
   const [explorerDrawerOpen, setExplorerDrawerOpen] = useState(true);
+  const [explorerWidthPct, setExplorerWidthPct] = useState(MIN_EXPLORER_WIDTH_PCT);
+  const [resizing, setResizing] = useState(false);
+  const explorerPaneRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!resizing) return;
+
+    function handleMouseMove(event: MouseEvent) {
+      const pane = explorerPaneRef.current;
+      if (!pane || window.innerWidth <= 0) return;
+      const paneLeft = pane.getBoundingClientRect().left;
+      const nextWidthPx = event.clientX - paneLeft;
+      const nextPct = (nextWidthPx / window.innerWidth) * 100;
+      setExplorerWidthPct(clampExplorerWidthPct(nextPct));
+    }
+
+    function handleMouseUp() {
+      setResizing(false);
+    }
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizing]);
+
+  function startResize(event: ReactMouseEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setResizing(true);
+  }
 
   const visibleSections = navSections
     .map((section) => ({
@@ -168,7 +213,15 @@ export function Sidebar() {
       </aside>
 
       {showSecondaryExplorerBar && (
-        <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-panel px-3 py-4">
+        <aside
+          ref={explorerPaneRef}
+          style={{
+            width: `${explorerWidthPct}vw`,
+            minWidth: `${MIN_EXPLORER_WIDTH_PCT}vw`,
+            maxWidth: `${MAX_EXPLORER_WIDTH_PCT}vw`,
+          }}
+          className="relative flex shrink-0 flex-col border-r border-line bg-panel px-3 py-4"
+        >
           <div className="mb-3 flex items-center justify-between px-2">
             <span className="text-xs font-semibold tracking-tight text-ink">Explorar</span>
             <button
@@ -187,6 +240,18 @@ export function Sidebar() {
               <SidebarExplorer />
             </Suspense>
           </div>
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Redimensionar painel explorar"
+            aria-valuemin={MIN_EXPLORER_WIDTH_PCT}
+            aria-valuemax={MAX_EXPLORER_WIDTH_PCT}
+            aria-valuenow={Math.round(explorerWidthPct)}
+            onMouseDown={startResize}
+            className={`absolute top-0 -right-1 z-20 h-full w-2 cursor-col-resize transition-colors hover:bg-line-strong/60 ${
+              resizing ? 'bg-line-strong' : ''
+            }`}
+          />
         </aside>
       )}
     </div>

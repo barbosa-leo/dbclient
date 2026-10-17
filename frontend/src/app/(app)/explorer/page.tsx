@@ -1,9 +1,10 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
 import { TableStructure } from '@/components/explorer/TableStructure';
+import type { ColumnStructureUpdate } from '@/components/explorer/TableStructure';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ResultTable } from '@/components/query/ResultTable';
 import type { CellUpdate, ColumnSort } from '@/components/query/ResultTable';
@@ -78,6 +79,63 @@ function buildUpdateStatement(
   return `UPDATE ${tableRef} SET ${setClauses.join(', ')} WHERE ${whereClauses.join(' AND ')}`;
 }
 
+function buildAlterTableStatements(
+  schema: string,
+  table: string,
+  currentColumns: ColumnInfo[],
+  updates: ColumnStructureUpdate[],
+): string[] {
+  const tableRef = `${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
+  const statements: string[] = [];
+
+  for (const { original, updated } of updates) {
+    let colName = original.name;
+
+    if (updated.name !== original.name) {
+      statements.push(
+        `ALTER TABLE ${tableRef} RENAME COLUMN ${quoteIdentifier(original.name)} TO ${quoteIdentifier(updated.name)}`,
+      );
+      colName = updated.name;
+    }
+
+    const colIdent = quoteIdentifier(colName);
+
+    if (updated.dataType !== original.dataType) {
+      statements.push(`ALTER TABLE ${tableRef} ALTER COLUMN ${colIdent} TYPE ${updated.dataType}`);
+    }
+
+    if (updated.nullable !== original.nullable) {
+      statements.push(
+        `ALTER TABLE ${tableRef} ALTER COLUMN ${colIdent} ${updated.nullable ? 'DROP NOT NULL' : 'SET NOT NULL'}`,
+      );
+    }
+
+    if (updated.defaultValue !== original.defaultValue) {
+      if (updated.defaultValue === null) {
+        statements.push(`ALTER TABLE ${tableRef} ALTER COLUMN ${colIdent} DROP DEFAULT`);
+      } else {
+        statements.push(
+          `ALTER TABLE ${tableRef} ALTER COLUMN ${colIdent} SET DEFAULT ${updated.defaultValue}`,
+        );
+      }
+    }
+  }
+
+  const pkChanged = updates.some((u) => u.original.isPrimaryKey !== u.updated.isPrimaryKey);
+  if (pkChanged) {
+    const updateByOrigName = new Map(updates.map((u) => [u.original.name, u.updated]));
+    const nextCols = currentColumns.map((c) => updateByOrigName.get(c.name) ?? c);
+    const nextPkCols = nextCols.filter((c) => c.isPrimaryKey).map((c) => quoteIdentifier(c.name));
+    const constraintIdent = quoteIdentifier(`${table}_pkey`);
+    statements.push(`ALTER TABLE ${tableRef} DROP CONSTRAINT IF EXISTS ${constraintIdent}`);
+    if (nextPkCols.length > 0) {
+      statements.push(`ALTER TABLE ${tableRef} ADD PRIMARY KEY (${nextPkCols.join(', ')})`);
+    }
+  }
+
+  return statements;
+}
+
 function buildTableQuery(
   schema: string,
   table: string,
@@ -104,6 +162,8 @@ function buildTableQuery(
 }
 
 function ExplorerContent() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { active } = useConnections();
   const activeId = active?.id;
@@ -113,8 +173,9 @@ function ExplorerContent() {
   const table = searchParams.get('table');
   const kindParam = searchParams.get('kind') as TableKind | null;
   const kindLabel = (kindParam && kindLabels[kindParam]) ?? 'Objeto';
+  const tabParam = searchParams.get('tab');
+  const tab: Tab = tabParam === 'structure' ? 'structure' : 'data';
 
-  const [tab, setTab] = useState<Tab>('data');
   const [autoLimit, setAutoLimit] = useState(MIN_ROW_LIMIT);
   const [limit, setLimit] = useState(MIN_ROW_LIMIT);
   const [sort, setSort] = useState<ColumnSort | null>(null);
@@ -125,6 +186,13 @@ function ExplorerContent() {
   const [savingChanges, setSavingChanges] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const tableAnchorRef = useRef<HTMLDivElement>(null);
+
+  function selectTab(nextTab: Tab) {
+    if (nextTab === tab && tabParam === nextTab) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', nextTab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   const measureAutoLimit = useCallback(() => {
     const top = tableAnchorRef.current?.getBoundingClientRect().top ?? 170;
@@ -230,6 +298,23 @@ function ExplorerContent() {
     }
   }
 
+  async function handleSaveStructureChanges(updates: ColumnStructureUpdate[]) {
+    if (activeId === undefined || !schema || !table || !columns) return;
+    setSavingChanges(true);
+    setError(null);
+    try {
+      const statements = buildAlterTableStatements(schema, table, columns, updates);
+      for (const sql of statements) {
+        await executeQuery(activeId, sql, limit, database ?? undefined);
+      }
+      await loadStructure();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao alterar a estrutura da tabela');
+    } finally {
+      setSavingChanges(false);
+    }
+  }
+
   if (!schema || !table) {
     return (
       <div className="flex flex-col gap-6">
@@ -286,7 +371,7 @@ function ExplorerContent() {
               type="button"
               role="tab"
               aria-selected={tab === 'data'}
-              onClick={() => setTab('data')}
+              onClick={() => selectTab('data')}
               className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                 tab === 'data'
                   ? 'bg-panel text-ink shadow-card'
@@ -299,7 +384,7 @@ function ExplorerContent() {
               type="button"
               role="tab"
               aria-selected={tab === 'structure'}
-              onClick={() => setTab('structure')}
+              onClick={() => selectTab('structure')}
               className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                 tab === 'structure'
                   ? 'bg-panel text-ink shadow-card'
@@ -347,7 +432,15 @@ function ExplorerContent() {
           </>
         )}
 
-        {!loading && tab === 'structure' && columns && <TableStructure columns={columns} />}
+        {!loading && tab === 'structure' && columns && (
+          <TableStructure
+            columns={columns}
+            onRefresh={() => void loadStructure()}
+            refreshing={loading}
+            onSaveChanges={handleSaveStructureChanges}
+            savingChanges={savingChanges}
+          />
+        )}
       </div>
     </div>
   );

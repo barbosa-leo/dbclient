@@ -328,6 +328,11 @@ export function SidebarExplorer() {
                                             : activeCategory === category.key &&
                                               activeItem === item.name);
 
+                                        const currentTab = searchParams.get('tab');
+                                        const tabSuffix =
+                                          currentTab === 'structure' || currentTab === 'data'
+                                            ? `&tab=${currentTab}`
+                                            : '';
                                         const href = isTabular
                                           ? `/explorer?database=${encodeURIComponent(
                                               db,
@@ -337,7 +342,7 @@ export function SidebarExplorer() {
                                               category.key,
                                             )}&table=${encodeURIComponent(
                                               item.name,
-                                            )}&kind=${item.kind ?? 'table'}`
+                                            )}&kind=${item.kind ?? 'table'}${tabSuffix}`
                                           : `/explorer?database=${encodeURIComponent(
                                               db,
                                             )}&schema=${encodeURIComponent(

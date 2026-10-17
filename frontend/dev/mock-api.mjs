@@ -50,22 +50,32 @@ const allRows = Array.from({ length: 500 }, (_, i) => [
   new Date(Date.UTC(2026, 0, 1 + i)).toISOString(),
 ]);
 
+const defaultColumns = [
+  { name: 'id', dataType: 'bigint', nullable: false, defaultValue: "nextval('customers_id_seq'::regclass)", isPrimaryKey: true },
+  { name: 'name', dataType: 'character varying(120)', nullable: false, defaultValue: null, isPrimaryKey: false },
+  { name: 'email', dataType: 'character varying(255)', nullable: true, defaultValue: null, isPrimaryKey: false },
+  { name: 'created_at', dataType: 'timestamp with time zone', nullable: false, defaultValue: 'now()', isPrimaryKey: false },
+];
+
+const ordersColumns = [
+  { name: 'id', dataType: 'bigint', nullable: false, defaultValue: "nextval('orders_id_seq'::regclass)", isPrimaryKey: true },
+  { name: 'customer_id', dataType: 'bigint', nullable: false, defaultValue: null, isPrimaryKey: false },
+  { name: 'total_cents', dataType: 'integer', nullable: false, defaultValue: '0', isPrimaryKey: false },
+  { name: 'status', dataType: 'character varying(32)', nullable: false, defaultValue: "'pending'::varchar", isPrimaryKey: false },
+  { name: 'placed_at', dataType: 'timestamp with time zone', nullable: false, defaultValue: 'now()', isPrimaryKey: false },
+];
+
+const tableColumnsStore = new Map();
+
 function columnsForTable(tableName) {
-  if (tableName === 'orders') {
-    return [
-      { name: 'id', dataType: 'bigint', nullable: false, defaultValue: "nextval('orders_id_seq'::regclass)", isPrimaryKey: true },
-      { name: 'customer_id', dataType: 'bigint', nullable: false, defaultValue: null, isPrimaryKey: false },
-      { name: 'total_cents', dataType: 'integer', nullable: false, defaultValue: '0', isPrimaryKey: false },
-      { name: 'status', dataType: 'character varying(32)', nullable: false, defaultValue: "'pending'::varchar", isPrimaryKey: false },
-      { name: 'placed_at', dataType: 'timestamp with time zone', nullable: false, defaultValue: 'now()', isPrimaryKey: false },
-    ];
+  if (!tableColumnsStore.has(tableName)) {
+    const template = tableName === 'orders' ? ordersColumns : defaultColumns;
+    tableColumnsStore.set(
+      tableName,
+      template.map((c) => ({ ...c })),
+    );
   }
-  return [
-    { name: 'id', dataType: 'bigint', nullable: false, defaultValue: "nextval('customers_id_seq'::regclass)", isPrimaryKey: true },
-    { name: 'name', dataType: 'character varying(120)', nullable: false, defaultValue: null, isPrimaryKey: false },
-    { name: 'email', dataType: 'character varying(255)', nullable: true, defaultValue: null, isPrimaryKey: false },
-    { name: 'created_at', dataType: 'timestamp with time zone', nullable: false, defaultValue: 'now()', isPrimaryKey: false },
-  ];
+  return tableColumnsStore.get(tableName);
 }
 
 function send(res, status, body, headers = {}) {
@@ -150,12 +160,78 @@ function parseColumnAssignments(clause) {
   return pairs;
 }
 
+function applyMockAlterTable(sql) {
+  const tableMatch = /^\s*ALTER\s+TABLE\s+(?:"[^"]+"\.)?"([^"]+)"\s+(.+)$/is.exec(sql);
+  if (!tableMatch) return false;
+  const tableName = tableMatch[1];
+  const action = tableMatch[2].trim();
+  const cols = columnsForTable(tableName);
+
+  const renameMatch = /^RENAME\s+COLUMN\s+"([^"]+)"\s+TO\s+"([^"]+)"$/i.exec(action);
+  if (renameMatch) {
+    const col = cols.find((c) => c.name === renameMatch[1]);
+    if (col) col.name = renameMatch[2];
+    return true;
+  }
+
+  const typeMatch = /^ALTER\s+COLUMN\s+"([^"]+)"\s+TYPE\s+(.+)$/i.exec(action);
+  if (typeMatch) {
+    const col = cols.find((c) => c.name === typeMatch[1]);
+    if (col) col.dataType = typeMatch[2].trim();
+    return true;
+  }
+
+  const nullMatch = /^ALTER\s+COLUMN\s+"([^"]+)"\s+(DROP|SET)\s+NOT\s+NULL$/i.exec(action);
+  if (nullMatch) {
+    const col = cols.find((c) => c.name === nullMatch[1]);
+    if (col) col.nullable = nullMatch[2].toUpperCase() === 'DROP';
+    return true;
+  }
+
+  const dropDefMatch = /^ALTER\s+COLUMN\s+"([^"]+)"\s+DROP\s+DEFAULT$/i.exec(action);
+  if (dropDefMatch) {
+    const col = cols.find((c) => c.name === dropDefMatch[1]);
+    if (col) col.defaultValue = null;
+    return true;
+  }
+
+  const setDefMatch = /^ALTER\s+COLUMN\s+"([^"]+)"\s+SET\s+DEFAULT\s+(.+)$/i.exec(action);
+  if (setDefMatch) {
+    const col = cols.find((c) => c.name === setDefMatch[1]);
+    if (col) col.defaultValue = setDefMatch[2].trim();
+    return true;
+  }
+
+  if (/^DROP\s+CONSTRAINT/i.test(action)) {
+    for (const col of cols) col.isPrimaryKey = false;
+    return true;
+  }
+
+  const addPkMatch = /^ADD\s+PRIMARY\s+KEY\s*\((.+)\)$/i.exec(action);
+  if (addPkMatch) {
+    const pkNames = Array.from(addPkMatch[1].matchAll(/"([^"]+)"/g)).map((m) => m[1]);
+    for (const col of cols) {
+      col.isPrimaryKey = pkNames.includes(col.name);
+    }
+    return true;
+  }
+
+  return true;
+}
+
 function runQuery(body) {
   const sql = String(body.sql || '');
   if (/erro/i.test(sql)) {
     return { status: 400, body: { error: 'ERROR: relation "erro" does not exist' } };
   }
   const columns = ['id', 'name', 'email', 'created_at'];
+
+  if (applyMockAlterTable(sql)) {
+    return {
+      status: 200,
+      body: { columns: [], rows: [], rowsAffected: 0, durationMs: 6 },
+    };
+  }
 
   const updateMatch = /^\s*UPDATE\s+.+?\s+SET\s+(.+?)\s+WHERE\s+(.+)$/is.exec(sql);
   if (updateMatch) {

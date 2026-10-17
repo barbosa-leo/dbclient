@@ -5,4 +5,8 @@ frontend/.next
 frontend/out
 *.db
 *.db-*
+*.sqlite
+*.sqlite-*
+backend/.data
+backend/.tmp
 .env*

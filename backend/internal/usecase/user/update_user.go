@@ -9,6 +9,8 @@ import (
 
 type UpdateUserInput struct {
 	ID       int64
+	Name     string
+	Email    string
 	Role     domain.Role
 	Password string
 }
@@ -29,6 +31,17 @@ func (uc *UpdateUser) Execute(ctx context.Context, input UpdateUserInput) (domai
 	existing, err := uc.users.FindByID(ctx, input.ID)
 	if err != nil {
 		return domain.User{}, err
+	}
+
+	if name := strings.TrimSpace(input.Name); name != "" {
+		existing.Name = name
+	}
+
+	if email := strings.ToLower(strings.TrimSpace(input.Email)); email != "" {
+		if !isValidEmail(email) {
+			return domain.User{}, domain.NewValidationError("E-mail inválido")
+		}
+		existing.Email = email
 	}
 
 	if input.Role != "" {

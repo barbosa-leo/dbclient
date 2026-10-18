@@ -20,17 +20,17 @@ func NewUserRepository(db *sql.DB) *UserRepo {
 func (r *UserRepo) FindByID(ctx context.Context, id int64) (domain.User, error) {
 	row := r.db.QueryRowContext(
 		ctx,
-		`SELECT id, username, password_hash, role, must_change_password FROM users WHERE id = ?`,
+		`SELECT id, name, email, password_hash, role, must_change_password FROM users WHERE id = ?`,
 		id,
 	)
 	return scanUser(row)
 }
 
-func (r *UserRepo) FindByUsername(ctx context.Context, username string) (domain.User, error) {
+func (r *UserRepo) FindByEmail(ctx context.Context, email string) (domain.User, error) {
 	row := r.db.QueryRowContext(
 		ctx,
-		`SELECT id, username, password_hash, role, must_change_password FROM users WHERE username = ?`,
-		username,
+		`SELECT id, name, email, password_hash, role, must_change_password FROM users WHERE email = ?`,
+		email,
 	)
 	return scanUser(row)
 }
@@ -38,7 +38,7 @@ func (r *UserRepo) FindByUsername(ctx context.Context, username string) (domain.
 func (r *UserRepo) List(ctx context.Context) ([]domain.User, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
-		`SELECT id, username, password_hash, role, must_change_password FROM users ORDER BY id ASC`,
+		`SELECT id, name, email, password_hash, role, must_change_password FROM users ORDER BY id ASC`,
 	)
 	if err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func (r *UserRepo) List(ctx context.Context) ([]domain.User, error) {
 		var u domain.User
 		var role string
 		var mustChange int
-		if err := rows.Scan(&u.ID, &u.Username, &u.PasswordHash, &role, &mustChange); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &role, &mustChange); err != nil {
 			return nil, err
 		}
 		u.Role = domain.Role(role)
@@ -67,15 +67,16 @@ func (r *UserRepo) Create(ctx context.Context, user domain.User) (domain.User, e
 	}
 	res, err := r.db.ExecContext(
 		ctx,
-		`INSERT INTO users (username, password_hash, role, must_change_password) VALUES (?, ?, ?, ?)`,
-		user.Username,
+		`INSERT INTO users (name, email, password_hash, role, must_change_password) VALUES (?, ?, ?, ?, ?)`,
+		user.Name,
+		user.Email,
 		user.PasswordHash,
 		string(user.Role),
 		mustChange,
 	)
 	if err != nil {
 		if isUniqueConstraintError(err) {
-			return domain.User{}, domain.NewConflictError("Já existe um usuário com esse nome")
+			return domain.User{}, domain.NewConflictError("Já existe um usuário com esse e-mail")
 		}
 		return domain.User{}, err
 	}
@@ -94,13 +95,18 @@ func (r *UserRepo) Update(ctx context.Context, user domain.User) (domain.User, e
 	}
 	res, err := r.db.ExecContext(
 		ctx,
-		`UPDATE users SET password_hash = ?, role = ?, must_change_password = ? WHERE id = ?`,
+		`UPDATE users SET name = ?, email = ?, password_hash = ?, role = ?, must_change_password = ? WHERE id = ?`,
+		user.Name,
+		user.Email,
 		user.PasswordHash,
 		string(user.Role),
 		mustChange,
 		user.ID,
 	)
 	if err != nil {
+		if isUniqueConstraintError(err) {
+			return domain.User{}, domain.NewConflictError("Já existe um usuário com esse e-mail")
+		}
 		return domain.User{}, err
 	}
 	affected, err := res.RowsAffected()
@@ -138,7 +144,7 @@ func scanUser(row *sql.Row) (domain.User, error) {
 	var u domain.User
 	var role string
 	var mustChange int
-	if err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &role, &mustChange); err != nil {
+	if err := row.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &role, &mustChange); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return domain.User{}, domain.ErrNotFound
 		}

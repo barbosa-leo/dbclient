@@ -40,7 +40,7 @@ func (h *ScriptHandler) Run(w http.ResponseWriter, r *http.Request) {
 	defer filePart.Close()
 
 	createdJob, err := h.runScript.Execute(r.Context(), script.RunScriptInput{
-		ActorUsername: user.Username,
+		ActorUsername: user.Email,
 		ConnectionID:  connID,
 		FileName:      fileName,
 		Content:       filePart,

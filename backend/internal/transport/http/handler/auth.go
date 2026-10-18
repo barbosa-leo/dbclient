@@ -28,7 +28,7 @@ func NewAuthHandler(
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Username string `json:"username"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 	if err := decodeJSON(r, &body); err != nil {
@@ -36,7 +36,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, session, err := h.login.Execute(r.Context(), body.Username, body.Password)
+	user, session, err := h.login.Execute(r.Context(), body.Email, body.Password)
 	if err != nil {
 		writeDomainError(w, err)
 		return

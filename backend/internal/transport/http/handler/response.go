@@ -26,7 +26,7 @@ func writeDomainError(w http.ResponseWriter, err error) {
 	case errors.Is(err, domain.ErrValidation):
 		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, domain.ErrUnauthorized):
-		writeError(w, http.StatusUnauthorized, "Usuário ou senha inválidos")
+		writeError(w, http.StatusUnauthorized, "E-mail ou senha inválidos")
 	case errors.Is(err, domain.ErrForbidden):
 		msg := "Acesso negado"
 		var fe domain.ForbiddenError

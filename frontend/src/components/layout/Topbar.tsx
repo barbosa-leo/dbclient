@@ -15,7 +15,7 @@ export function Topbar() {
     router.replace('/login');
   }
 
-  const initial = user?.username?.slice(0, 1).toUpperCase() ?? 'U';
+  const initial = user?.name?.slice(0, 1).toUpperCase() ?? 'U';
 
   return (
     <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-line bg-panel">
@@ -56,9 +56,12 @@ export function Topbar() {
             </svg>
           </button>
 
-          <div className="flex items-center gap-2 rounded-lg border border-line bg-subtle px-2.5 py-1">
+          <div
+            title={user?.email}
+            className="flex items-center gap-2 rounded-lg border border-line bg-subtle px-2.5 py-1"
+          >
             <span className="h-2 w-2 rounded-full bg-online" />
-            <span className="text-xs font-medium text-ink">{user?.username}</span>
+            <span className="text-xs font-medium text-ink">{user?.name}</span>
             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-ink-secondary uppercase">
               {user?.role}
             </span>

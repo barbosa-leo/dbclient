@@ -8,7 +8,7 @@ import type { User } from '@/services/auth';
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  signIn: (username: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -31,8 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh().finally(() => setLoading(false));
   }, [refresh]);
 
-  const signIn = useCallback(async (username: string, password: string) => {
-    setUser(await login(username, password));
+  const signIn = useCallback(async (email: string, password: string) => {
+    setUser(await login(email, password));
   }, []);
 
   const signOut = useCallback(async () => {

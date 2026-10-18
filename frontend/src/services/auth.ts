@@ -4,15 +4,16 @@ export type Role = 'admin' | 'operator' | 'viewer';
 
 export interface User {
   id: number;
-  username: string;
+  name: string;
+  email: string;
   role: Role;
   mustChangePassword: boolean;
 }
 
-export function login(username: string, password: string) {
+export function login(email: string, password: string) {
   return apiRequest<User>('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ email, password }),
   });
 }
 

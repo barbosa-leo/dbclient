@@ -2,12 +2,15 @@ import { apiRequest } from '@/services/api';
 import type { Role, User } from '@/services/auth';
 
 export interface UserCreateInput {
-  username: string;
+  name: string;
+  email: string;
   password: string;
   role: Role;
 }
 
 export interface UserUpdateInput {
+  name: string;
+  email: string;
   role: Role;
   password?: string;
 }

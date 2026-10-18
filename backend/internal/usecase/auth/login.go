@@ -31,13 +31,13 @@ func NewLogin(
 	}
 }
 
-func (uc *Login) Execute(ctx context.Context, username, password string) (domain.User, domain.Session, error) {
-	trimmed := strings.TrimSpace(username)
+func (uc *Login) Execute(ctx context.Context, email, password string) (domain.User, domain.Session, error) {
+	trimmed := strings.ToLower(strings.TrimSpace(email))
 	if trimmed == "" || password == "" {
 		return domain.User{}, domain.Session{}, domain.ErrUnauthorized
 	}
 
-	user, err := uc.users.FindByUsername(ctx, trimmed)
+	user, err := uc.users.FindByEmail(ctx, trimmed)
 	if err != nil {
 		return domain.User{}, domain.Session{}, domain.ErrUnauthorized
 	}

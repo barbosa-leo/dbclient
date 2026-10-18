@@ -12,7 +12,7 @@ import { listEnvironments } from '@/services/connections';
 export function LoginForm() {
   const router = useRouter();
   const { signIn } = useAuth();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -22,7 +22,7 @@ export function LoginForm() {
     setError(null);
     setSubmitting(true);
     try {
-      await signIn(username, password);
+      await signIn(email, password);
       const environments = await listEnvironments().catch(() => []);
       router.replace(environments.length === 0 ? '/connections' : '/explorer');
     } catch (err) {
@@ -36,10 +36,11 @@ export function LoginForm() {
     <AuthCard title="Entrar no DBClient">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <TextField
-          label="Usuário"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          autoComplete="username"
+          label="E-mail"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
           required
         />
         <TextField

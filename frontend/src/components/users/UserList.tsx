@@ -14,7 +14,8 @@ export function UserList({ users, currentUserId, onEdit, onDelete }: UserListPro
       <table className="w-full text-left text-xs leading-tight">
         <thead className="sticky top-0 z-10 border-b border-line bg-subtle text-[11px] font-medium text-ink-muted">
           <tr>
-            <th className="px-4 py-1.5">Usuário</th>
+            <th className="px-4 py-1.5">Nome</th>
+            <th className="px-4 py-1.5">E-mail</th>
             <th className="px-4 py-1.5">Papel</th>
             <th className="px-4 py-1.5">Situação</th>
             <th className="px-4 py-1.5 text-right">Ações</th>
@@ -23,7 +24,8 @@ export function UserList({ users, currentUserId, onEdit, onDelete }: UserListPro
         <tbody className="divide-y divide-line">
           {users.map((user) => (
             <tr key={user.id} className="transition-colors hover:bg-muted/50">
-              <td className="px-4 py-1.5 font-semibold text-ink">{user.username}</td>
+              <td className="px-4 py-1.5 font-semibold text-ink">{user.name}</td>
+              <td className="px-4 py-1.5 font-mono text-ink-secondary">{user.email}</td>
               <td className="px-4 py-1.5">
                 <span className="rounded bg-muted px-1.5 py-0.2 text-[10px] font-medium text-ink-secondary uppercase">
                   {user.role}

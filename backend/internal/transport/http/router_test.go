@@ -160,7 +160,7 @@ func TestEndToEndFlow(t *testing.T) {
 		t.Fatalf("expected 200 on /healthz, got %v (err=%v)", res, err)
 	}
 
-	loginPayload, _ := json.Marshal(map[string]string{"username": "admin", "password": "admin"})
+	loginPayload, _ := json.Marshal(map[string]string{"email": "admin@dbclient.local", "password": "admin"})
 	loginRes, err := http.Post(srv.URL+"/api/auth/login", "application/json", bytes.NewReader(loginPayload))
 	if err != nil || loginRes.StatusCode != http.StatusOK {
 		t.Fatalf("login failed: %v", err)

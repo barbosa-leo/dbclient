@@ -122,6 +122,57 @@ CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 			return err
 		},
 	},
+	{
+		version: 3,
+		apply: func(ctx context.Context, tx *sql.Tx, hasher domain.PasswordHasher) error {
+			const migrateUsers = `
+CREATE TABLE users_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	name TEXT NOT NULL,
+	email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+	password_hash TEXT NOT NULL,
+	role TEXT NOT NULL CHECK (role IN ('admin', 'operator', 'viewer')),
+	must_change_password INTEGER NOT NULL DEFAULT 1,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO users_new (id, name, email, password_hash, role, must_change_password, created_at)
+SELECT
+	id,
+	CASE WHEN LOWER(username) = 'admin' THEN 'Administrador' ELSE username END,
+	CASE
+		WHEN LOWER(username) = 'admin' THEN 'admin@dbclient.local'
+		WHEN INSTR(username, '@') > 0 THEN LOWER(username)
+		ELSE LOWER(username) || '@dbclient.local'
+	END,
+	password_hash,
+	role,
+	must_change_password,
+	created_at
+FROM users;
+
+CREATE TABLE sessions_backup AS SELECT token, user_id, expires_at FROM sessions;
+DROP TABLE sessions;
+DROP TABLE users;
+ALTER TABLE users_new RENAME TO users;
+
+CREATE TABLE sessions (
+	token TEXT PRIMARY KEY,
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	expires_at DATETIME NOT NULL
+);
+
+INSERT INTO sessions (token, user_id, expires_at)
+SELECT token, user_id, expires_at FROM sessions_backup;
+DROP TABLE sessions_backup;
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+`
+			_, err := tx.ExecContext(ctx, migrateUsers)
+			return err
+		},
+	},
 }
 
 func runMigrations(ctx context.Context, db *sql.DB, hasher domain.PasswordHasher) error {

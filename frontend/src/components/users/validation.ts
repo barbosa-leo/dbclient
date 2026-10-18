@@ -1,7 +1,8 @@
 import type { Role } from '@/services/auth';
 
 export interface UserFormValues {
-  username: string;
+  name: string;
+  email: string;
   password: string;
   role: Role;
 }
@@ -10,10 +11,21 @@ export type UserFormErrors = Partial<Record<keyof UserFormValues, string>>;
 
 export const MIN_PASSWORD_LENGTH = 8;
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function validateUser(values: UserFormValues, options: { isEditing: boolean }): UserFormErrors {
   const errors: UserFormErrors = {};
 
-  if (!options.isEditing && !values.username.trim()) errors.username = 'Campo obrigatório';
+  if (!values.name.trim()) {
+    errors.name = 'Campo obrigatório';
+  }
+
+  const trimmedEmail = values.email.trim();
+  if (!trimmedEmail) {
+    errors.email = 'Campo obrigatório';
+  } else if (!EMAIL_REGEX.test(trimmedEmail)) {
+    errors.email = 'E-mail inválido';
+  }
 
   if (!options.isEditing && !values.password) {
     errors.password = 'Campo obrigatório';

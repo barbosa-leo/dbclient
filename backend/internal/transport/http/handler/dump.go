@@ -39,7 +39,7 @@ func (h *DumpHandler) Export(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdJob, err := h.exportDump.Execute(r.Context(), user.Username, connID)
+	createdJob, err := h.exportDump.Execute(r.Context(), user.Email, connID)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -63,7 +63,7 @@ func (h *DumpHandler) Import(w http.ResponseWriter, r *http.Request) {
 	defer filePart.Close()
 
 	createdJob, err := h.importDump.Execute(r.Context(), dump.ImportDumpInput{
-		ActorUsername: user.Username,
+		ActorUsername: user.Email,
 		ConnectionID:  connID,
 		FileName:      fileName,
 		Content:       filePart,

@@ -16,7 +16,8 @@ func (r Role) IsValid() bool {
 
 type User struct {
 	ID                 int64  `json:"id"`
-	Username           string `json:"username"`
+	Name               string `json:"name"`
+	Email              string `json:"email"`
 	PasswordHash       string `json:"-"`
 	Role               Role   `json:"role"`
 	MustChangePassword bool   `json:"mustChangePassword"`

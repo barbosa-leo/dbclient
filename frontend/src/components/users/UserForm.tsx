@@ -20,7 +20,8 @@ const roles: readonly Role[] = ['viewer', 'operator', 'admin'];
 
 export function UserForm({ user, onSaved, onCancel }: UserFormProps) {
   const [values, setValues] = useState<UserFormValues>({
-    username: user?.username ?? '',
+    name: user?.name ?? '',
+    email: user?.email ?? '',
     password: '',
     role: user?.role ?? 'viewer',
   });
@@ -41,12 +42,15 @@ export function UserForm({ user, onSaved, onCancel }: UserFormProps) {
     try {
       if (user) {
         await updateUser(user.id, {
+          name: values.name.trim(),
+          email: values.email.trim(),
           role: values.role,
           ...(values.password ? { password: values.password } : {}),
         });
       } else {
         await createUser({
-          username: values.username.trim(),
+          name: values.name.trim(),
+          email: values.email.trim(),
           password: values.password,
           role: values.role,
         });
@@ -66,18 +70,24 @@ export function UserForm({ user, onSaved, onCancel }: UserFormProps) {
       className="rounded-xl border border-line bg-panel p-5 shadow-card"
     >
       <h2 className="mb-5 text-sm font-semibold tracking-tight text-ink">
-        {isEditing ? `Editar ${user.username}` : 'Novo usuário'}
+        {isEditing ? `Editar ${user.name}` : 'Novo usuário'}
       </h2>
       <div className="grid gap-4 sm:grid-cols-2">
-        {!isEditing && (
-          <TextField
-            label="Usuário"
-            value={values.username}
-            onChange={(e) => setValues({ ...values, username: e.target.value })}
-            autoComplete="off"
-            error={errors.username}
-          />
-        )}
+        <TextField
+          label="Nome"
+          value={values.name}
+          onChange={(e) => setValues({ ...values, name: e.target.value })}
+          autoComplete="off"
+          error={errors.name}
+        />
+        <TextField
+          label="E-mail"
+          type="email"
+          value={values.email}
+          onChange={(e) => setValues({ ...values, email: e.target.value })}
+          autoComplete="off"
+          error={errors.email}
+        />
         <TextField
           label={isEditing ? 'Nova senha (deixe em branco para manter)' : 'Senha'}
           type="password"

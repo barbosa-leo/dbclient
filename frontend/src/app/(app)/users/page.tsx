@@ -40,7 +40,7 @@ export default function UsersPage() {
   }
 
   async function handleDelete(target: User) {
-    if (!window.confirm(`Excluir o usuário "${target.username}"?`)) return;
+    if (!window.confirm(`Excluir o usuário "${target.name}" (${target.email})?`)) return;
     try {
       await deleteUser(target.id);
       await reload();

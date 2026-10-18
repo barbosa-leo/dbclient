@@ -13,6 +13,7 @@ type ConnectionHandler struct {
 	createConnection *connection.CreateConnection
 	updateConnection *connection.UpdateConnection
 	deleteConnection *connection.DeleteConnection
+	testConnection   *connection.TestConnection
 }
 
 func NewConnectionHandler(
@@ -20,12 +21,14 @@ func NewConnectionHandler(
 	createConnection *connection.CreateConnection,
 	updateConnection *connection.UpdateConnection,
 	deleteConnection *connection.DeleteConnection,
+	testConnection *connection.TestConnection,
 ) *ConnectionHandler {
 	return &ConnectionHandler{
 		listConnections:  listConnections,
 		createConnection: createConnection,
 		updateConnection: updateConnection,
 		deleteConnection: deleteConnection,
+		testConnection:   testConnection,
 	}
 }
 
@@ -122,4 +125,54 @@ func (h *ConnectionHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ConnectionHandler) Test(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		ConnectionID *int64         `json:"connectionId"`
+		Host         string         `json:"host"`
+		Port         int            `json:"port"`
+		Database     string         `json:"database"`
+		Username     string         `json:"username"`
+		Password     string         `json:"password"`
+		SSLMode      domain.SSLMode `json:"sslMode"`
+	}
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, http.StatusBadRequest, "Payload inválido")
+		return
+	}
+
+	err := h.testConnection.Execute(r.Context(), connection.TestConnectionInput{
+		ConnectionID: body.ConnectionID,
+		Host:         body.Host,
+		Port:         body.Port,
+		Database:     body.Database,
+		Username:     body.Username,
+		Password:     body.Password,
+		SSLMode:      body.SSLMode,
+	})
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h *ConnectionHandler) TestByID(w http.ResponseWriter, r *http.Request) {
+	id, err := parsePathInt64(r, "id")
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+
+	err = h.testConnection.Execute(r.Context(), connection.TestConnectionInput{
+		ConnectionID: &id,
+	})
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

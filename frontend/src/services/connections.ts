@@ -68,3 +68,32 @@ export function updateConnection(id: number, input: ConnectionInput) {
 export function deleteConnection(id: number) {
   return apiRequest<void>(`/connections/${id}`, { method: 'DELETE' });
 }
+
+export interface TestConnectionInput {
+  connectionId?: number;
+  host?: string;
+  port?: number;
+  database?: string;
+  username?: string;
+  password?: string;
+  sslMode?: SslMode;
+}
+
+export interface TestConnectionResult {
+  ok: boolean;
+  error?: string;
+}
+
+export function testConnection(input: TestConnectionInput) {
+  return apiRequest<TestConnectionResult>('/connections/test', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function testConnectionById(id: number) {
+  return apiRequest<TestConnectionResult>(`/connections/${id}/test`, {
+    method: 'POST',
+  });
+}
+

@@ -22,6 +22,20 @@ func NewPostgresDriver() *PostgresDriver {
 	return &PostgresDriver{}
 }
 
+func (d *PostgresDriver) Ping(ctx context.Context, creds domain.ConnectionCredentials) error {
+	conn, cancel, err := connect(ctx, creds, 5*time.Second)
+	if err != nil {
+		return err
+	}
+	defer cancel()
+	defer conn.Close(ctx)
+
+	if err := conn.Ping(ctx); err != nil {
+		return enrichConnectionError(err, creds.Host)
+	}
+	return nil
+}
+
 func (d *PostgresDriver) ListSchemas(ctx context.Context, creds domain.ConnectionCredentials) ([]domain.SchemaInfo, error) {
 	conn, cancel, err := connect(ctx, creds, defaultConnectTimeout)
 	if err != nil {
@@ -603,9 +617,20 @@ func connect(ctx context.Context, creds domain.ConnectionCredentials, timeout ti
 	conn, err := connectRaw(connCtx, creds)
 	if err != nil {
 		cancel()
-		return nil, nil, err
+		return nil, nil, enrichConnectionError(err, creds.Host)
 	}
 	return conn, cancel, nil
+}
+
+func enrichConnectionError(err error, host string) error {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "connection refused") && (host == "localhost" || host == "127.0.0.1") {
+		return fmt.Errorf("%s (Dica: se a aplicação estiver em container Docker e o banco no host, use 'host.docker.internal' como Host)", msg)
+	}
+	return err
 }
 
 func connectRaw(ctx context.Context, creds domain.ConnectionCredentials) (*pgx.Conn, error) {

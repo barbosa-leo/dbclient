@@ -1,4 +1,6 @@
+import { Fragment, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { testConnectionById } from '@/services/connections';
 import type { Connection } from '@/services/connections';
 
 interface ConnectionListProps {
@@ -10,6 +12,12 @@ interface ConnectionListProps {
   onDelete: (connection: Connection) => void;
 }
 
+interface TestStatus {
+  loading?: boolean;
+  ok?: boolean;
+  error?: string;
+}
+
 export function ConnectionList({
   connections,
   activeConnectionId,
@@ -18,6 +26,35 @@ export function ConnectionList({
   onEdit,
   onDelete,
 }: ConnectionListProps) {
+  const [testStatuses, setTestStatuses] = useState<Record<number, TestStatus>>({});
+
+  async function handleTest(connectionId: number) {
+    setTestStatuses((prev) => ({
+      ...prev,
+      [connectionId]: { loading: true },
+    }));
+    try {
+      const res = await testConnectionById(connectionId);
+      setTestStatuses((prev) => ({
+        ...prev,
+        [connectionId]: {
+          loading: false,
+          ok: res.ok,
+          error: res.error,
+        },
+      }));
+    } catch (err) {
+      setTestStatuses((prev) => ({
+        ...prev,
+        [connectionId]: {
+          loading: false,
+          ok: false,
+          error: err instanceof Error ? err.message : 'Falha ao testar conexão',
+        },
+      }));
+    }
+  }
+
   if (connections.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-line bg-panel p-8 text-center text-xs font-medium text-ink-muted shadow-card">
@@ -42,60 +79,94 @@ export function ConnectionList({
         <tbody className="divide-y divide-line">
           {connections.map((connection) => {
             const isActive = connection.id === activeConnectionId;
+            const testStatus = testStatuses[connection.id];
             return (
-              <tr key={connection.id} className="transition-colors hover:bg-muted/50">
-                <td className="px-4 py-1.5 font-semibold text-ink">
-                  <div className="flex items-center gap-2">
-                    <span>{connection.name}</span>
-                    {isActive && (
-                      <span className="rounded bg-online/15 px-1.5 py-0.2 font-sans text-[10px] font-semibold text-online">
-                        Ativa
-                      </span>
+              <Fragment key={connection.id}>
+                <tr className="transition-colors hover:bg-muted/50">
+                  <td className="px-4 py-1.5 font-semibold text-ink">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>{connection.name}</span>
+                      {isActive && (
+                        <span className="rounded bg-online/15 px-1.5 py-0.2 font-sans text-[10px] font-semibold text-online">
+                          Ativa
+                        </span>
+                      )}
+                      {testStatus?.loading && (
+                        <span className="rounded bg-muted px-1.5 py-0.2 font-sans text-[10px] font-medium text-ink-muted">
+                          Testando...
+                        </span>
+                      )}
+                      {testStatus?.ok === true && (
+                        <span className="rounded bg-online/15 px-1.5 py-0.2 font-sans text-[10px] font-semibold text-online">
+                          Online
+                        </span>
+                      )}
+                      {testStatus?.ok === false && (
+                        <span className="rounded bg-danger/15 px-1.5 py-0.2 font-sans text-[10px] font-semibold text-danger">
+                          Falha
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-1.5 font-mono text-[11px] text-ink-secondary">
+                    {connection.host}:{connection.port}
+                  </td>
+                  <td className="px-4 py-1.5 font-mono text-[11px] text-ink">
+                    {connection.database}
+                  </td>
+                  <td className="px-4 py-1.5 font-mono text-[11px] text-ink-secondary">
+                    {connection.username}
+                  </td>
+                  <td className="px-4 py-1.5">
+                    <span className="rounded bg-muted px-1.5 py-0.2 font-mono text-[10px] font-medium text-ink-secondary">
+                      {connection.sslMode}
+                    </span>
+                  </td>
+                  <td className="flex justify-end gap-1.5 px-4 py-1">
+                    <Button
+                      variant="secondary"
+                      className="px-2.5 py-1 text-[11px]"
+                      disabled={testStatus?.loading}
+                      onClick={() => void handleTest(connection.id)}
+                    >
+                      {testStatus?.loading ? 'Testando...' : 'Testar'}
+                    </Button>
+                    <Button
+                      variant={isActive ? 'secondary' : 'primary'}
+                      className="px-2.5 py-1 text-[11px]"
+                      onClick={() => onAccess(connection)}
+                    >
+                      Acessar
+                    </Button>
+                    {canManage && (
+                      <>
+                        <Button
+                          variant="secondary"
+                          className="px-2.5 py-1 text-[11px]"
+                          onClick={() => onEdit(connection)}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="danger"
+                          className="px-2.5 py-1 text-[11px]"
+                          onClick={() => onDelete(connection)}
+                        >
+                          Excluir
+                        </Button>
+                      </>
                     )}
-                  </div>
-                </td>
-                <td className="px-4 py-1.5 font-mono text-[11px] text-ink-secondary">
-                  {connection.host}:{connection.port}
-                </td>
-                <td className="px-4 py-1.5 font-mono text-[11px] text-ink">
-                  {connection.database}
-                </td>
-                <td className="px-4 py-1.5 font-mono text-[11px] text-ink-secondary">
-                  {connection.username}
-                </td>
-                <td className="px-4 py-1.5">
-                  <span className="rounded bg-muted px-1.5 py-0.2 font-mono text-[10px] font-medium text-ink-secondary">
-                    {connection.sslMode}
-                  </span>
-                </td>
-                <td className="flex justify-end gap-1.5 px-4 py-1">
-                  <Button
-                    variant={isActive ? 'secondary' : 'primary'}
-                    className="px-2.5 py-1 text-[11px]"
-                    onClick={() => onAccess(connection)}
-                  >
-                    Acessar
-                  </Button>
-                  {canManage && (
-                    <>
-                      <Button
-                        variant="secondary"
-                        className="px-2.5 py-1 text-[11px]"
-                        onClick={() => onEdit(connection)}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        variant="danger"
-                        className="px-2.5 py-1 text-[11px]"
-                        onClick={() => onDelete(connection)}
-                      >
-                        Excluir
-                      </Button>
-                    </>
-                  )}
-                </td>
-              </tr>
+                  </td>
+                </tr>
+                {testStatus?.ok === false && testStatus.error && (
+                  <tr className="border-b border-danger/20 bg-danger/5">
+                    <td colSpan={6} className="px-4 py-2 font-mono text-[11px] text-danger">
+                      <span className="font-semibold">Erro de conexão: </span>
+                      {testStatus.error}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             );
           })}
         </tbody>

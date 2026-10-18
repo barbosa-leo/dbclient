@@ -322,8 +322,13 @@ export function SidebarExplorer() {
               <path d="M4 12v7c0 1.66 3.58 3 8 3s8-1.34 8-3v-7" />
             </svg>
             <span className="truncate">{db}</span>
+            {schemaError && (
+              <span className="rounded bg-danger/15 px-1.5 py-0.2 font-sans text-[10px] font-semibold text-danger">
+                Offline
+              </span>
+            )}
           </span>
-          {!loadingSchemas && (
+          {!loadingSchemas && !schemaError && (
             <span className="font-sans text-[10px] text-ink-muted">{schemas.length}</span>
           )}
         </button>
@@ -336,13 +341,16 @@ export function SidebarExplorer() {
               </span>
             )}
             {schemaError && (
-              <div className="flex flex-col gap-1 px-2 py-1 text-[11px] text-danger">
-                <span>Erro de conexão:</span>
-                <span className="font-mono text-[10px] break-words text-danger/80">{schemaError}</span>
+              <div className="my-1 flex flex-col gap-1 rounded-md border border-danger/30 bg-danger/10 px-2 py-1.5 text-[11px] text-danger">
+                <div className="flex items-center gap-1.5 font-semibold">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-danger" />
+                  <span>Falha na conexão</span>
+                </div>
+                <span className="font-mono text-[10px] break-words text-danger/90">{schemaError}</span>
                 <button
                   type="button"
                   onClick={reloadSchemas}
-                  className="mt-0.5 text-left text-[10px] underline hover:text-ink cursor-pointer"
+                  className="mt-1 text-left text-[10px] font-medium underline hover:text-ink cursor-pointer"
                 >
                   Tentar novamente
                 </button>

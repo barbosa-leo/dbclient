@@ -60,6 +60,8 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 	mux.Handle("GET /api/connections", requireViewer(deps.Connections.List))
 	mux.Handle("POST /api/connections", requireAdmin(deps.Connections.Create))
+	mux.Handle("POST /api/connections/test", requireViewer(deps.Connections.Test))
+	mux.Handle("POST /api/connections/{id}/test", requireViewer(deps.Connections.TestByID))
 	mux.Handle("PUT /api/connections/{id}", requireAdmin(deps.Connections.Update))
 	mux.Handle("DELETE /api/connections/{id}", requireAdmin(deps.Connections.Delete))
 

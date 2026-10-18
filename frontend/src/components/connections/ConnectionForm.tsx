@@ -7,7 +7,13 @@ import type { ConnectionFormErrors, ConnectionFormValues } from '@/components/co
 import { Button } from '@/components/ui/Button';
 import { SelectField } from '@/components/ui/SelectField';
 import { TextField } from '@/components/ui/TextField';
-import { createConnection, sslModes, updateConnection } from '@/services/connections';
+import {
+  createConnection,
+  sslModes,
+  testConnection,
+  testConnectionById,
+  updateConnection,
+} from '@/services/connections';
 import type { Connection, Environment, SslMode } from '@/services/connections';
 
 interface ConnectionFormProps {
@@ -50,10 +56,58 @@ export function ConnectionForm({
   const [errors, setErrors] = useState<ConnectionFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const isEditing = connection !== null;
 
   function setField<K extends keyof ConnectionFormValues>(key: K, value: ConnectionFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
+  }
+
+  async function handleTestConnection() {
+    setTestResult(null);
+    setSubmitError(null);
+
+    if (!values.host.trim() || !values.database.trim() || !values.username.trim()) {
+      setTestResult({
+        ok: false,
+        message: 'Preencha ao menos Host, Porta, Database e Usuário para testar a conexão.',
+      });
+      return;
+    }
+
+    setTesting(true);
+    try {
+      let result;
+      if (isEditing && !values.password) {
+        result = await testConnectionById(connection.id);
+      } else {
+        result = await testConnection({
+          host: values.host.trim(),
+          port: Number(values.port) || 5432,
+          database: values.database.trim(),
+          username: values.username.trim(),
+          password: values.password,
+          sslMode: values.sslMode,
+        });
+      }
+
+      if (result.ok) {
+        setTestResult({ ok: true, message: 'Conexão estabelecida com sucesso!' });
+      } else {
+        setTestResult({
+          ok: false,
+          message: result.error || 'Falha ao conectar com o banco de dados.',
+        });
+      }
+    } catch (err) {
+      setTestResult({
+        ok: false,
+        message: err instanceof Error ? err.message : 'Falha ao testar conexão',
+      });
+    } finally {
+      setTesting(false);
+    }
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -167,18 +221,48 @@ export function ConnectionForm({
           onChange={(e) => setField('sslMode', e.target.value as SslMode)}
         />
       </div>
+      {testResult && (
+        <div
+          role="status"
+          className={`mt-4 rounded-lg border p-3 text-xs ${
+            testResult.ok
+              ? 'border-online/30 bg-online/10 text-online'
+              : 'border-danger/30 bg-danger/10 text-danger'
+          }`}
+        >
+          <div className="flex items-center gap-2 font-semibold">
+            <span
+              className={`h-2 w-2 rounded-full ${
+                testResult.ok ? 'bg-online' : 'bg-danger'
+              }`}
+            />
+            <span>{testResult.ok ? 'Conexão bem-sucedida' : 'Falha na conexão'}</span>
+          </div>
+          <p className="mt-1 font-mono text-[11px] break-words">{testResult.message}</p>
+        </div>
+      )}
       {submitError && (
         <p role="alert" className="mt-4 text-sm text-danger">
           {submitError}
         </p>
       )}
-      <div className="mt-6 flex justify-end gap-3">
-        <Button type="button" variant="secondary" onClick={onCancel}>
-          Cancelar
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={testing || submitting}
+          onClick={() => void handleTestConnection()}
+        >
+          {testing ? 'Testando conexão...' : 'Testar conexão'}
         </Button>
-        <Button type="submit" disabled={submitting}>
-          {submitting ? 'Salvando...' : 'Salvar'}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button type="button" variant="secondary" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={submitting}>
+            {submitting ? 'Salvando...' : 'Salvar'}
+          </Button>
+        </div>
       </div>
     </form>
   );

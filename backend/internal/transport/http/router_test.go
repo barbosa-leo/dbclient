@@ -30,6 +30,10 @@ import (
 
 type fakeDriver struct{}
 
+func (f *fakeDriver) Ping(ctx context.Context, creds domain.ConnectionCredentials) error {
+	return nil
+}
+
 func (f *fakeDriver) ListSchemas(ctx context.Context, creds domain.ConnectionCredentials) ([]domain.SchemaInfo, error) {
 	return []domain.SchemaInfo{
 		{
@@ -137,6 +141,7 @@ func TestEndToEndFlow(t *testing.T) {
 	updateConnUC := connection.NewUpdateConnection(connRepo, envRepo, cipher)
 	deleteConnUC := connection.NewDeleteConnection(connRepo)
 	resolveUC := connection.NewResolveCredentials(connRepo, cipher)
+	testConnUC := connection.NewTestConnection(resolveUC, drv)
 
 	router := transporthttp.NewRouter(transporthttp.RouterDeps{
 		Logger:       logger,
@@ -145,7 +150,7 @@ func TestEndToEndFlow(t *testing.T) {
 		Auth:         handler.NewAuthHandler(loginUC, logoutUC, changePassUC),
 		Users:        handler.NewUserHandler(listUsersUC, createUserUC, updateUserUC, deleteUserUC),
 		Environments: handler.NewEnvironmentHandler(listEnvsUC, createEnvUC, deleteEnvUC),
-		Connections:  handler.NewConnectionHandler(listConnsUC, createConnUC, updateConnUC, deleteConnUC),
+		Connections:  handler.NewConnectionHandler(listConnsUC, createConnUC, updateConnUC, deleteConnUC, testConnUC),
 		Explorer: handler.NewExplorerHandler(
 			explorer.NewListSchemas(resolveUC, drv),
 			explorer.NewListColumns(resolveUC, drv),

@@ -51,6 +51,7 @@ type Cipher interface {
 }
 
 type DatabaseDriver interface {
+	Ping(ctx context.Context, creds ConnectionCredentials) error
 	ListSchemas(ctx context.Context, creds ConnectionCredentials) ([]SchemaInfo, error)
 	ListColumns(ctx context.Context, creds ConnectionCredentials, schema, table string) ([]ColumnInfo, error)
 	DescribeTable(ctx context.Context, creds ConnectionCredentials, schema, table string) (TableStructureInfo, error)

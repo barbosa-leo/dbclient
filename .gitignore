@@ -12,3 +12,4 @@ backend/.tmp
 .env
 .env.*
 !.env.example
+*.tsbuildinfo

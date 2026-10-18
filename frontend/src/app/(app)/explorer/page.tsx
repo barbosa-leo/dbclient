@@ -1,9 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
+import { testConnectionById } from '@/services/connections';
 import { ObjectDefinitionEditor } from '@/components/explorer/ObjectDefinitionEditor';
 import { TableStructure } from '@/components/explorer/TableStructure';
 import type { TableStructureChanges } from '@/components/explorer/TableStructure';
@@ -356,7 +358,25 @@ function ExplorerContent() {
   const [loading, setLoading] = useState(false);
   const [savingChanges, setSavingChanges] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [connTestLoading, setConnTestLoading] = useState(false);
+  const [connTestResult, setConnTestResult] = useState<{ ok: boolean; error?: string } | null>(null);
   const tableAnchorRef = useRef<HTMLDivElement>(null);
+
+  const checkConnection = useCallback(async () => {
+    if (activeId === undefined) return;
+    setConnTestLoading(true);
+    try {
+      const res = await testConnectionById(activeId);
+      setConnTestResult(res);
+    } catch (err) {
+      setConnTestResult({
+        ok: false,
+        error: err instanceof Error ? err.message : 'Falha ao testar conexão',
+      });
+    } finally {
+      setConnTestLoading(false);
+    }
+  }, [activeId]);
 
   function selectTab(nextTab: Tab) {
     if (nextTab === tab && tabParam === nextTab) return;
@@ -480,6 +500,12 @@ function ExplorerContent() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [measureAutoLimit]);
+
+  useEffect(() => {
+    if (!schema && !objectName && activeId !== undefined) {
+      void checkConnection();
+    }
+  }, [activeId, schema, objectName, checkConnection]);
 
   function handleSortChange(nextSort: ColumnSort | null) {
     setSort(nextSort);
@@ -705,10 +731,38 @@ function ExplorerContent() {
                 ? database
                 : 'Nenhuma conexão selecionada'}
           </p>
-          <p className="mt-1 text-xs text-ink-muted">
-            Expanda um schema no painel <strong>Explorar</strong> da barra lateral para visualizar,
-            adicionar ou excluir tabelas, views, procedures, functions e triggers.
-          </p>
+          {connTestResult?.ok === false ? (
+            <div className="mx-auto mt-4 max-w-lg rounded-xl border border-danger/30 bg-danger/10 p-5 text-left shadow-card">
+              <div className="flex items-center gap-2 text-sm font-semibold text-danger">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-danger" />
+                <span>Falha na conexão com o banco de dados</span>
+              </div>
+              <p className="mt-2 font-mono text-xs break-words text-danger">
+                {connTestResult.error}
+              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  disabled={connTestLoading}
+                  onClick={() => void checkConnection()}
+                  className="cursor-pointer rounded-lg bg-danger/20 px-3 py-1.5 text-xs font-semibold text-danger transition-colors hover:bg-danger/30 disabled:opacity-50"
+                >
+                  {connTestLoading ? 'Testando...' : 'Testar novamente'}
+                </button>
+                <Link
+                  href="/connections"
+                  className="rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-muted"
+                >
+                  Gerenciar conexões
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-ink-muted">
+              Expanda um schema no painel <strong>Explorar</strong> da barra lateral para visualizar,
+              adicionar ou excluir tabelas, views, procedures, functions e triggers.
+            </p>
+          )}
         </div>
       </div>
     );

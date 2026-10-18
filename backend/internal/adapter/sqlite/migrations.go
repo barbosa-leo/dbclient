@@ -84,6 +84,44 @@ CREATE INDEX IF NOT EXISTS idx_connections_environment_id ON connections(environ
 			return nil
 		},
 	},
+	{
+		version: 2,
+		apply: func(ctx context.Context, tx *sql.Tx, hasher domain.PasswordHasher) error {
+			const migrateUsers = `
+CREATE TABLE users_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+	password_hash TEXT NOT NULL,
+	role TEXT NOT NULL CHECK (role IN ('admin', 'operator', 'viewer')),
+	must_change_password INTEGER NOT NULL DEFAULT 1,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO users_new (id, username, password_hash, role, must_change_password, created_at)
+SELECT id, username, password_hash, role, must_change_password, created_at FROM users;
+
+CREATE TABLE sessions_backup AS SELECT token, user_id, expires_at FROM sessions;
+DROP TABLE sessions;
+DROP TABLE users;
+ALTER TABLE users_new RENAME TO users;
+
+CREATE TABLE sessions (
+	token TEXT PRIMARY KEY,
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	expires_at DATETIME NOT NULL
+);
+
+INSERT INTO sessions (token, user_id, expires_at)
+SELECT token, user_id, expires_at FROM sessions_backup;
+DROP TABLE sessions_backup;
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+`
+			_, err := tx.ExecContext(ctx, migrateUsers)
+			return err
+		},
+	},
 }
 
 func runMigrations(ctx context.Context, db *sql.DB, hasher domain.PasswordHasher) error {

@@ -51,6 +51,21 @@ func RequireAdmin(next http.Handler) http.Handler {
 	})
 }
 
+func RequireOperatorOrAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, ok := UserFromContext(r.Context())
+		if !ok {
+			writeError(w, http.StatusUnauthorized, "Não autenticado")
+			return
+		}
+		if user.Role != domain.RoleAdmin && user.Role != domain.RoleOperator {
+			writeError(w, http.StatusForbidden, "Acesso negado")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func writeError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

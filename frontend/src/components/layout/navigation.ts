@@ -26,8 +26,8 @@ export const navSections: NavSection[] = [
   {
     title: 'Ferramentas',
     items: [
-      { href: '/scripts', label: 'Scripts', icon: 'scripts', roles: ['admin'] },
-      { href: '/dumps', label: 'Dumps', icon: 'dumps', roles: ['admin'] },
+      { href: '/scripts', label: 'Scripts', icon: 'scripts', roles: ['operator', 'admin'] },
+      { href: '/dumps', label: 'Dumps', icon: 'dumps', roles: ['operator', 'admin'] },
     ],
   },
   {

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '@/components/auth/AuthProvider';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
 import {
   SCHEMA_CATEGORIES,
@@ -81,6 +82,8 @@ export function SidebarExplorer() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const canEdit = user?.role === 'admin' || user?.role === 'operator';
   const { active } = useConnections();
   const activeConnectionId = active?.id;
 
@@ -182,6 +185,7 @@ export function SidebarExplorer() {
   }
 
   function navigateToCreate(schemaName: string, category: SchemaCategoryKey) {
+    if (!canEdit) return;
     setContextMenu(null);
     setOpenSchemas((prev) => ({ ...prev, [schemaName]: true }));
     setOpenCategories((prev) => ({ ...prev, [`${schemaName}:${category}`]: true }));
@@ -193,6 +197,7 @@ export function SidebarExplorer() {
   }
 
   function requestDelete(schemaName: string, category: SchemaCategoryKey, itemName: string) {
+    if (!canEdit) return;
     setContextMenu(null);
     setDeleteError(null);
     setPendingDelete({ schema: schemaName, category, name: itemName });
@@ -232,6 +237,7 @@ export function SidebarExplorer() {
     schemaName: string,
     category: SchemaCategoryKey,
   ) {
+    if (!canEdit) return;
     e.preventDefault();
     e.stopPropagation();
     setContextMenu({
@@ -249,6 +255,7 @@ export function SidebarExplorer() {
     category: SchemaCategoryKey,
     itemName: string,
   ) {
+    if (!canEdit) return;
     e.preventDefault();
     e.stopPropagation();
     setContextMenu({
@@ -404,28 +411,34 @@ export function SidebarExplorer() {
                                 </button>
 
                                 <div className="flex shrink-0 items-center justify-end">
-                                  <button
-                                    type="button"
-                                    aria-label={`Adicionar ${categorySingularLabels[category.key]} em ${schema.name}`}
-                                    title={`Nova ${categorySingularLabels[category.key]}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigateToCreate(schema.name, category.key);
-                                    }}
-                                    className="hidden h-4 w-4 cursor-pointer items-center justify-center rounded text-ink-muted transition-colors hover:bg-muted hover:text-ink group-hover:inline-flex"
-                                  >
-                                    <svg
-                                      viewBox="0 0 16 16"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="1.75"
-                                      aria-hidden="true"
-                                      className="h-3 w-3"
+                                  {canEdit && (
+                                    <button
+                                      type="button"
+                                      aria-label={`Adicionar ${categorySingularLabels[category.key]} em ${schema.name}`}
+                                      title={`Nova ${categorySingularLabels[category.key]}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigateToCreate(schema.name, category.key);
+                                      }}
+                                      className="hidden h-4 w-4 cursor-pointer items-center justify-center rounded text-ink-muted transition-colors hover:bg-muted hover:text-ink group-hover:inline-flex"
                                     >
-                                      <path d="M8 3.5v9M3.5 8h9" strokeLinecap="round" />
-                                    </svg>
-                                  </button>
-                                  <span className="font-sans text-[10px] text-ink-muted group-hover:hidden">
+                                      <svg
+                                        viewBox="0 0 16 16"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.75"
+                                        aria-hidden="true"
+                                        className="h-3 w-3"
+                                      >
+                                        <path d="M8 3.5v9M3.5 8h9" strokeLinecap="round" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                  <span
+                                    className={`font-sans text-[10px] text-ink-muted ${
+                                      canEdit ? 'group-hover:hidden' : ''
+                                    }`}
+                                  >
                                     {items.length}
                                   </span>
                                 </div>
@@ -489,38 +502,40 @@ export function SidebarExplorer() {
                                           <span className="truncate">{item.name}</span>
                                         </Link>
 
-                                        <div className="flex shrink-0 items-center justify-end">
-                                          <button
-                                            type="button"
-                                            aria-label={`Excluir ${item.name}`}
-                                            title={`Excluir ${item.name}`}
-                                            onClick={(e) => {
-                                              e.preventDefault();
-                                              e.stopPropagation();
-                                              requestDelete(schema.name, category.key, item.name);
-                                            }}
-                                            className={`hidden h-4 w-4 cursor-pointer items-center justify-center rounded transition-colors group-hover:inline-flex ${
-                                              selected
-                                                ? 'text-cta-fg/80 hover:bg-cta-fg/20 hover:text-cta-fg'
-                                                : 'text-ink-muted hover:bg-danger/15 hover:text-danger'
-                                            }`}
-                                          >
-                                            <svg
-                                              viewBox="0 0 16 16"
-                                              fill="none"
-                                              stroke="currentColor"
-                                              strokeWidth="1.5"
-                                              aria-hidden="true"
-                                              className="h-3 w-3"
+                                        {canEdit && (
+                                          <div className="flex shrink-0 items-center justify-end">
+                                            <button
+                                              type="button"
+                                              aria-label={`Excluir ${item.name}`}
+                                              title={`Excluir ${item.name}`}
+                                              onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                requestDelete(schema.name, category.key, item.name);
+                                              }}
+                                              className={`hidden h-4 w-4 cursor-pointer items-center justify-center rounded transition-colors group-hover:inline-flex ${
+                                                selected
+                                                  ? 'text-cta-fg/80 hover:bg-cta-fg/20 hover:text-cta-fg'
+                                                  : 'text-ink-muted hover:bg-danger/15 hover:text-danger'
+                                              }`}
                                             >
-                                              <path
-                                                d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5l.5 8.5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8.5"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                              />
-                                            </svg>
-                                          </button>
-                                        </div>
+                                              <svg
+                                                viewBox="0 0 16 16"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="1.5"
+                                                aria-hidden="true"
+                                                className="h-3 w-3"
+                                              >
+                                                <path
+                                                  d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5l.5 8.5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8.5"
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                />
+                                              </svg>
+                                            </button>
+                                          </div>
+                                        )}
                                       </li>
                                     );
                                   })}

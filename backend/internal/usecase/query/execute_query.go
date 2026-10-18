@@ -19,6 +19,7 @@ const (
 
 type ExecuteQueryInput struct {
 	ActorUsername string
+	ActorRole     domain.Role
 	ConnectionID  int64
 	SQL           string
 	Limit         int
@@ -42,6 +43,27 @@ func NewExecuteQuery(
 	}
 }
 
+func isSelectQuery(sqlText string) bool {
+	cleaned := strings.TrimSpace(sqlText)
+	for strings.HasPrefix(cleaned, "--") || strings.HasPrefix(cleaned, "/*") {
+		if strings.HasPrefix(cleaned, "--") {
+			idx := strings.IndexByte(cleaned, '\n')
+			if idx < 0 {
+				return false
+			}
+			cleaned = strings.TrimSpace(cleaned[idx+1:])
+		} else {
+			idx := strings.Index(cleaned, "*/")
+			if idx < 0 {
+				return false
+			}
+			cleaned = strings.TrimSpace(cleaned[idx+2:])
+		}
+	}
+	upper := strings.ToUpper(cleaned)
+	return strings.HasPrefix(upper, "SELECT") || strings.HasPrefix(upper, "WITH")
+}
+
 func (uc *ExecuteQuery) Execute(ctx context.Context, input ExecuteQueryInput) (domain.QueryResult, error) {
 	trimmed := strings.TrimSpace(input.SQL)
 	if trimmed == "" {
@@ -49,6 +71,11 @@ func (uc *ExecuteQuery) Execute(ctx context.Context, input ExecuteQueryInput) (d
 	}
 	if utf8.RuneCountInString(input.SQL) > MaxSQLLength {
 		return domain.QueryResult{}, domain.NewValidationError("A consulta excede o limite de 5000 caracteres")
+	}
+
+	readOnly := input.ActorRole == domain.RoleViewer
+	if readOnly && !isSelectQuery(trimmed) {
+		return domain.QueryResult{}, domain.NewForbiddenError("Usuários com papel de leitura (viewer) podem executar apenas consultas SELECT")
 	}
 
 	limit := input.Limit
@@ -64,7 +91,7 @@ func (uc *ExecuteQuery) Execute(ctx context.Context, input ExecuteQueryInput) (d
 	}
 
 	start := time.Now()
-	result, execErr := uc.driver.ExecuteQuery(ctx, creds, trimmed, limit)
+	result, execErr := uc.driver.ExecuteQuery(ctx, creds, trimmed, limit, readOnly)
 	durationMs := time.Since(start).Milliseconds()
 
 	status := "success"

@@ -56,7 +56,7 @@ func (f *fakeDriver) DropObject(ctx context.Context, creds domain.ConnectionCred
 	return nil
 }
 
-func (f *fakeDriver) ExecuteQuery(ctx context.Context, creds domain.ConnectionCredentials, sql string, limit int) (domain.QueryResult, error) {
+func (f *fakeDriver) ExecuteQuery(ctx context.Context, creds domain.ConnectionCredentials, sql string, limit int, readOnly bool) (domain.QueryResult, error) {
 	return domain.QueryResult{
 		Columns:    []string{"id"},
 		Rows:       [][]any{{1}},

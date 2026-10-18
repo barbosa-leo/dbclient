@@ -55,7 +55,7 @@ type DatabaseDriver interface {
 	ListColumns(ctx context.Context, creds ConnectionCredentials, schema, table string) ([]ColumnInfo, error)
 	GetObjectDefinition(ctx context.Context, creds ConnectionCredentials, schema, category, name string) (string, error)
 	DropObject(ctx context.Context, creds ConnectionCredentials, schema, category, name string) error
-	ExecuteQuery(ctx context.Context, creds ConnectionCredentials, sql string, limit int) (QueryResult, error)
+	ExecuteQuery(ctx context.Context, creds ConnectionCredentials, sql string, limit int, readOnly bool) (QueryResult, error)
 }
 
 type Dumper interface {

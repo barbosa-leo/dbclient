@@ -16,13 +16,13 @@ interface UserFormProps {
   onCancel: () => void;
 }
 
-const roles: readonly Role[] = ['operator', 'admin'];
+const roles: readonly Role[] = ['viewer', 'operator', 'admin'];
 
 export function UserForm({ user, onSaved, onCancel }: UserFormProps) {
   const [values, setValues] = useState<UserFormValues>({
     username: user?.username ?? '',
     password: '',
-    role: user?.role ?? 'operator',
+    role: user?.role ?? 'viewer',
   });
   const [errors, setErrors] = useState<UserFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);

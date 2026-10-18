@@ -31,10 +31,13 @@ export function ObjectDefinitionEditor({
     setDraft(definition);
   }, [definition]);
 
+  const isEditable = Boolean(onSave);
   const hasChanges =
-    draft.trim().length > 0 && (isNewTemplate || draft.trim() !== definition.trim());
+    isEditable &&
+    draft.trim().length > 0 &&
+    (isNewTemplate || draft.trim() !== definition.trim());
   const canRefresh = Boolean(onRefresh) && !isNewTemplate && !refreshing && !saving;
-  const canSaveOrCancel = Boolean(onSave) && hasChanges && !saving;
+  const canSaveOrCancel = isEditable && hasChanges && !saving;
   const nearLimit = draft.length >= MAX_SQL_LENGTH * 0.9;
 
   async function handleSave() {
@@ -65,10 +68,14 @@ export function ObjectDefinitionEditor({
             </span>
           ) : savedMessage ? (
             <span className="font-semibold text-online">{savedMessage}</span>
-          ) : (
+          ) : isEditable ? (
             <span>
               Edite a definição SQL de <strong className="text-ink">{objectLabel}</strong> · Ctrl/⌘
               + Enter para salvar
+            </span>
+          ) : (
+            <span>
+              Visualização da definição SQL de <strong className="text-ink">{objectLabel}</strong>
             </span>
           )}
           <span className={nearLimit ? 'text-danger' : 'text-ink-muted'}>
@@ -101,47 +108,55 @@ export function ObjectDefinitionEditor({
             </svg>
           </button>
 
-          <button
-            type="button"
-            disabled={!canSaveOrCancel}
-            aria-label="Salvar definição"
-            title="Salvar definição (Ctrl/⌘ + Enter)"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => void handleSave()}
-            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted enabled:border-cta enabled:bg-cta enabled:text-cta-fg enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
-          >
-            <svg
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              aria-hidden="true"
-              className="h-3.5 w-3.5"
-            >
-              <path d="M3.5 8.5 6.5 11.5 12.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
+          {isEditable && (
+            <>
+              <button
+                type="button"
+                disabled={!canSaveOrCancel}
+                aria-label="Salvar definição"
+                title="Salvar definição (Ctrl/⌘ + Enter)"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => void handleSave()}
+                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted enabled:border-cta enabled:bg-cta enabled:text-cta-fg enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+              >
+                <svg
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  aria-hidden="true"
+                  className="h-3.5 w-3.5"
+                >
+                  <path
+                    d="M3.5 8.5 6.5 11.5 12.5 4.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
 
-          <button
-            type="button"
-            disabled={!canSaveOrCancel}
-            aria-label="Cancelar alterações"
-            title="Cancelar alterações"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={handleCancel}
-            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
-          >
-            <svg
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              aria-hidden="true"
-              className="h-3.5 w-3.5"
-            >
-              <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" strokeLinecap="round" />
-            </svg>
-          </button>
+              <button
+                type="button"
+                disabled={!canSaveOrCancel}
+                aria-label="Cancelar alterações"
+                title="Cancelar alterações"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={handleCancel}
+                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+              >
+                <svg
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  aria-hidden="true"
+                  className="h-3.5 w-3.5"
+                >
+                  <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" strokeLinecap="round" />
+                </svg>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -151,6 +166,7 @@ export function ObjectDefinitionEditor({
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={handleKeyDown}
           maxLength={MAX_SQL_LENGTH}
+          readOnly={!isEditable}
           disabled={saving}
           spellCheck={false}
           aria-label={`Editor SQL de ${objectLabel}`}

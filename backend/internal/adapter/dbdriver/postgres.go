@@ -416,7 +416,7 @@ func (d *PostgresDriver) DropObject(ctx context.Context, creds domain.Connection
 	}
 }
 
-func (d *PostgresDriver) ExecuteQuery(ctx context.Context, creds domain.ConnectionCredentials, sqlText string, limit int) (domain.QueryResult, error) {
+func (d *PostgresDriver) ExecuteQuery(ctx context.Context, creds domain.ConnectionCredentials, sqlText string, limit int, readOnly bool) (domain.QueryResult, error) {
 	queryCtx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
@@ -427,7 +427,11 @@ func (d *PostgresDriver) ExecuteQuery(ctx context.Context, creds domain.Connecti
 	defer conn.Close(queryCtx)
 
 	start := time.Now()
-	tx, err := conn.Begin(queryCtx)
+	txOpts := pgx.TxOptions{}
+	if readOnly {
+		txOpts.AccessMode = pgx.ReadOnly
+	}
+	tx, err := conn.BeginTx(queryCtx, txOpts)
 	if err != nil {
 		return domain.QueryResult{}, err
 	}

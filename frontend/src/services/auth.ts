@@ -1,6 +1,6 @@
 import { apiRequest } from '@/services/api';
 
-export type Role = 'admin' | 'operator';
+export type Role = 'admin' | 'operator' | 'viewer';
 
 export interface User {
   id: number;

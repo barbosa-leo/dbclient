@@ -43,3 +43,19 @@ func (e ConflictError) Unwrap() error {
 func NewConflictError(message string) error {
 	return ConflictError{Message: message}
 }
+
+type ForbiddenError struct {
+	Message string
+}
+
+func (e ForbiddenError) Error() string {
+	return e.Message
+}
+
+func (e ForbiddenError) Unwrap() error {
+	return ErrForbidden
+}
+
+func NewForbiddenError(message string) error {
+	return ForbiddenError{Message: message}
+}

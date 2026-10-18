@@ -21,7 +21,7 @@ function validateFile(file: File | null): string | null {
 
 export default function ScriptsPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const canUseTools = user?.role === 'admin' || user?.role === 'operator';
   const { active } = useConnections();
   const [file, setFile] = useState<File | null>(null);
   const [job, setJob] = useState<Job | null>(null);
@@ -32,11 +32,11 @@ export default function ScriptsPage() {
   const handleUpdate = useCallback((updated: Job) => setJob(updated), []);
   useJobPolling(job, handleUpdate);
 
-  if (!isAdmin) {
+  if (!canUseTools) {
     return (
       <PageHeader
         title="Scripts"
-        description="Apenas administradores podem acessar as ferramentas de scripts."
+        description="Apenas operadores e administradores podem acessar as ferramentas de scripts."
       />
     );
   }

@@ -36,6 +36,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 		return requireAuth(middleware.RequireAdmin(h))
 	}
 	requireOperator := func(h http.HandlerFunc) http.Handler {
+		return requireAuth(middleware.RequireOperatorOrAdmin(h))
+	}
+	requireViewer := func(h http.HandlerFunc) http.Handler {
 		return requireAuth(h)
 	}
 
@@ -51,29 +54,29 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("PUT /api/users/{id}", requireAdmin(deps.Users.Update))
 	mux.Handle("DELETE /api/users/{id}", requireAdmin(deps.Users.Delete))
 
-	mux.Handle("GET /api/environments", requireOperator(deps.Environments.List))
+	mux.Handle("GET /api/environments", requireViewer(deps.Environments.List))
 	mux.Handle("POST /api/environments", requireAdmin(deps.Environments.Create))
 	mux.Handle("DELETE /api/environments/{id}", requireAdmin(deps.Environments.Delete))
 
-	mux.Handle("GET /api/connections", requireOperator(deps.Connections.List))
+	mux.Handle("GET /api/connections", requireViewer(deps.Connections.List))
 	mux.Handle("POST /api/connections", requireAdmin(deps.Connections.Create))
 	mux.Handle("PUT /api/connections/{id}", requireAdmin(deps.Connections.Update))
 	mux.Handle("DELETE /api/connections/{id}", requireAdmin(deps.Connections.Delete))
 
-	mux.Handle("GET /api/connections/{id}/schemas", requireOperator(deps.Explorer.Schemas))
-	mux.Handle("GET /api/connections/{id}/schemas/{schema}/tables/{table}/columns", requireOperator(deps.Explorer.Columns))
-	mux.Handle("GET /api/connections/{id}/schemas/{schema}/objects/{category}/{name}/definition", requireOperator(deps.Explorer.ObjectDefinition))
+	mux.Handle("GET /api/connections/{id}/schemas", requireViewer(deps.Explorer.Schemas))
+	mux.Handle("GET /api/connections/{id}/schemas/{schema}/tables/{table}/columns", requireViewer(deps.Explorer.Columns))
+	mux.Handle("GET /api/connections/{id}/schemas/{schema}/objects/{category}/{name}/definition", requireViewer(deps.Explorer.ObjectDefinition))
 	mux.Handle("DELETE /api/connections/{id}/schemas/{schema}/objects/{category}/{name}", requireOperator(deps.Explorer.DropObject))
 
-	mux.Handle("POST /api/connections/{id}/query", requireOperator(deps.Query.Execute))
-	mux.Handle("POST /api/connections/{id}/scripts", requireAdmin(deps.Script.Run))
+	mux.Handle("POST /api/connections/{id}/query", requireViewer(deps.Query.Execute))
+	mux.Handle("POST /api/connections/{id}/scripts", requireOperator(deps.Script.Run))
 
-	mux.Handle("POST /api/connections/{id}/dumps/export", requireAdmin(deps.Dump.Export))
-	mux.Handle("POST /api/connections/{id}/dumps/import", requireAdmin(deps.Dump.Import))
+	mux.Handle("POST /api/connections/{id}/dumps/export", requireOperator(deps.Dump.Export))
+	mux.Handle("POST /api/connections/{id}/dumps/import", requireOperator(deps.Dump.Import))
 
-	mux.Handle("GET /api/jobs/{id}", requireAdmin(deps.Dump.GetJob))
-	mux.Handle("POST /api/jobs/{id}/cancel", requireAdmin(deps.Dump.CancelJob))
-	mux.Handle("GET /api/jobs/{id}/download", requireAdmin(deps.Dump.DownloadJob))
+	mux.Handle("GET /api/jobs/{id}", requireOperator(deps.Dump.GetJob))
+	mux.Handle("POST /api/jobs/{id}/cancel", requireOperator(deps.Dump.CancelJob))
+	mux.Handle("GET /api/jobs/{id}/download", requireOperator(deps.Dump.DownloadJob))
 
 	mux.Handle("/", newSPAHandler(deps.FrontendFiles))
 

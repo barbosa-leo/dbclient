@@ -7,10 +7,11 @@ type Role string
 const (
 	RoleAdmin    Role = "admin"
 	RoleOperator Role = "operator"
+	RoleViewer   Role = "viewer"
 )
 
 func (r Role) IsValid() bool {
-	return r == RoleAdmin || r == RoleOperator
+	return r == RoleAdmin || r == RoleOperator || r == RoleViewer
 }
 
 type User struct {

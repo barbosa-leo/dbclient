@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/components/auth/AuthProvider';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
 import { ObjectDefinitionEditor } from '@/components/explorer/ObjectDefinitionEditor';
 import { TableStructure } from '@/components/explorer/TableStructure';
@@ -285,9 +286,11 @@ function ExplorerContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const { active } = useConnections();
   const activeId = active?.id;
   const database = active?.database ?? null;
+  const canEdit = user?.role === 'admin' || user?.role === 'operator';
 
   const schema = searchParams.get('schema');
   const categoryRaw = searchParams.get('category');
@@ -295,7 +298,8 @@ function ExplorerContent() {
   const table = searchParams.get('table');
   const item = searchParams.get('item');
   const kindParam = searchParams.get('kind') as TableKind | null;
-  const isCreating = searchParams.get('create') === '1' && Boolean(schema) && categoryParam !== null;
+  const isCreating =
+    canEdit && searchParams.get('create') === '1' && Boolean(schema) && categoryParam !== null;
 
   const isRoutine = !isCreating && isRoutineCategory(categoryParam) && Boolean(item);
   const isView =
@@ -678,7 +682,7 @@ function ExplorerContent() {
             </div>
           )}
 
-          {!isCreating && (
+          {canEdit && !isCreating && (
             <button
               type="button"
               aria-label={`Excluir ${schema}.${objectName}`}
@@ -721,7 +725,7 @@ function ExplorerContent() {
             isNewTemplate={isCreating}
             onRefresh={isCreating ? undefined : () => void loadDefinition()}
             refreshing={loading}
-            onSave={handleSaveDefinition}
+            onSave={canEdit ? handleSaveDefinition : undefined}
             saving={savingChanges}
             savedMessage={savedMessage}
           />
@@ -738,7 +742,7 @@ function ExplorerContent() {
               onFilterChange={handleFilterChange}
               onRefresh={() => void loadData(limit, filters, sort)}
               refreshing={loading}
-              onSaveChanges={isView ? undefined : handleSaveChanges}
+              onSaveChanges={canEdit && !isView ? handleSaveChanges : undefined}
               savingChanges={savingChanges}
             />
             {dataResult.columns.length > 0 && (
@@ -758,7 +762,7 @@ function ExplorerContent() {
             columns={columns}
             onRefresh={() => void loadStructure()}
             refreshing={loading}
-            onSaveChanges={isView ? undefined : handleSaveStructureChanges}
+            onSaveChanges={canEdit && !isView ? handleSaveStructureChanges : undefined}
             savingChanges={savingChanges}
           />
         )}

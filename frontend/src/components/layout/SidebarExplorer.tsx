@@ -102,13 +102,17 @@ export function SidebarExplorer() {
   const [pendingDelete, setPendingDelete] = useState<PendingDeleteState | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [schemaError, setSchemaError] = useState<string | null>(null);
 
   const reloadSchemas = useCallback(async () => {
     if (activeConnectionId === undefined) return;
     try {
+      setSchemaError(null);
       const data = await listSchemas(activeConnectionId);
       setSchemas(data);
-    } catch {}
+    } catch (err) {
+      setSchemaError(err instanceof Error ? err.message : 'Falha ao carregar schemas');
+    }
   }, [activeConnectionId]);
 
   useEffect(() => {
@@ -116,6 +120,7 @@ export function SidebarExplorer() {
     setOpenSchemas({});
     setOpenCategories({});
     setSchemas([]);
+    setSchemaError(null);
 
     if (!active || activeConnectionId === undefined) {
       setLoadingSchemas(false);
@@ -126,10 +131,16 @@ export function SidebarExplorer() {
     setLoadingSchemas(true);
     listSchemas(activeConnectionId)
       .then((data) => {
-        if (!cancelled) setSchemas(data);
+        if (!cancelled) {
+          setSchemas(data);
+          setSchemaError(null);
+        }
       })
-      .catch(() => {
-        if (!cancelled) setSchemas([]);
+      .catch((err) => {
+        if (!cancelled) {
+          setSchemas([]);
+          setSchemaError(err instanceof Error ? err.message : 'Falha ao carregar schemas');
+        }
       })
       .finally(() => {
         if (!cancelled) setLoadingSchemas(false);
@@ -324,7 +335,20 @@ export function SidebarExplorer() {
                 Carregando schemas...
               </span>
             )}
-            {!loadingSchemas && schemas.length === 0 && (
+            {schemaError && (
+              <div className="flex flex-col gap-1 px-2 py-1 text-[11px] text-danger">
+                <span>Erro de conexão:</span>
+                <span className="font-mono text-[10px] break-words text-danger/80">{schemaError}</span>
+                <button
+                  type="button"
+                  onClick={reloadSchemas}
+                  className="mt-0.5 text-left text-[10px] underline hover:text-ink cursor-pointer"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            )}
+            {!loadingSchemas && !schemaError && schemas.length === 0 && (
               <span className="px-2 py-0.5 text-[11px] text-ink-muted">Nenhum schema</span>
             )}
             {!loadingSchemas &&

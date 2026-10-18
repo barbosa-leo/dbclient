@@ -12,13 +12,20 @@ import { Topbar } from '@/components/layout/Topbar';
 function AppWorkspace({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuth();
   const { environments, loading, contextRevision } = useConnections();
 
   useEffect(() => {
-    if (!loading && environments.length === 0 && pathname !== '/connections') {
-      router.replace('/connections');
+    if (loading) return;
+
+    if (environments.length === 0) {
+      const isAdmin = user?.role === 'admin';
+      const isAllowed = pathname.startsWith('/connections') || (isAdmin && pathname.startsWith('/users'));
+      if (!isAllowed) {
+        router.replace('/connections');
+      }
     }
-  }, [loading, environments.length, pathname, router]);
+  }, [loading, environments.length, pathname, router, user?.role]);
 
   return (
     <div key={contextRevision} className="flex h-screen flex-col overflow-hidden bg-canvas">

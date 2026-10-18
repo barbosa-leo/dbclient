@@ -66,14 +66,14 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("DELETE /api/connections/{id}/schemas/{schema}/objects/{category}/{name}", requireOperator(deps.Explorer.DropObject))
 
 	mux.Handle("POST /api/connections/{id}/query", requireOperator(deps.Query.Execute))
-	mux.Handle("POST /api/connections/{id}/scripts", requireOperator(deps.Script.Run))
+	mux.Handle("POST /api/connections/{id}/scripts", requireAdmin(deps.Script.Run))
 
-	mux.Handle("POST /api/connections/{id}/dumps/export", requireOperator(deps.Dump.Export))
-	mux.Handle("POST /api/connections/{id}/dumps/import", requireOperator(deps.Dump.Import))
+	mux.Handle("POST /api/connections/{id}/dumps/export", requireAdmin(deps.Dump.Export))
+	mux.Handle("POST /api/connections/{id}/dumps/import", requireAdmin(deps.Dump.Import))
 
-	mux.Handle("GET /api/jobs/{id}", requireOperator(deps.Dump.GetJob))
-	mux.Handle("POST /api/jobs/{id}/cancel", requireOperator(deps.Dump.CancelJob))
-	mux.Handle("GET /api/jobs/{id}/download", requireOperator(deps.Dump.DownloadJob))
+	mux.Handle("GET /api/jobs/{id}", requireAdmin(deps.Dump.GetJob))
+	mux.Handle("POST /api/jobs/{id}/cancel", requireAdmin(deps.Dump.CancelJob))
+	mux.Handle("GET /api/jobs/{id}/download", requireAdmin(deps.Dump.DownloadJob))
 
 	mux.Handle("/", newSPAHandler(deps.FrontendFiles))
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import type { FormEvent } from 'react';
+import { useAuth } from '@/components/auth/AuthProvider';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
 import { JobStatusCard } from '@/components/jobs/JobStatusCard';
 import { useJobPolling } from '@/components/jobs/useJobPolling';
@@ -19,6 +20,8 @@ function validateFile(file: File | null): string | null {
 }
 
 export default function ScriptsPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const { active } = useConnections();
   const [file, setFile] = useState<File | null>(null);
   const [job, setJob] = useState<Job | null>(null);
@@ -28,6 +31,15 @@ export default function ScriptsPage() {
 
   const handleUpdate = useCallback((updated: Job) => setJob(updated), []);
   useJobPolling(job, handleUpdate);
+
+  if (!isAdmin) {
+    return (
+      <PageHeader
+        title="Scripts"
+        description="Apenas administradores podem acessar as ferramentas de scripts."
+      />
+    );
+  }
 
   const running = job !== null && !isJobFinished(job);
 

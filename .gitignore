@@ -9,4 +9,6 @@ frontend/out
 *.sqlite-*
 backend/.data
 backend/.tmp
-.env*
+.env
+.env.*
+!.env.example

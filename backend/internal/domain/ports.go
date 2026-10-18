@@ -53,6 +53,7 @@ type Cipher interface {
 type DatabaseDriver interface {
 	ListSchemas(ctx context.Context, creds ConnectionCredentials) ([]SchemaInfo, error)
 	ListColumns(ctx context.Context, creds ConnectionCredentials, schema, table string) ([]ColumnInfo, error)
+	DescribeTable(ctx context.Context, creds ConnectionCredentials, schema, table string) (TableStructureInfo, error)
 	GetObjectDefinition(ctx context.Context, creds ConnectionCredentials, schema, category, name string) (string, error)
 	DropObject(ctx context.Context, creds ConnectionCredentials, schema, category, name string) error
 	ExecuteQuery(ctx context.Context, creds ConnectionCredentials, sql string, limit int, readOnly bool) (QueryResult, error)

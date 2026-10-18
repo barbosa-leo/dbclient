@@ -39,12 +39,28 @@ func (h *DumpHandler) Export(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdJob, err := h.exportDump.Execute(r.Context(), user.Email, connID)
+	createdJob, err := h.exportDump.Execute(r.Context(), user.ID, user.Email, connID)
 	if err != nil {
 		writeDomainError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusAccepted, createdJob)
+}
+
+func (h *DumpHandler) ListUserDumps(w http.ResponseWriter, r *http.Request) {
+	user, _ := middleware.UserFromContext(r.Context())
+	dumps := h.jobs.ListUserDumps(user.ID)
+	writeJSON(w, http.StatusOK, dumps)
+}
+
+func (h *DumpHandler) DeleteDump(w http.ResponseWriter, r *http.Request) {
+	user, _ := middleware.UserFromContext(r.Context())
+	id := r.PathValue("id")
+	if err := h.jobs.DeleteDump(id, user.ID); err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *DumpHandler) Import(w http.ResponseWriter, r *http.Request) {

@@ -44,6 +44,30 @@ export interface ColumnInfo {
   isPrimaryKey: boolean;
 }
 
+export interface ForeignKeyInfo {
+  name: string;
+  column: string;
+  referencedSchema: string;
+  referencedTable: string;
+  referencedColumn: string;
+  onUpdate: string;
+  onDelete: string;
+}
+
+export interface IndexInfo {
+  name: string;
+  columns: string[];
+  isUnique: boolean;
+  isPrimary: boolean;
+  method: string;
+}
+
+export interface TableStructureInfo {
+  columns: ColumnInfo[];
+  foreignKeys: ForeignKeyInfo[];
+  indexes: IndexInfo[];
+}
+
 export function getSchemaCategoryItems(
   schema: SchemaInfo,
   category: SchemaCategoryKey,
@@ -83,6 +107,18 @@ export function listColumns(
   const t = encodeURIComponent(table);
   return apiRequest<ColumnInfo[]>(
     `/connections/${connectionId}/schemas/${s}/tables/${t}/columns`,
+  );
+}
+
+export function getTableStructure(
+  connectionId: number,
+  schema: string,
+  table: string,
+) {
+  const s = encodeURIComponent(schema);
+  const t = encodeURIComponent(table);
+  return apiRequest<TableStructureInfo>(
+    `/connections/${connectionId}/schemas/${s}/tables/${t}/structure`,
   );
 }
 

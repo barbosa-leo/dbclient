@@ -14,6 +14,7 @@ import (
 )
 
 type RunScriptInput struct {
+	ActorUserID   int64
 	ActorUsername string
 	ConnectionID  int64
 	FileName      string
@@ -67,6 +68,10 @@ func (uc *RunScript) Execute(ctx context.Context, input RunScriptInput) (domain.
 		domain.JobKindScript,
 		fileName,
 		savedPath,
+		input.ActorUserID,
+		conn.ID,
+		conn.Name,
+		creds.Database,
 		func(jobCtx context.Context, setProgress func(int)) error {
 			defer func() { _ = uc.files.Remove(savedPath) }()
 

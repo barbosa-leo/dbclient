@@ -1,19 +1,12 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { ConnectionSelector } from '@/components/connections/ConnectionSelector';
 import { useTheme } from '@/components/layout/ThemeProvider';
 
 export function Topbar() {
-  const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
-
-  async function handleSignOut() {
-    await signOut();
-    router.replace('/login');
-  }
 
   const initial = user?.name?.slice(0, 1).toUpperCase() ?? 'U';
 
@@ -73,14 +66,6 @@ export function Topbar() {
           >
             {initial}
           </span>
-
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="cursor-pointer rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink-secondary transition-colors hover:bg-muted hover:text-ink"
-          >
-            Sair
-          </button>
         </div>
       </div>
     </header>

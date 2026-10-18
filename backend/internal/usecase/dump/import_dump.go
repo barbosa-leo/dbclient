@@ -67,6 +67,10 @@ func (uc *ImportDump) Execute(ctx context.Context, input ImportDumpInput) (domai
 		domain.JobKindDumpImport,
 		fileName,
 		savedPath,
+		0,
+		conn.ID,
+		conn.Name,
+		creds.Database,
 		func(jobCtx context.Context, setProgress func(int)) error {
 			defer func() { _ = uc.files.Remove(savedPath) }()
 

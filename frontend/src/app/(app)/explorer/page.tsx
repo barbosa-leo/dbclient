@@ -14,14 +14,18 @@ import { RowLimitSelector } from '@/components/query/RowLimitSelector';
 import {
   dropObject,
   getObjectDefinition,
+  getTableStructure,
   listColumns,
   notifyExplorerRefresh,
 } from '@/services/explorer';
 import type {
   ColumnInfo,
   EditableObjectCategory,
+  ForeignKeyInfo,
+  IndexInfo,
   SchemaCategoryKey,
   TableKind,
+  TableStructureInfo,
 } from '@/services/explorer';
 import {
   MIN_ROW_LIMIT,
@@ -343,6 +347,8 @@ function ExplorerContent() {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [dataResult, setDataResult] = useState<QueryResult | null>(null);
   const [columns, setColumns] = useState<ColumnInfo[] | null>(null);
+  const [foreignKeys, setForeignKeys] = useState<ForeignKeyInfo[]>([]);
+  const [indexes, setIndexes] = useState<IndexInfo[]>([]);
   const [objectDefinition, setObjectDefinition] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -392,13 +398,23 @@ function ExplorerContent() {
     setLoading(true);
     setError(null);
     try {
-      setColumns(await listColumns(activeId, schema, table));
+      if (isView) {
+        const cols = await listColumns(activeId, schema, table);
+        setColumns(cols);
+        setForeignKeys([]);
+        setIndexes([]);
+      } else {
+        const struct = await getTableStructure(activeId, schema, table);
+        setColumns(struct.columns);
+        setForeignKeys(struct.foreignKeys ?? []);
+        setIndexes(struct.indexes ?? []);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao carregar a estrutura da tabela');
     } finally {
       setLoading(false);
     }
-  }, [activeId, schema, table]);
+  }, [activeId, schema, table, isView]);
 
   const loadDefinition = useCallback(async () => {
     if (activeId === undefined || !schema || !objectName) return;
@@ -427,6 +443,8 @@ function ExplorerContent() {
   useEffect(() => {
     setDataResult(null);
     setColumns(null);
+    setForeignKeys([]);
+    setIndexes([]);
     setObjectDefinition(null);
     setSavedMessage(null);
     setConfirmingDelete(false);
@@ -514,6 +532,89 @@ function ExplorerContent() {
       await loadStructure();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao alterar a estrutura da tabela');
+    } finally {
+      setSavingChanges(false);
+    }
+  }
+
+  async function handleCreateForeignKey(fk: {
+    column: string;
+    referencedSchema: string;
+    referencedTable: string;
+    referencedColumn: string;
+    onUpdate: string;
+    onDelete: string;
+  }) {
+    if (activeId === undefined || !schema || !table) return;
+    setSavingChanges(true);
+    setError(null);
+    try {
+      const constraintName = quoteIdentifier(`fk_${table}_${fk.column}`);
+      const tableRef = `${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
+      const refTableRef = `${quoteIdentifier(fk.referencedSchema)}.${quoteIdentifier(fk.referencedTable)}`;
+      const sql = `ALTER TABLE ${tableRef} ADD CONSTRAINT ${constraintName} FOREIGN KEY (${quoteIdentifier(
+        fk.column,
+      )}) REFERENCES ${refTableRef} (${quoteIdentifier(fk.referencedColumn)}) ON UPDATE ${fk.onUpdate} ON DELETE ${fk.onDelete}`;
+      await executeQuery(activeId, sql, MIN_ROW_LIMIT);
+      await loadStructure();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao criar chave estrangeira');
+    } finally {
+      setSavingChanges(false);
+    }
+  }
+
+  async function handleDeleteForeignKey(constraintName: string) {
+    if (activeId === undefined || !schema || !table) return;
+    setSavingChanges(true);
+    setError(null);
+    try {
+      const tableRef = `${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
+      const sql = `ALTER TABLE ${tableRef} DROP CONSTRAINT ${quoteIdentifier(constraintName)}`;
+      await executeQuery(activeId, sql, MIN_ROW_LIMIT);
+      await loadStructure();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao remover chave estrangeira');
+    } finally {
+      setSavingChanges(false);
+    }
+  }
+
+  async function handleCreateIndex(idx: {
+    name: string;
+    columns: string[];
+    isUnique: boolean;
+    method: string;
+  }) {
+    if (activeId === undefined || !schema || !table) return;
+    setSavingChanges(true);
+    setError(null);
+    try {
+      const tableRef = `${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
+      const indexIdent = quoteIdentifier(idx.name.trim());
+      const uniqueClause = idx.isUnique ? 'UNIQUE ' : '';
+      const methodClause = idx.method ? `USING ${idx.method} ` : '';
+      const colList = idx.columns.map((c) => quoteIdentifier(c)).join(', ');
+      const sql = `CREATE ${uniqueClause}INDEX ${indexIdent} ON ${tableRef} ${methodClause}(${colList})`;
+      await executeQuery(activeId, sql, MIN_ROW_LIMIT);
+      await loadStructure();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao criar índice');
+    } finally {
+      setSavingChanges(false);
+    }
+  }
+
+  async function handleDeleteIndex(indexName: string) {
+    if (activeId === undefined || !schema || !table) return;
+    setSavingChanges(true);
+    setError(null);
+    try {
+      const sql = `DROP INDEX ${quoteIdentifier(schema)}.${quoteIdentifier(indexName)}`;
+      await executeQuery(activeId, sql, MIN_ROW_LIMIT);
+      await loadStructure();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao remover índice');
     } finally {
       setSavingChanges(false);
     }
@@ -760,9 +861,17 @@ function ExplorerContent() {
         {!loading && tab === 'structure' && columns && (
           <TableStructure
             columns={columns}
+            foreignKeys={foreignKeys}
+            indexes={indexes}
+            currentSchema={schema}
+            currentTable={table ?? ''}
             onRefresh={() => void loadStructure()}
             refreshing={loading}
             onSaveChanges={canEdit && !isView ? handleSaveStructureChanges : undefined}
+            onCreateForeignKey={canEdit && !isView ? handleCreateForeignKey : undefined}
+            onDeleteForeignKey={canEdit && !isView ? handleDeleteForeignKey : undefined}
+            onCreateIndex={canEdit && !isView ? handleCreateIndex : undefined}
+            onDeleteIndex={canEdit && !isView ? handleDeleteIndex : undefined}
             savingChanges={savingChanges}
           />
         )}

@@ -48,6 +48,16 @@ func (f *fakeDriver) ListColumns(ctx context.Context, creds domain.ConnectionCre
 	}, nil
 }
 
+func (f *fakeDriver) DescribeTable(ctx context.Context, creds domain.ConnectionCredentials, schema, table string) (domain.TableStructureInfo, error) {
+	return domain.TableStructureInfo{
+		Columns: []domain.ColumnInfo{
+			{Name: "id", DataType: "bigint", Nullable: false, IsPrimaryKey: true},
+		},
+		ForeignKeys: []domain.ForeignKeyInfo{},
+		Indexes:     []domain.IndexInfo{},
+	}, nil
+}
+
 func (f *fakeDriver) GetObjectDefinition(ctx context.Context, creds domain.ConnectionCredentials, schema, category, name string) (string, error) {
 	return "CREATE OR REPLACE VIEW \"public\".\"v_test\" AS\nSELECT 1;", nil
 }
@@ -139,6 +149,7 @@ func TestEndToEndFlow(t *testing.T) {
 		Explorer: handler.NewExplorerHandler(
 			explorer.NewListSchemas(resolveUC, drv),
 			explorer.NewListColumns(resolveUC, drv),
+			explorer.NewDescribeTable(resolveUC, drv),
 			explorer.NewGetObjectDefinition(resolveUC, drv),
 			explorer.NewDropObject(resolveUC, drv),
 		),

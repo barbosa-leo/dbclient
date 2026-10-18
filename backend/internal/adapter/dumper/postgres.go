@@ -20,7 +20,31 @@ func NewPostgresDumper() *PostgresDumper {
 	return &PostgresDumper{}
 }
 
+func findPostgresBinary(name string) (string, error) {
+	if p, err := exec.LookPath(name); err == nil {
+		return p, nil
+	}
+	candidates := []string{
+		"/opt/homebrew/opt/libpq/bin/" + name,
+		"/opt/homebrew/bin/" + name,
+		"/usr/local/opt/libpq/bin/" + name,
+		"/usr/local/bin/" + name,
+		"/usr/bin/" + name,
+	}
+	for _, c := range candidates {
+		if _, err := os.Stat(c); err == nil {
+			return c, nil
+		}
+	}
+	return "", fmt.Errorf("utilitário '%s' não encontrado no sistema (verifique se postgresql-client ou libpq está instalado)", name)
+}
+
 func (d *PostgresDumper) Export(ctx context.Context, creds domain.ConnectionCredentials, dst io.Writer) error {
+	binPath, err := findPostgresBinary("pg_dump")
+	if err != nil {
+		return err
+	}
+
 	args := []string{
 		"--format=plain",
 		"--no-owner",
@@ -31,7 +55,7 @@ func (d *PostgresDumper) Export(ctx context.Context, creds domain.ConnectionCred
 		"--dbname", creds.Database,
 	}
 
-	cmd := exec.CommandContext(ctx, "pg_dump", args...)
+	cmd := exec.CommandContext(ctx, binPath, args...)
 	cmd.Env = buildPostgresEnv(creds)
 	cmd.Stdout = dst
 
@@ -57,6 +81,11 @@ func (d *PostgresDumper) Run(ctx context.Context, creds domain.ConnectionCredent
 }
 
 func runPsqlFile(ctx context.Context, creds domain.ConnectionCredentials, filePath string) error {
+	binPath, err := findPostgresBinary("psql")
+	if err != nil {
+		return err
+	}
+
 	args := []string{
 		"--single-transaction",
 		"-v", "ON_ERROR_STOP=1",
@@ -68,7 +97,7 @@ func runPsqlFile(ctx context.Context, creds domain.ConnectionCredentials, filePa
 		"--file", filePath,
 	}
 
-	cmd := exec.CommandContext(ctx, "psql", args...)
+	cmd := exec.CommandContext(ctx, binPath, args...)
 	cmd.Env = buildPostgresEnv(creds)
 
 	var stderr bytes.Buffer
@@ -90,5 +119,14 @@ func buildPostgresEnv(creds domain.ConnectionCredentials) []string {
 	if creds.SSLMode != "" {
 		env = append(env, "PGSSLMODE="+string(creds.SSLMode))
 	}
+
+	currentPath := os.Getenv("PATH")
+	extraPaths := "/opt/homebrew/opt/libpq/bin:/opt/homebrew/bin:/usr/local/opt/libpq/bin"
+	if currentPath != "" {
+		env = append(env, "PATH="+extraPaths+":"+currentPath)
+	} else {
+		env = append(env, "PATH="+extraPaths)
+	}
+
 	return env
 }

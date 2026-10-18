@@ -5,7 +5,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"io"
+	"os"
+	"sort"
 	"sync"
+	"time"
 
 	"dbclient/backend/internal/domain"
 )
@@ -32,6 +35,10 @@ func (m *Manager) Start(
 	kind domain.JobKind,
 	fileName string,
 	filePath string,
+	userID int64,
+	connectionID int64,
+	connectionName string,
+	databaseName string,
 	worker func(ctx context.Context, setProgress func(int)) error,
 ) domain.Job {
 	var rawID [8]byte
@@ -40,12 +47,17 @@ func (m *Manager) Start(
 
 	ctx, cancel := context.WithCancel(context.Background())
 	initial := domain.Job{
-		ID:       id,
-		Kind:     kind,
-		Status:   domain.JobStatusPending,
-		Progress: 0,
-		FileName: fileName,
-		FilePath: filePath,
+		ID:             id,
+		Kind:           kind,
+		Status:         domain.JobStatusPending,
+		Progress:       0,
+		FileName:       fileName,
+		FilePath:       filePath,
+		UserID:         userID,
+		ConnectionID:   connectionID,
+		ConnectionName: connectionName,
+		DatabaseName:   databaseName,
+		CreatedAt:      time.Now().UTC(),
 	}
 
 	m.mu.Lock()
@@ -88,10 +100,57 @@ func (m *Manager) Start(
 			}
 			j.Status = domain.JobStatusDone
 			j.Progress = 100
+			if j.FilePath != "" {
+				if fi, statErr := os.Stat(j.FilePath); statErr == nil {
+					j.SizeBytes = fi.Size()
+				}
+			}
 		})
 	}()
 
 	return initial
+}
+
+func (m *Manager) ListUserDumps(userID int64) []domain.Job {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	result := make([]domain.Job, 0)
+	for _, e := range m.jobs {
+		if e.job.Kind == domain.JobKindDumpExport && e.job.UserID == userID {
+			result = append(result, e.job)
+		}
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].CreatedAt.After(result[j].CreatedAt)
+	})
+	return result
+}
+
+func (m *Manager) DeleteDump(id string, userID int64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	e, ok := m.jobs[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+
+	if e.job.UserID != userID {
+		return domain.NewForbiddenError("Sem permissão para remover este dump")
+	}
+
+	if e.job.Status == domain.JobStatusRunning || e.job.Status == domain.JobStatusPending {
+		return domain.NewConflictError("Não é possível remover um dump em andamento")
+	}
+
+	if e.job.FilePath != "" {
+		_ = m.files.Remove(e.job.FilePath)
+	}
+
+	delete(m.jobs, id)
+	return nil
 }
 
 func (m *Manager) Get(id string) (domain.Job, error) {

@@ -94,6 +94,7 @@ func main() {
 
 	listSchemasUC := explorer.NewListSchemas(resolveCredsUC, pgDriver)
 	listColumnsUC := explorer.NewListColumns(resolveCredsUC, pgDriver)
+	describeTableUC := explorer.NewDescribeTable(resolveCredsUC, pgDriver)
 	getObjectDefUC := explorer.NewGetObjectDefinition(resolveCredsUC, pgDriver)
 	dropObjectUC := explorer.NewDropObject(resolveCredsUC, pgDriver)
 
@@ -112,7 +113,7 @@ func main() {
 		Users:         handler.NewUserHandler(listUsersUC, createUserUC, updateUserUC, deleteUserUC),
 		Environments:  handler.NewEnvironmentHandler(listEnvironmentsUC, createEnvironmentUC, deleteEnvironmentUC),
 		Connections:   handler.NewConnectionHandler(listConnectionsUC, createConnectionUC, updateConnectionUC, deleteConnectionUC),
-		Explorer:      handler.NewExplorerHandler(listSchemasUC, listColumnsUC, getObjectDefUC, dropObjectUC),
+		Explorer:      handler.NewExplorerHandler(listSchemasUC, listColumnsUC, describeTableUC, getObjectDefUC, dropObjectUC),
 		Query:         handler.NewQueryHandler(executeQueryUC),
 		Script:        handler.NewScriptHandler(runScriptUC, cfg.MaxFileSize),
 		Dump:          handler.NewDumpHandler(exportDumpUC, importDumpUC, jobManager, cfg.MaxFileSize),

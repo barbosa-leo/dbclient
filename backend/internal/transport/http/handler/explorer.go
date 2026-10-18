@@ -9,6 +9,7 @@ import (
 type ExplorerHandler struct {
 	listSchemas         *explorer.ListSchemas
 	listColumns         *explorer.ListColumns
+	describeTable       *explorer.DescribeTable
 	getObjectDefinition *explorer.GetObjectDefinition
 	dropObject          *explorer.DropObject
 }
@@ -16,12 +17,14 @@ type ExplorerHandler struct {
 func NewExplorerHandler(
 	listSchemas *explorer.ListSchemas,
 	listColumns *explorer.ListColumns,
+	describeTable *explorer.DescribeTable,
 	getObjectDefinition *explorer.GetObjectDefinition,
 	dropObject *explorer.DropObject,
 ) *ExplorerHandler {
 	return &ExplorerHandler{
 		listSchemas:         listSchemas,
 		listColumns:         listColumns,
+		describeTable:       describeTable,
 		getObjectDefinition: getObjectDefinition,
 		dropObject:          dropObject,
 	}
@@ -58,6 +61,24 @@ func (h *ExplorerHandler) Columns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, columns)
+}
+
+func (h *ExplorerHandler) Structure(w http.ResponseWriter, r *http.Request) {
+	connID, err := parsePathInt64(r, "id")
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+
+	schema := r.PathValue("schema")
+	table := r.PathValue("table")
+
+	structure, err := h.describeTable.Execute(r.Context(), connID, schema, table)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, structure)
 }
 
 func (h *ExplorerHandler) ObjectDefinition(w http.ResponseWriter, r *http.Request) {

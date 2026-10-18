@@ -65,6 +65,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 	mux.Handle("GET /api/connections/{id}/schemas", requireViewer(deps.Explorer.Schemas))
 	mux.Handle("GET /api/connections/{id}/schemas/{schema}/tables/{table}/columns", requireViewer(deps.Explorer.Columns))
+	mux.Handle("GET /api/connections/{id}/schemas/{schema}/tables/{table}/structure", requireViewer(deps.Explorer.Structure))
 	mux.Handle("GET /api/connections/{id}/schemas/{schema}/objects/{category}/{name}/definition", requireViewer(deps.Explorer.ObjectDefinition))
 	mux.Handle("DELETE /api/connections/{id}/schemas/{schema}/objects/{category}/{name}", requireOperator(deps.Explorer.DropObject))
 
@@ -73,6 +74,8 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 	mux.Handle("POST /api/connections/{id}/dumps/export", requireOperator(deps.Dump.Export))
 	mux.Handle("POST /api/connections/{id}/dumps/import", requireOperator(deps.Dump.Import))
+	mux.Handle("GET /api/dumps", requireOperator(deps.Dump.ListUserDumps))
+	mux.Handle("DELETE /api/dumps/{id}", requireOperator(deps.Dump.DeleteDump))
 
 	mux.Handle("GET /api/jobs/{id}", requireOperator(deps.Dump.GetJob))
 	mux.Handle("POST /api/jobs/{id}/cancel", requireOperator(deps.Dump.CancelJob))

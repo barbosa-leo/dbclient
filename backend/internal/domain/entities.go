@@ -104,6 +104,30 @@ type ColumnInfo struct {
 	IsPrimaryKey bool    `json:"isPrimaryKey"`
 }
 
+type ForeignKeyInfo struct {
+	Name             string `json:"name"`
+	Column           string `json:"column"`
+	ReferencedSchema string `json:"referencedSchema"`
+	ReferencedTable  string `json:"referencedTable"`
+	ReferencedColumn string `json:"referencedColumn"`
+	OnUpdate         string `json:"onUpdate"`
+	OnDelete         string `json:"onDelete"`
+}
+
+type IndexInfo struct {
+	Name      string   `json:"name"`
+	Columns   []string `json:"columns"`
+	IsUnique  bool     `json:"isUnique"`
+	IsPrimary bool     `json:"isPrimary"`
+	Method    string   `json:"method"`
+}
+
+type TableStructureInfo struct {
+	Columns     []ColumnInfo     `json:"columns"`
+	ForeignKeys []ForeignKeyInfo `json:"foreignKeys"`
+	Indexes     []IndexInfo      `json:"indexes"`
+}
+
 type QueryResult struct {
 	Columns      []string `json:"columns"`
 	Rows         [][]any  `json:"rows"`
@@ -129,11 +153,17 @@ const (
 )
 
 type Job struct {
-	ID       string    `json:"id"`
-	Kind     JobKind   `json:"kind"`
-	Status   JobStatus `json:"status"`
-	Progress int       `json:"progress"`
-	FileName string    `json:"fileName"`
-	FilePath string    `json:"-"`
-	Error    *string   `json:"error"`
+	ID             string    `json:"id"`
+	Kind           JobKind   `json:"kind"`
+	Status         JobStatus `json:"status"`
+	Progress       int       `json:"progress"`
+	FileName       string    `json:"fileName"`
+	FilePath       string    `json:"-"`
+	UserID         int64     `json:"userId"`
+	ConnectionID   int64     `json:"connectionId"`
+	ConnectionName string    `json:"connectionName"`
+	DatabaseName   string    `json:"databaseName"`
+	SizeBytes      int64     `json:"sizeBytes"`
+	CreatedAt      time.Time `json:"createdAt"`
+	Error          *string   `json:"error"`
 }

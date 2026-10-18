@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/Button';
+import { SqlCodeEditor } from '@/components/ui/SqlCodeEditor';
 import { MAX_SQL_LENGTH } from '@/services/query';
 
 interface SqlEditorProps {
@@ -43,16 +44,15 @@ export function SqlEditor({
         </span>
       </div>
 
-      <textarea
+      <SqlCodeEditor
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
         onKeyDown={handleKeyDown}
         maxLength={MAX_SQL_LENGTH}
-        spellCheck={false}
-        rows={6}
-        aria-label="Consulta SQL"
+        disabled={disabled || running}
+        ariaLabel="Consulta SQL"
         placeholder="SELECT * FROM ..."
-        className="w-full resize-y rounded-lg border border-line bg-subtle p-4 font-mono text-xs leading-relaxed text-ink transition-colors outline-none focus:border-line-strong focus:bg-panel"
+        minHeight="160px"
       />
 
       <div className="flex items-center justify-end">

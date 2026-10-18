@@ -202,6 +202,112 @@ ORDER BY a.attnum ASC`
 	return cols, rows.Err()
 }
 
+func (d *PostgresDriver) DescribeTable(ctx context.Context, creds domain.ConnectionCredentials, schema, table string) (domain.TableStructureInfo, error) {
+	conn, cancel, err := connect(ctx, creds, defaultConnectTimeout)
+	if err != nil {
+		return domain.TableStructureInfo{}, err
+	}
+	defer cancel()
+	defer conn.Close(ctx)
+
+	cols, err := d.ListColumns(ctx, creds, schema, table)
+	if err != nil {
+		return domain.TableStructureInfo{}, err
+	}
+
+	const fkQuery = `
+SELECT
+	con.conname AS constraint_name,
+	att.attname AS column_name,
+	ref_ns.nspname AS ref_schema,
+	ref_cls.relname AS ref_table,
+	ref_att.attname AS ref_column,
+	CASE con.confupdtype
+		WHEN 'a' THEN 'NO ACTION'
+		WHEN 'r' THEN 'RESTRICT'
+		WHEN 'c' THEN 'CASCADE'
+		WHEN 'n' THEN 'SET NULL'
+		WHEN 'd' THEN 'SET DEFAULT'
+		ELSE 'NO ACTION'
+	END AS on_update,
+	CASE con.confdeltype
+		WHEN 'a' THEN 'NO ACTION'
+		WHEN 'r' THEN 'RESTRICT'
+		WHEN 'c' THEN 'CASCADE'
+		WHEN 'n' THEN 'SET NULL'
+		WHEN 'd' THEN 'SET DEFAULT'
+		ELSE 'NO ACTION'
+	END AS on_delete
+FROM pg_constraint con
+JOIN pg_class cls ON cls.oid = con.conrelid
+JOIN pg_namespace ns ON ns.oid = cls.relnamespace
+JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = con.conkey[1]
+JOIN pg_class ref_cls ON ref_cls.oid = con.confrelid
+JOIN pg_namespace ref_ns ON ref_ns.oid = ref_cls.relnamespace
+JOIN pg_attribute ref_att ON ref_att.attrelid = con.confrelid AND ref_att.attnum = con.confkey[1]
+WHERE con.contype = 'f'
+  AND ns.nspname = $1
+  AND cls.relname = $2
+ORDER BY con.conname ASC`
+
+	fkRows, err := conn.Query(ctx, fkQuery, schema, table)
+	if err != nil {
+		return domain.TableStructureInfo{}, err
+	}
+	defer fkRows.Close()
+
+	foreignKeys := make([]domain.ForeignKeyInfo, 0)
+	for fkRows.Next() {
+		var fk domain.ForeignKeyInfo
+		if scanErr := fkRows.Scan(&fk.Name, &fk.Column, &fk.ReferencedSchema, &fk.ReferencedTable, &fk.ReferencedColumn, &fk.OnUpdate, &fk.OnDelete); scanErr == nil {
+			foreignKeys = append(foreignKeys, fk)
+		}
+	}
+	fkRows.Close()
+
+	const idxQuery = `
+SELECT
+	idx_cls.relname AS index_name,
+	am.amname AS access_method,
+	idx.indisunique AS is_unique,
+	idx.indisprimary AS is_primary,
+	ARRAY(
+		SELECT att.attname
+		FROM unnest(idx.indkey) WITH ORDINALITY AS k(attnum, ord)
+		JOIN pg_attribute att ON att.attrelid = tbl_cls.oid AND att.attnum = k.attnum
+		ORDER BY k.ord
+	) AS column_names
+FROM pg_index idx
+JOIN pg_class idx_cls ON idx_cls.oid = idx.indexrelid
+JOIN pg_class tbl_cls ON tbl_cls.oid = idx.indrelid
+JOIN pg_namespace ns ON ns.oid = tbl_cls.relnamespace
+JOIN pg_am am ON am.oid = idx_cls.relam
+WHERE ns.nspname = $1
+  AND tbl_cls.relname = $2
+ORDER BY idx.indisprimary DESC, idx_cls.relname ASC`
+
+	idxRows, err := conn.Query(ctx, idxQuery, schema, table)
+	if err != nil {
+		return domain.TableStructureInfo{}, err
+	}
+	defer idxRows.Close()
+
+	indexes := make([]domain.IndexInfo, 0)
+	for idxRows.Next() {
+		var item domain.IndexInfo
+		if scanErr := idxRows.Scan(&item.Name, &item.Method, &item.IsUnique, &item.IsPrimary, &item.Columns); scanErr == nil {
+			indexes = append(indexes, item)
+		}
+	}
+	idxRows.Close()
+
+	return domain.TableStructureInfo{
+		Columns:     cols,
+		ForeignKeys: foreignKeys,
+		Indexes:     indexes,
+	}, nil
+}
+
 func (d *PostgresDriver) GetObjectDefinition(ctx context.Context, creds domain.ConnectionCredentials, schema, category, name string) (string, error) {
 	conn, cancel, err := connect(ctx, creds, defaultConnectTimeout)
 	if err != nil {

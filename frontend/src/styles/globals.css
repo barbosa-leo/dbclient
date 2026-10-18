@@ -18,6 +18,12 @@
   --scrollbar-track: #dbdbe0;
   --scrollbar-thumb: #9696a0;
   --scrollbar-thumb-hover: #71717a;
+
+  --syntax-keyword: #7c3aed;
+  --syntax-type: #0284c7;
+  --syntax-string: #16a34a;
+  --syntax-number: #d97706;
+  --syntax-comment: #71717a;
 }
 
 .dark {
@@ -38,6 +44,12 @@
   --scrollbar-track: #1b1b1f;
   --scrollbar-thumb: #3f3f46;
   --scrollbar-thumb-hover: #52525b;
+
+  --syntax-keyword: #a78bfa;
+  --syntax-type: #38bdf8;
+  --syntax-string: #4ade80;
+  --syntax-number: #fbbf24;
+  --syntax-comment: #a1a1aa;
 }
 
 @theme inline {
@@ -55,6 +67,12 @@
   --color-cta-fg: var(--cta-fg);
   --color-online: var(--status-online);
   --color-danger: var(--status-danger);
+
+  --color-syntax-keyword: var(--syntax-keyword);
+  --color-syntax-type: var(--syntax-type);
+  --color-syntax-string: var(--syntax-string);
+  --color-syntax-number: var(--syntax-number);
+  --color-syntax-comment: var(--syntax-comment);
 
   --font-sans: var(--font-inter), system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-display: var(--font-inter), system-ui, -apple-system, 'Segoe UI', sans-serif;

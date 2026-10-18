@@ -2,6 +2,7 @@
 
 import type { KeyboardEvent } from 'react';
 import { useEffect, useState } from 'react';
+import { SqlCodeEditor } from '@/components/ui/SqlCodeEditor';
 import { MAX_SQL_LENGTH } from '@/services/query';
 
 interface ObjectDefinitionEditorProps {
@@ -161,16 +162,15 @@ export function ObjectDefinitionEditor({
       </div>
 
       <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-line bg-panel shadow-card">
-        <textarea
+        <SqlCodeEditor
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={setDraft}
           onKeyDown={handleKeyDown}
           maxLength={MAX_SQL_LENGTH}
           readOnly={!isEditable}
           disabled={saving}
-          spellCheck={false}
-          aria-label={`Editor SQL de ${objectLabel}`}
-          className="h-full min-h-[360px] w-full flex-1 resize-none bg-subtle/40 p-4 font-mono text-xs leading-relaxed text-ink outline-none focus:bg-panel disabled:opacity-60"
+          ariaLabel={`Editor SQL de ${objectLabel}`}
+          className="h-full min-h-[360px] border-0 rounded-none bg-subtle/30"
         />
       </div>
     </div>

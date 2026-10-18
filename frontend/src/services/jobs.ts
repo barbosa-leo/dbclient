@@ -11,6 +11,12 @@ export interface Job {
   status: JobStatus;
   progress: number;
   fileName: string;
+  userId?: number;
+  connectionId?: number;
+  connectionName?: string;
+  databaseName?: string;
+  sizeBytes?: number;
+  createdAt?: string;
   error: string | null;
 }
 

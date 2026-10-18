@@ -93,11 +93,16 @@ function TooltipBadge({ label, category }: { label: string; category: string }) 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [explorerDrawerOpen, setExplorerDrawerOpen] = useState(true);
   const [explorerWidthPct, setExplorerWidthPct] = useState(MIN_EXPLORER_WIDTH_PCT);
   const [resizing, setResizing] = useState(false);
   const explorerPaneRef = useRef<HTMLElement>(null);
+
+  async function handleSignOut() {
+    await signOut();
+    router.replace('/login');
+  }
 
   useEffect(() => {
     if (!resizing) return;
@@ -210,6 +215,31 @@ export function Sidebar() {
             </div>
           ))}
         </nav>
+
+        <div className="mt-auto flex flex-col items-center pt-2">
+          <button
+            type="button"
+            onClick={handleSignOut}
+            aria-label="Sair"
+            className="group relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-danger/10 hover:text-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-danger"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden="true"
+              className="h-[18px] w-[18px] shrink-0"
+            >
+              <path
+                d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <TooltipBadge label="Sair" category="Conta" />
+          </button>
+        </div>
       </aside>
 
       {showSecondaryExplorerBar && (

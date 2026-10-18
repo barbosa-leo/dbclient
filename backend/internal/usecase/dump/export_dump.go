@@ -39,7 +39,7 @@ func NewExportDump(
 	}
 }
 
-func (uc *ExportDump) Execute(ctx context.Context, actorUsername string, connectionID int64) (domain.Job, error) {
+func (uc *ExportDump) Execute(ctx context.Context, actorUserID int64, actorUsername string, connectionID int64) (domain.Job, error) {
 	conn, creds, err := uc.resolver.Execute(ctx, connectionID)
 	if err != nil {
 		return domain.Job{}, err
@@ -57,6 +57,10 @@ func (uc *ExportDump) Execute(ctx context.Context, actorUsername string, connect
 		domain.JobKindDumpExport,
 		fileName,
 		path,
+		actorUserID,
+		conn.ID,
+		conn.Name,
+		creds.Database,
 		func(jobCtx context.Context, setProgress func(int)) error {
 			start := time.Now()
 			setProgress(40)

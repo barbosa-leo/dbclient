@@ -48,6 +48,14 @@ func (f *fakeDriver) ListColumns(ctx context.Context, creds domain.ConnectionCre
 	}, nil
 }
 
+func (f *fakeDriver) GetObjectDefinition(ctx context.Context, creds domain.ConnectionCredentials, schema, category, name string) (string, error) {
+	return "CREATE OR REPLACE VIEW \"public\".\"v_test\" AS\nSELECT 1;", nil
+}
+
+func (f *fakeDriver) DropObject(ctx context.Context, creds domain.ConnectionCredentials, schema, category, name string) error {
+	return nil
+}
+
 func (f *fakeDriver) ExecuteQuery(ctx context.Context, creds domain.ConnectionCredentials, sql string, limit int) (domain.QueryResult, error) {
 	return domain.QueryResult{
 		Columns:    []string{"id"},
@@ -131,6 +139,8 @@ func TestEndToEndFlow(t *testing.T) {
 		Explorer: handler.NewExplorerHandler(
 			explorer.NewListSchemas(resolveUC, drv),
 			explorer.NewListColumns(resolveUC, drv),
+			explorer.NewGetObjectDefinition(resolveUC, drv),
+			explorer.NewDropObject(resolveUC, drv),
 		),
 		Query:  handler.NewQueryHandler(query.NewExecuteQuery(resolveUC, drv, logger)),
 		Script: handler.NewScriptHandler(script.NewRunScript(resolveUC, dmp, files, jobs, 1024*1024, logger), 1024*1024),

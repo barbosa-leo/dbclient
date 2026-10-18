@@ -3,14 +3,25 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
+import { ObjectDefinitionEditor } from '@/components/explorer/ObjectDefinitionEditor';
 import { TableStructure } from '@/components/explorer/TableStructure';
 import type { TableStructureChanges } from '@/components/explorer/TableStructure';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ResultTable } from '@/components/query/ResultTable';
 import type { CellUpdate, ColumnSort } from '@/components/query/ResultTable';
 import { RowLimitSelector } from '@/components/query/RowLimitSelector';
-import { listColumns } from '@/services/explorer';
-import type { ColumnInfo, TableKind } from '@/services/explorer';
+import {
+  dropObject,
+  getObjectDefinition,
+  listColumns,
+  notifyExplorerRefresh,
+} from '@/services/explorer';
+import type {
+  ColumnInfo,
+  EditableObjectCategory,
+  SchemaCategoryKey,
+  TableKind,
+} from '@/services/explorer';
 import {
   MIN_ROW_LIMIT,
   calculateAutoRowLimit,
@@ -19,13 +30,43 @@ import {
 } from '@/services/query';
 import type { QueryResult } from '@/services/query';
 
-type Tab = 'data' | 'structure';
+type Tab = 'data' | 'structure' | 'definition';
 
 const kindLabels: Record<TableKind, string> = {
   table: 'Tabela',
   view: 'View',
   materialized_view: 'View materializada',
 };
+
+const routineCategoryLabels: Record<Exclude<EditableObjectCategory, 'views'>, string> = {
+  procedures: 'Procedure',
+  functions: 'Function',
+  triggers: 'Trigger',
+};
+
+const categoryCreateLabels: Record<SchemaCategoryKey, string> = {
+  tables: 'Nova Tabela',
+  views: 'Nova View',
+  procedures: 'Nova Procedure',
+  functions: 'Nova Function',
+  triggers: 'Nova Trigger',
+};
+
+function isRoutineCategory(
+  category: string | null,
+): category is Exclude<EditableObjectCategory, 'views'> {
+  return category === 'procedures' || category === 'functions' || category === 'triggers';
+}
+
+function isValidCategory(category: string | null): category is SchemaCategoryKey {
+  return (
+    category === 'tables' ||
+    category === 'views' ||
+    category === 'procedures' ||
+    category === 'functions' ||
+    category === 'triggers'
+  );
+}
 
 function quoteIdentifier(identifier: string): string {
   return `"${identifier.replace(/"/g, '""')}"`;
@@ -47,6 +88,57 @@ function formatSqlValue(value: unknown): string {
     return `'${escapeSqlLiteral(JSON.stringify(value))}'`;
   }
   return `'${escapeSqlLiteral(String(value))}'`;
+}
+
+function buildNewObjectTemplate(schema: string, category: SchemaCategoryKey): string {
+  const s = quoteIdentifier(schema);
+  switch (category) {
+    case 'tables':
+      return `CREATE TABLE ${s}."nova_tabela" (\n  "id" BIGSERIAL PRIMARY KEY,\n  "nome" VARCHAR(255) NOT NULL,\n  "criado_em" TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);`;
+    case 'views':
+      return `CREATE OR REPLACE VIEW ${s}."nova_view" AS\nSELECT 1 AS "id";`;
+    case 'procedures':
+      return `CREATE OR REPLACE PROCEDURE ${s}."nova_procedure"()\nLANGUAGE plpgsql\nAS $$\nBEGIN\n  \nEND;\n$$;`;
+    case 'functions':
+      return `CREATE OR REPLACE FUNCTION ${s}."nova_function"()\nRETURNS void\nLANGUAGE plpgsql\nAS $$\nBEGIN\n  \nEND;\n$$;`;
+    case 'triggers':
+      return `CREATE OR REPLACE TRIGGER "nova_trigger"\nBEFORE INSERT OR UPDATE ON ${s}."nome_da_tabela"\nFOR EACH ROW\nEXECUTE FUNCTION ${s}."nome_da_function"();`;
+  }
+}
+
+function extractCreatedObjectName(sql: string, category: SchemaCategoryKey): string | null {
+  switch (category) {
+    case 'tables': {
+      const m = sql.match(
+        /CREATE\s+(?:UNLOGGED\s+|TEMP(?:ORARY)?\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"[^"]+"\s*\.\s*|[a-zA-Z0-9_$]+\s*\.\s*)?(?:"([^"]+)"|([a-zA-Z0-9_$]+))/i,
+      );
+      return m?.[1] ?? m?.[2] ?? null;
+    }
+    case 'views': {
+      const m = sql.match(
+        /CREATE\s+(?:OR\s+REPLACE\s+)?(?:MATERIALIZED\s+)?VIEW\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"[^"]+"\s*\.\s*|[a-zA-Z0-9_$]+\s*\.\s*)?(?:"([^"]+)"|([a-zA-Z0-9_$]+))/i,
+      );
+      return m?.[1] ?? m?.[2] ?? null;
+    }
+    case 'procedures': {
+      const m = sql.match(
+        /CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE\s+(?:"[^"]+"\s*\.\s*|[a-zA-Z0-9_$]+\s*\.\s*)?(?:"([^"]+)"|([a-zA-Z0-9_$(]+))/i,
+      );
+      return m?.[1] ?? m?.[2] ?? null;
+    }
+    case 'functions': {
+      const m = sql.match(
+        /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:"[^"]+"\s*\.\s*|[a-zA-Z0-9_$]+\s*\.\s*)?(?:"([^"]+)"|([a-zA-Z0-9_$(]+))/i,
+      );
+      return m?.[1] ?? m?.[2] ?? null;
+    }
+    case 'triggers': {
+      const m = sql.match(
+        /CREATE\s+(?:OR\s+REPLACE\s+)?(?:CONSTRAINT\s+)?TRIGGER\s+(?:"([^"]+)"|([a-zA-Z0-9_$]+))/i,
+      );
+      return m?.[1] ?? m?.[2] ?? null;
+    }
+  }
 }
 
 function buildUpdateStatement(
@@ -198,11 +290,48 @@ function ExplorerContent() {
   const database = active?.database ?? null;
 
   const schema = searchParams.get('schema');
+  const categoryRaw = searchParams.get('category');
+  const categoryParam = isValidCategory(categoryRaw) ? categoryRaw : null;
   const table = searchParams.get('table');
+  const item = searchParams.get('item');
   const kindParam = searchParams.get('kind') as TableKind | null;
-  const kindLabel = (kindParam && kindLabels[kindParam]) ?? 'Objeto';
+  const isCreating = searchParams.get('create') === '1' && Boolean(schema) && categoryParam !== null;
+
+  const isRoutine = !isCreating && isRoutineCategory(categoryParam) && Boolean(item);
+  const isView =
+    !isCreating &&
+    (categoryParam === 'views' || kindParam === 'view' || kindParam === 'materialized_view');
+
   const tabParam = searchParams.get('tab');
-  const tab: Tab = tabParam === 'structure' ? 'structure' : 'data';
+  const tab: Tab =
+    isCreating || isRoutine
+      ? 'definition'
+      : isView
+        ? tabParam === 'data'
+          ? 'data'
+          : tabParam === 'structure'
+            ? 'structure'
+            : 'definition'
+        : tabParam === 'structure'
+          ? 'structure'
+          : 'data';
+
+  const objectName = isCreating
+    ? categoryCreateLabels[categoryParam]
+    : isRoutine
+      ? item
+      : table;
+  const kindLabel = isCreating
+    ? 'Novo objeto'
+    : isRoutine
+      ? routineCategoryLabels[categoryParam]
+      : (kindParam && kindLabels[kindParam]) ?? (isView ? 'View' : 'Tabela');
+
+  const deleteCategory: SchemaCategoryKey = isRoutine
+    ? categoryParam
+    : isView
+      ? 'views'
+      : 'tables';
 
   const [autoLimit, setAutoLimit] = useState(MIN_ROW_LIMIT);
   const [limit, setLimit] = useState(MIN_ROW_LIMIT);
@@ -210,6 +339,10 @@ function ExplorerContent() {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [dataResult, setDataResult] = useState<QueryResult | null>(null);
   const [columns, setColumns] = useState<ColumnInfo[] | null>(null);
+  const [objectDefinition, setObjectDefinition] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deletingObject, setDeletingObject] = useState(false);
   const [loading, setLoading] = useState(false);
   const [savingChanges, setSavingChanges] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -263,13 +396,43 @@ function ExplorerContent() {
     }
   }, [activeId, schema, table]);
 
+  const loadDefinition = useCallback(async () => {
+    if (activeId === undefined || !schema || !objectName) return;
+    if (isCreating && categoryParam) {
+      setObjectDefinition(buildNewObjectTemplate(schema, categoryParam));
+      return;
+    }
+    const defCategory: EditableObjectCategory | null = isRoutine
+      ? categoryParam
+      : isView
+        ? 'views'
+        : null;
+    if (!defCategory) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      setObjectDefinition(await getObjectDefinition(activeId, schema, defCategory, objectName));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao carregar a definição SQL do objeto');
+    } finally {
+      setLoading(false);
+    }
+  }, [activeId, schema, objectName, isCreating, isRoutine, isView, categoryParam]);
+
   useEffect(() => {
     setDataResult(null);
     setColumns(null);
+    setObjectDefinition(null);
+    setSavedMessage(null);
+    setConfirmingDelete(false);
     setSort(null);
     setFilters({});
-    if (!schema || !table || activeId === undefined) return;
-    if (tab === 'data') {
+    if (!schema || !objectName || activeId === undefined) return;
+
+    if (tab === 'definition') {
+      void loadDefinition();
+    } else if (tab === 'data') {
       const computedAuto = measureAutoLimit();
       setAutoLimit(computedAuto);
       setLimit(computedAuto);
@@ -277,7 +440,16 @@ function ExplorerContent() {
     } else {
       void loadStructure();
     }
-  }, [activeId, schema, table, tab, measureAutoLimit, loadData, loadStructure]);
+  }, [
+    activeId,
+    schema,
+    objectName,
+    tab,
+    measureAutoLimit,
+    loadData,
+    loadStructure,
+    loadDefinition,
+  ]);
 
   useEffect(() => {
     function handleResize() {
@@ -343,14 +515,80 @@ function ExplorerContent() {
     }
   }
 
-  if (!schema || !table) {
+  async function handleSaveDefinition(sql: string) {
+    if (activeId === undefined || !schema || !objectName) return;
+    setSavingChanges(true);
+    setError(null);
+    setSavedMessage(null);
+    try {
+      await executeQuery(activeId, sql, MIN_ROW_LIMIT);
+      notifyExplorerRefresh();
+
+      if (isCreating && categoryParam) {
+        const createdName = extractCreatedObjectName(sql, categoryParam);
+        if (createdName) {
+          if (categoryParam === 'tables') {
+            router.replace(
+              `/explorer?schema=${encodeURIComponent(schema)}&category=tables&table=${encodeURIComponent(
+                createdName,
+              )}&kind=table&tab=structure`,
+            );
+            return;
+          }
+          if (categoryParam === 'views') {
+            const isMat = /MATERIALIZED\s+VIEW/i.test(sql);
+            router.replace(
+              `/explorer?schema=${encodeURIComponent(schema)}&category=views&table=${encodeURIComponent(
+                createdName,
+              )}&kind=${isMat ? 'materialized_view' : 'view'}`,
+            );
+            return;
+          }
+          router.replace(
+            `/explorer?schema=${encodeURIComponent(schema)}&category=${encodeURIComponent(
+              categoryParam,
+            )}&item=${encodeURIComponent(createdName)}`,
+          );
+          return;
+        }
+        setSavedMessage('Objeto criado com sucesso');
+        return;
+      }
+
+      await loadDefinition();
+      setSavedMessage('Definição salva com sucesso');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao salvar a definição SQL do objeto');
+    } finally {
+      setSavingChanges(false);
+    }
+  }
+
+  async function handleConfirmDeleteCurrentObject() {
+    if (activeId === undefined || !schema || !objectName || isCreating) return;
+    setDeletingObject(true);
+    setError(null);
+    try {
+      await dropObject(activeId, schema, deleteCategory, objectName);
+      setConfirmingDelete(false);
+      notifyExplorerRefresh();
+      router.replace(`/explorer?schema=${encodeURIComponent(schema)}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao excluir o objeto');
+      setConfirmingDelete(false);
+    } finally {
+      setDeletingObject(false);
+    }
+  }
+
+  if (!schema || !objectName) {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Explorar"
           description={
             active
-              ? `Selecione uma tabela na barra lateral de ${active.name} (${active.database}).`
+              ? `Selecione um objeto na barra lateral de ${active.name} (${active.database}).`
               : 'Cadastre e selecione uma conexão para explorar o banco configurado.'
           }
         />
@@ -363,8 +601,8 @@ function ExplorerContent() {
                 : 'Nenhuma conexão selecionada'}
           </p>
           <p className="mt-1 text-xs text-ink-muted">
-            Expanda um schema no painel <strong>Explorar</strong> da barra lateral para visualizar
-            suas tabelas, views, procedures, functions e triggers.
+            Expanda um schema no painel <strong>Explorar</strong> da barra lateral para visualizar,
+            adicionar ou excluir tabelas, views, procedures, functions e triggers.
           </p>
         </div>
       </div>
@@ -378,7 +616,7 @@ function ExplorerContent() {
           <div className="flex items-center gap-2.5">
             <h1 className="font-mono text-xl font-bold tracking-tight text-ink">
               <span className="text-ink-muted">{schema}.</span>
-              {table}
+              {objectName}
             </h1>
             <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-ink-secondary">
               {kindLabel}
@@ -389,39 +627,81 @@ function ExplorerContent() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <div
-            role="tablist"
-            aria-label="Visualização da tabela"
-            className="flex rounded-lg bg-muted p-1"
-          >
+        <div className="flex items-center gap-2">
+          {!isCreating && !isRoutine && (
+            <div
+              role="tablist"
+              aria-label="Visualização do objeto"
+              className="flex rounded-lg bg-muted p-1"
+            >
+              {isView && (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === 'definition'}
+                  onClick={() => selectTab('definition')}
+                  className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                    tab === 'definition'
+                      ? 'bg-panel text-ink shadow-card'
+                      : 'text-ink-muted hover:text-ink'
+                  }`}
+                >
+                  Editor SQL
+                </button>
+              )}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'data'}
+                onClick={() => selectTab('data')}
+                className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  tab === 'data'
+                    ? 'bg-panel text-ink shadow-card'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                Dados
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'structure'}
+                onClick={() => selectTab('structure')}
+                className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  tab === 'structure'
+                    ? 'bg-panel text-ink shadow-card'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                Estrutura
+              </button>
+            </div>
+          )}
+
+          {!isCreating && (
             <button
               type="button"
-              role="tab"
-              aria-selected={tab === 'data'}
-              onClick={() => selectTab('data')}
-              className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                tab === 'data'
-                  ? 'bg-panel text-ink shadow-card'
-                  : 'text-ink-muted hover:text-ink'
-              }`}
+              aria-label={`Excluir ${schema}.${objectName}`}
+              title={`Excluir ${schema}.${objectName}`}
+              onClick={() => setConfirmingDelete(true)}
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-line bg-panel text-ink-muted shadow-card transition-colors hover:border-danger/40 hover:bg-danger/10 hover:text-danger"
             >
-              Dados
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden="true"
+                className="h-3.5 w-3.5"
+              >
+                <path
+                  d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5l.5 8.5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'structure'}
-              onClick={() => selectTab('structure')}
-              className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                tab === 'structure'
-                  ? 'bg-panel text-ink shadow-card'
-                  : 'text-ink-muted hover:text-ink'
-              }`}
-            >
-              Estrutura
-            </button>
-          </div>
+          )}
         </div>
       </div>
 
@@ -434,7 +714,20 @@ function ExplorerContent() {
           </p>
         )}
 
-        {!loading && tab === 'data' && dataResult && (
+        {!loading && tab === 'definition' && objectDefinition !== null && (
+          <ObjectDefinitionEditor
+            definition={objectDefinition}
+            objectLabel={`${schema}.${objectName}`}
+            isNewTemplate={isCreating}
+            onRefresh={isCreating ? undefined : () => void loadDefinition()}
+            refreshing={loading}
+            onSave={handleSaveDefinition}
+            saving={savingChanges}
+            savedMessage={savedMessage}
+          />
+        )}
+
+        {!loading && tab === 'data' && dataResult && table && (
           <>
             <ResultTable
               result={dataResult}
@@ -445,7 +738,7 @@ function ExplorerContent() {
               onFilterChange={handleFilterChange}
               onRefresh={() => void loadData(limit, filters, sort)}
               refreshing={loading}
-              onSaveChanges={handleSaveChanges}
+              onSaveChanges={isView ? undefined : handleSaveChanges}
               savingChanges={savingChanges}
             />
             {dataResult.columns.length > 0 && (
@@ -465,11 +758,52 @@ function ExplorerContent() {
             columns={columns}
             onRefresh={() => void loadStructure()}
             refreshing={loading}
-            onSaveChanges={handleSaveStructureChanges}
+            onSaveChanges={isView ? undefined : handleSaveStructureChanges}
             savingChanges={savingChanges}
           />
         )}
       </div>
+
+      {confirmingDelete && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="explorer-delete-object-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div className="w-full max-w-md rounded-xl border border-line bg-panel p-5 shadow-card">
+            <h2 id="explorer-delete-object-title" className="text-sm font-semibold text-ink">
+              Excluir {kindLabel.toLowerCase()}
+            </h2>
+            <p className="mt-1.5 text-xs text-ink-secondary">
+              Tem certeza que deseja remover{' '}
+              <strong className="font-mono text-ink">
+                {schema}.{objectName}
+              </strong>
+              ? Esta operação executará <code className="font-mono">DROP</code> no banco de dados.
+            </p>
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={deletingObject}
+                onClick={() => setConfirmingDelete(false)}
+                className="cursor-pointer rounded-md border border-line bg-subtle px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={deletingObject}
+                onClick={() => void handleConfirmDeleteCurrentObject()}
+                className="cursor-pointer rounded-md bg-danger px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deletingObject ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -481,3 +815,4 @@ export default function ExplorerPage() {
     </Suspense>
   );
 }
+

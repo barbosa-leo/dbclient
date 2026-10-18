@@ -94,6 +94,8 @@ func main() {
 
 	listSchemasUC := explorer.NewListSchemas(resolveCredsUC, pgDriver)
 	listColumnsUC := explorer.NewListColumns(resolveCredsUC, pgDriver)
+	getObjectDefUC := explorer.NewGetObjectDefinition(resolveCredsUC, pgDriver)
+	dropObjectUC := explorer.NewDropObject(resolveCredsUC, pgDriver)
 
 	executeQueryUC := query.NewExecuteQuery(resolveCredsUC, pgDriver, logger)
 	runScriptUC := script.NewRunScript(resolveCredsUC, pgDumper, files, jobManager, cfg.MaxFileSize, logger)
@@ -110,7 +112,7 @@ func main() {
 		Users:         handler.NewUserHandler(listUsersUC, createUserUC, updateUserUC, deleteUserUC),
 		Environments:  handler.NewEnvironmentHandler(listEnvironmentsUC, createEnvironmentUC, deleteEnvironmentUC),
 		Connections:   handler.NewConnectionHandler(listConnectionsUC, createConnectionUC, updateConnectionUC, deleteConnectionUC),
-		Explorer:      handler.NewExplorerHandler(listSchemasUC, listColumnsUC),
+		Explorer:      handler.NewExplorerHandler(listSchemasUC, listColumnsUC, getObjectDefUC, dropObjectUC),
 		Query:         handler.NewQueryHandler(executeQueryUC),
 		Script:        handler.NewScriptHandler(runScriptUC, cfg.MaxFileSize),
 		Dump:          handler.NewDumpHandler(exportDumpUC, importDumpUC, jobManager, cfg.MaxFileSize),

@@ -85,3 +85,51 @@ export function listColumns(
     `/connections/${connectionId}/schemas/${s}/tables/${t}/columns`,
   );
 }
+
+export type EditableObjectCategory = 'views' | 'procedures' | 'functions' | 'triggers';
+
+export async function getObjectDefinition(
+  connectionId: number,
+  schema: string,
+  category: EditableObjectCategory,
+  name: string,
+): Promise<string> {
+  const s = encodeURIComponent(schema);
+  const c = encodeURIComponent(category);
+  const n = encodeURIComponent(name);
+  const res = await apiRequest<{ definition: string }>(
+    `/connections/${connectionId}/schemas/${s}/objects/${c}/${n}/definition`,
+  );
+  return res.definition;
+}
+
+export async function dropObject(
+  connectionId: number,
+  schema: string,
+  category: SchemaCategoryKey,
+  name: string,
+): Promise<void> {
+  const s = encodeURIComponent(schema);
+  const c = encodeURIComponent(category);
+  const n = encodeURIComponent(name);
+  await apiRequest<void>(
+    `/connections/${connectionId}/schemas/${s}/objects/${c}/${n}`,
+    { method: 'DELETE' },
+  );
+}
+
+const EXPLORER_REFRESH_EVENT = 'dbclient:explorer-refresh';
+
+export function notifyExplorerRefresh(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(EXPLORER_REFRESH_EVENT));
+  }
+}
+
+export function onExplorerRefresh(listener: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener(EXPLORER_REFRESH_EVENT, listener);
+  return () => window.removeEventListener(EXPLORER_REFRESH_EVENT, listener);
+}
+
+

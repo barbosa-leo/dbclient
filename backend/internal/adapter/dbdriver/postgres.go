@@ -202,6 +202,220 @@ ORDER BY a.attnum ASC`
 	return cols, rows.Err()
 }
 
+func (d *PostgresDriver) GetObjectDefinition(ctx context.Context, creds domain.ConnectionCredentials, schema, category, name string) (string, error) {
+	conn, cancel, err := connect(ctx, creds, defaultConnectTimeout)
+	if err != nil {
+		return "", err
+	}
+	defer cancel()
+	defer conn.Close(ctx)
+
+	switch category {
+	case "views":
+		var relkind byte
+		var viewDef string
+		err := conn.QueryRow(
+			ctx,
+			`SELECT c.relkind, pg_catalog.pg_get_viewdef(c.oid, true)
+			 FROM pg_class c
+			 JOIN pg_namespace n ON n.oid = c.relnamespace
+			 WHERE n.nspname = $1
+			   AND c.relname = $2
+			   AND c.relkind IN ('v', 'm')`,
+			schema,
+			name,
+		).Scan(&relkind, &viewDef)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				return "", domain.ErrNotFound
+			}
+			return "", err
+		}
+		qualified := fmt.Sprintf("%s.%s", quotePGIdentifier(schema), quotePGIdentifier(name))
+		body := strings.TrimSpace(viewDef)
+		if !strings.HasSuffix(body, ";") {
+			body += ";"
+		}
+		if relkind == 'm' {
+			return fmt.Sprintf("DROP MATERIALIZED VIEW IF EXISTS %s;\nCREATE MATERIALIZED VIEW %s AS\n%s", qualified, qualified, body), nil
+		}
+		return fmt.Sprintf("CREATE OR REPLACE VIEW %s AS\n%s", qualified, body), nil
+
+	case "procedures", "functions":
+		prokind := "f"
+		if category == "procedures" {
+			prokind = "p"
+		}
+		var funcDef string
+		err := conn.QueryRow(
+			ctx,
+			`SELECT pg_catalog.pg_get_functiondef(p.oid)
+			 FROM pg_proc p
+			 JOIN pg_namespace n ON n.oid = p.pronamespace
+			 WHERE n.nspname = $1
+			   AND p.proname = $2
+			   AND p.prokind = $3
+			 ORDER BY p.oid ASC
+			 LIMIT 1`,
+			schema,
+			name,
+			prokind,
+		).Scan(&funcDef)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				return "", domain.ErrNotFound
+			}
+			return "", err
+		}
+		trimmed := strings.TrimSpace(funcDef)
+		if !strings.HasSuffix(trimmed, ";") {
+			trimmed += ";"
+		}
+		return trimmed, nil
+
+	case "triggers":
+		var trigDef string
+		err := conn.QueryRow(
+			ctx,
+			`SELECT pg_catalog.pg_get_triggerdef(t.oid, true)
+			 FROM pg_trigger t
+			 JOIN pg_class c ON c.oid = t.tgrelid
+			 JOIN pg_namespace n ON n.oid = c.relnamespace
+			 WHERE NOT t.tgisinternal
+			   AND n.nspname = $1
+			   AND t.tgname = $2
+			 ORDER BY t.oid ASC
+			 LIMIT 1`,
+			schema,
+			name,
+		).Scan(&trigDef)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				return "", domain.ErrNotFound
+			}
+			return "", err
+		}
+		trimmed := strings.TrimSpace(trigDef)
+		if strings.HasPrefix(trimmed, "CREATE TRIGGER ") {
+			trimmed = "CREATE OR REPLACE TRIGGER " + strings.TrimPrefix(trimmed, "CREATE TRIGGER ")
+		}
+		if !strings.HasSuffix(trimmed, ";") {
+			trimmed += ";"
+		}
+		return trimmed, nil
+
+	default:
+		return "", domain.NewValidationError("Categoria de objeto inválida")
+	}
+}
+
+func quotePGIdentifier(ident string) string {
+	return `"` + strings.ReplaceAll(ident, `"`, `""`) + `"`
+}
+
+func (d *PostgresDriver) DropObject(ctx context.Context, creds domain.ConnectionCredentials, schema, category, name string) error {
+	conn, cancel, err := connect(ctx, creds, defaultConnectTimeout)
+	if err != nil {
+		return err
+	}
+	defer cancel()
+	defer conn.Close(ctx)
+
+	qualified := fmt.Sprintf("%s.%s", quotePGIdentifier(schema), quotePGIdentifier(name))
+
+	switch category {
+	case "tables":
+		_, err := conn.Exec(ctx, fmt.Sprintf("DROP TABLE %s", qualified))
+		return err
+
+	case "views":
+		var relkind byte
+		err := conn.QueryRow(
+			ctx,
+			`SELECT c.relkind
+			 FROM pg_class c
+			 JOIN pg_namespace n ON n.oid = c.relnamespace
+			 WHERE n.nspname = $1
+			   AND c.relname = $2
+			   AND c.relkind IN ('v', 'm')`,
+			schema,
+			name,
+		).Scan(&relkind)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				return domain.ErrNotFound
+			}
+			return err
+		}
+		if relkind == 'm' {
+			_, err = conn.Exec(ctx, fmt.Sprintf("DROP MATERIALIZED VIEW %s", qualified))
+			return err
+		}
+		_, err = conn.Exec(ctx, fmt.Sprintf("DROP VIEW %s", qualified))
+		return err
+
+	case "procedures", "functions":
+		prokind := "f"
+		keyword := "FUNCTION"
+		if category == "procedures" {
+			prokind = "p"
+			keyword = "PROCEDURE"
+		}
+		var args string
+		err := conn.QueryRow(
+			ctx,
+			`SELECT pg_catalog.pg_get_function_identity_arguments(p.oid)
+			 FROM pg_proc p
+			 JOIN pg_namespace n ON n.oid = p.pronamespace
+			 WHERE n.nspname = $1
+			   AND p.proname = $2
+			   AND p.prokind = $3
+			 ORDER BY p.oid ASC
+			 LIMIT 1`,
+			schema,
+			name,
+			prokind,
+		).Scan(&args)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				return domain.ErrNotFound
+			}
+			return err
+		}
+		_, err = conn.Exec(ctx, fmt.Sprintf("DROP %s %s(%s)", keyword, qualified, args))
+		return err
+
+	case "triggers":
+		var tableName string
+		err := conn.QueryRow(
+			ctx,
+			`SELECT c.relname
+			 FROM pg_trigger t
+			 JOIN pg_class c ON c.oid = t.tgrelid
+			 JOIN pg_namespace n ON n.oid = c.relnamespace
+			 WHERE NOT t.tgisinternal
+			   AND n.nspname = $1
+			   AND t.tgname = $2
+			 ORDER BY t.oid ASC
+			 LIMIT 1`,
+			schema,
+			name,
+		).Scan(&tableName)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				return domain.ErrNotFound
+			}
+			return err
+		}
+		qualifiedTable := fmt.Sprintf("%s.%s", quotePGIdentifier(schema), quotePGIdentifier(tableName))
+		_, err = conn.Exec(ctx, fmt.Sprintf("DROP TRIGGER %s ON %s", quotePGIdentifier(name), qualifiedTable))
+		return err
+
+	default:
+		return domain.NewValidationError("Categoria de objeto inválida")
+	}
+}
+
 func (d *PostgresDriver) ExecuteQuery(ctx context.Context, creds domain.ConnectionCredentials, sqlText string, limit int) (domain.QueryResult, error) {
 	queryCtx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()

@@ -40,6 +40,7 @@ export default function DumpsPage() {
   const [userDumps, setUserDumps] = useState<Job[]>([]);
   const [loadingDumps, setLoadingDumps] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [dumpToDelete, setDumpToDelete] = useState<Job | null>(null);
 
   const loadDumps = useCallback(async () => {
     if (!canUseTools) return;
@@ -124,10 +125,9 @@ export default function DumpsPage() {
     }
   }
 
-  async function handleDeleteDump(id: string) {
-    if (!window.confirm('Tem certeza que deseja excluir este arquivo de dump?')) {
-      return;
-    }
+  async function handleConfirmDelete() {
+    if (!dumpToDelete) return;
+    const id = dumpToDelete.id;
     setDeletingId(id);
     try {
       await deleteDump(id);
@@ -135,6 +135,7 @@ export default function DumpsPage() {
       if (job?.id === id) {
         setJob(null);
       }
+      setDumpToDelete(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao excluir o dump');
     } finally {
@@ -331,9 +332,9 @@ export default function DumpsPage() {
                           )}
                           <button
                             type="button"
-                            onClick={() => handleDeleteDump(d.id)}
+                            onClick={() => setDumpToDelete(d)}
                             disabled={isRunning || isDeleting}
-                            className="inline-flex items-center justify-center rounded-md p-1.5 text-ink-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-30 disabled:pointer-events-none"
+                            className="cursor-pointer inline-flex items-center justify-center rounded-md p-1.5 text-ink-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:cursor-not-allowed disabled:opacity-30 disabled:pointer-events-none"
                             title="Excluir dump"
                           >
                             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -350,6 +351,45 @@ export default function DumpsPage() {
           </div>
         )}
       </section>
+
+      {dumpToDelete && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dumps-delete-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div className="w-full max-w-md rounded-xl border border-line bg-panel p-5 shadow-card">
+            <h2 id="dumps-delete-modal-title" className="text-sm font-semibold text-ink">
+              Excluir dump
+            </h2>
+            <p className="mt-1.5 text-xs text-ink-secondary">
+              Tem certeza que deseja remover o arquivo{' '}
+              <strong className="font-mono text-ink">{dumpToDelete.fileName}</strong>?
+              Esta ação removerá o arquivo temporário do servidor permanentemente.
+            </p>
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={deletingId !== null}
+                onClick={() => setDumpToDelete(null)}
+                className="cursor-pointer rounded-md border border-line bg-subtle px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={deletingId !== null}
+                onClick={() => void handleConfirmDelete()}
+                className="cursor-pointer rounded-md bg-danger px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deletingId !== null ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

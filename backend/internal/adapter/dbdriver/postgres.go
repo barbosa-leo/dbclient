@@ -427,11 +427,18 @@ func (d *PostgresDriver) ExecuteQuery(ctx context.Context, creds domain.Connecti
 	defer conn.Close(queryCtx)
 
 	start := time.Now()
-	rows, err := conn.Query(queryCtx, sqlText)
+	tx, err := conn.Begin(queryCtx)
 	if err != nil {
 		return domain.QueryResult{}, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = tx.Rollback(queryCtx)
+	}()
+
+	rows, err := tx.Query(queryCtx, sqlText, pgx.QueryExecModeSimpleProtocol)
+	if err != nil {
+		return domain.QueryResult{}, err
+	}
 
 	fields := rows.FieldDescriptions()
 	columns := make([]string, len(fields))
@@ -442,10 +449,11 @@ func (d *PostgresDriver) ExecuteQuery(ctx context.Context, creds domain.Connecti
 	resultRows := make([][]any, 0)
 	for rows.Next() {
 		if len(resultRows) >= limit {
-			break
+			continue
 		}
 		values, err := rows.Values()
 		if err != nil {
+			rows.Close()
 			return domain.QueryResult{}, err
 		}
 		normalized := make([]any, len(values))
@@ -456,6 +464,10 @@ func (d *PostgresDriver) ExecuteQuery(ctx context.Context, creds domain.Connecti
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
+		return domain.QueryResult{}, err
+	}
+
+	if err := tx.Commit(queryCtx); err != nil {
 		return domain.QueryResult{}, err
 	}
 

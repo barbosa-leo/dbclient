@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
 import {
@@ -330,7 +331,7 @@ export function SidebarExplorer() {
           type="button"
           onClick={() => setDatabaseOpen((prev) => !prev)}
           aria-expanded={databaseOpen}
-          className="flex cursor-pointer items-center justify-between rounded-md px-2 py-1 text-left font-mono text-xs text-ink-secondary transition-colors hover:bg-muted/70 hover:text-ink"
+          className="flex cursor-pointer items-center justify-between rounded-md px-2 py-2.5 text-left lg:py-1 font-mono text-xs text-ink-secondary transition-colors hover:bg-muted/70 hover:text-ink"
         >
           <span className="flex items-center gap-1.5 truncate">
             <svg
@@ -407,7 +408,7 @@ export function SidebarExplorer() {
                       type="button"
                       onClick={() => toggleSchema(schema.name)}
                       aria-expanded={schemaOpen}
-                      className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-0.5 text-left font-mono text-[11px] text-ink-secondary transition-colors hover:bg-muted/70 hover:text-ink"
+                      className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-2 text-left lg:py-0.5 font-mono text-[11px] text-ink-secondary transition-colors hover:bg-muted/70 hover:text-ink"
                     >
                       <span className="flex items-center gap-1.5 truncate">
                         <svg
@@ -460,7 +461,7 @@ export function SidebarExplorer() {
                                   type="button"
                                   onClick={() => toggleCategory(schema.name, category.key)}
                                   aria-expanded={categoryOpen}
-                                  className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 px-2 py-0.5 text-left font-mono text-[11px] text-ink-secondary group-hover:text-ink"
+                                  className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 px-2 py-2 text-left lg:py-0.5 font-mono text-[11px] text-ink-secondary group-hover:text-ink"
                                 >
                                   <svg
                                     viewBox="0 0 20 20"
@@ -490,7 +491,7 @@ export function SidebarExplorer() {
                                         e.stopPropagation();
                                         navigateToCreate(schema.name, category.key);
                                       }}
-                                      className="hidden h-4 w-4 cursor-pointer items-center justify-center rounded text-ink-muted transition-colors hover:bg-muted hover:text-ink group-hover:inline-flex"
+                                      className="hidden h-8 w-8 cursor-pointer max-lg:inline-flex lg:h-4 lg:w-4 items-center justify-center rounded text-ink-muted transition-colors hover:bg-muted hover:text-ink group-hover:inline-flex"
                                     >
                                       <svg
                                         viewBox="0 0 16 16"
@@ -506,7 +507,7 @@ export function SidebarExplorer() {
                                   )}
                                   <span
                                     className={`font-sans text-[10px] text-ink-muted ${
-                                      canEdit ? 'group-hover:hidden' : ''
+                                      canEdit ? 'lg:group-hover:hidden' : ''
                                     }`}
                                   >
                                     {items.length}
@@ -567,7 +568,7 @@ export function SidebarExplorer() {
                                         <Link
                                           href={href}
                                           aria-current={selected ? 'page' : undefined}
-                                          className="flex min-w-0 flex-1 items-center px-2 py-0.5 font-mono text-[11px]"
+                                          className="flex min-w-0 flex-1 items-center px-2 py-2 font-mono lg:py-0.5 text-[11px]"
                                         >
                                           <span className="truncate">{item.name}</span>
                                         </Link>
@@ -583,7 +584,7 @@ export function SidebarExplorer() {
                                                 e.stopPropagation();
                                                 requestDelete(schema.name, category.key, item.name);
                                               }}
-                                              className={`hidden h-4 w-4 cursor-pointer items-center justify-center rounded transition-colors group-hover:inline-flex ${
+                                              className={`hidden h-8 w-8 cursor-pointer items-center justify-center rounded transition-colors max-lg:inline-flex group-hover:inline-flex lg:h-4 lg:w-4 ${
                                                 selected
                                                   ? 'text-cta-fg/80 hover:bg-cta-fg/20 hover:text-cta-fg'
                                                   : 'text-ink-muted hover:bg-danger/15 hover:text-danger'
@@ -628,10 +629,13 @@ export function SidebarExplorer() {
         )}
       </div>
 
-      {contextMenu && (
+      {contextMenu && createPortal(
         <div
           role="menu"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          style={{
+            top: Math.max(8, Math.min(contextMenu.y, window.innerHeight - 96)),
+            left: Math.max(8, Math.min(contextMenu.x, window.innerWidth - 200)),
+          }}
           onClick={(e) => e.stopPropagation()}
           className="fixed z-50 min-w-[175px] rounded-lg border border-line bg-panel p-1 shadow-card"
         >
@@ -701,10 +705,11 @@ export function SidebarExplorer() {
               </button>
             </>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {pendingDelete && (
+      {pendingDelete && createPortal(
         <div
           role="dialog"
           aria-modal="true"
@@ -748,7 +753,8 @@ export function SidebarExplorer() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

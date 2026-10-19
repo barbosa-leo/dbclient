@@ -388,7 +388,7 @@ export function TableStructure({
           }
         }}
         onBlur={() => commitEdit(target, rowIndex, field, cellDraft)}
-        className={`absolute inset-0.5 w-[calc(100%-4px)] min-w-0 rounded border border-line-strong bg-panel px-2 py-0.5 font-mono text-[11px] font-normal text-ink outline-none ${
+        className={`absolute inset-0.5 w-[calc(100%-4px)] min-w-0 rounded border border-line-strong bg-panel px-2 py-0.5 font-mono text-base sm:text-[11px] font-normal text-ink outline-none ${
           alignRight ? 'text-right' : ''
         }`}
       />
@@ -397,12 +397,12 @@ export function TableStructure({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel px-3 py-1.5 text-xs shadow-card">
-        <div className="flex items-center gap-1 rounded-md bg-muted p-0.5">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-line bg-panel px-2.5 py-1.5 sm:px-3 text-xs shadow-card">
+        <div className="flex items-center gap-1 overflow-x-auto max-w-full rounded-md bg-muted p-0.5">
           <button
             type="button"
             onClick={() => setActiveSection('columns')}
-            className={`cursor-pointer rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+            className={`cursor-pointer whitespace-nowrap rounded px-2.5 py-1 text-xs font-medium transition-colors ${
               activeSection === 'columns'
                 ? 'bg-panel text-ink shadow-card'
                 : 'text-ink-muted hover:text-ink'
@@ -413,18 +413,19 @@ export function TableStructure({
           <button
             type="button"
             onClick={() => setActiveSection('foreign_keys')}
-            className={`cursor-pointer rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+            className={`cursor-pointer whitespace-nowrap rounded px-2.5 py-1 text-xs font-medium transition-colors ${
               activeSection === 'foreign_keys'
                 ? 'bg-panel text-ink shadow-card'
                 : 'text-ink-muted hover:text-ink'
             }`}
           >
-            Chaves Estrangeiras ({foreignKeys.length})
+            <span className="hidden sm:inline">Chaves Estrangeiras</span>
+            <span className="sm:hidden">FKs</span> ({foreignKeys.length})
           </button>
           <button
             type="button"
             onClick={() => setActiveSection('indexes')}
-            className={`cursor-pointer rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+            className={`cursor-pointer whitespace-nowrap rounded px-2.5 py-1 text-xs font-medium transition-colors ${
               activeSection === 'indexes'
                 ? 'bg-panel text-ink shadow-card'
                 : 'text-ink-muted hover:text-ink'
@@ -434,14 +435,14 @@ export function TableStructure({
           </button>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-1">
           <button
             type="button"
             disabled={!canRefresh}
             aria-label="Atualizar"
             title="Atualizar"
             onClick={() => onRefresh?.()}
-            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+            className="flex h-8 w-8 sm:h-7 sm:w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
           >
             <svg
               viewBox="0 0 16 16"
@@ -468,7 +469,7 @@ export function TableStructure({
                 title="Adicionar coluna"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={handleAddColumn}
-                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+                className="flex h-8 w-8 sm:h-7 sm:w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
               >
                 <svg
                   viewBox="0 0 16 16"
@@ -489,7 +490,7 @@ export function TableStructure({
                 title="Salvar alterações (ALTER TABLE)"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => void handleSaveAll()}
-                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted enabled:border-cta enabled:bg-cta enabled:text-cta-fg enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+                className="flex h-8 w-8 sm:h-7 sm:w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted enabled:border-cta enabled:bg-cta enabled:text-cta-fg enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
               >
                 <svg
                   viewBox="0 0 16 16"
@@ -510,7 +511,7 @@ export function TableStructure({
                 title="Cancelar alterações"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={handleCancelAll}
-                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+                className="flex h-8 w-8 sm:h-7 sm:w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
               >
                 <svg
                   viewBox="0 0 16 16"
@@ -541,7 +542,7 @@ export function TableStructure({
                 });
                 setShowAddFkModal(true);
               }}
-              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-line bg-subtle px-2.5 text-xs font-medium text-ink transition-colors hover:bg-muted disabled:opacity-35"
+              className="flex h-8 sm:h-7 cursor-pointer items-center gap-1.5 rounded-md border border-line bg-subtle px-2.5 text-xs font-medium text-ink transition-colors hover:bg-muted disabled:opacity-35"
             >
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-3.5 w-3.5">
                 <path d="M8 3.5v9M3.5 8h9" strokeLinecap="round" />
@@ -563,7 +564,7 @@ export function TableStructure({
                 });
                 setShowAddIdxModal(true);
               }}
-              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-line bg-subtle px-2.5 text-xs font-medium text-ink transition-colors hover:bg-muted disabled:opacity-35"
+              className="flex h-8 sm:h-7 cursor-pointer items-center gap-1.5 rounded-md border border-line bg-subtle px-2.5 text-xs font-medium text-ink transition-colors hover:bg-muted disabled:opacity-35"
             >
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-3.5 w-3.5">
                 <path d="M8 3.5v9M3.5 8h9" strokeLinecap="round" />
@@ -973,7 +974,7 @@ export function TableStructure({
 
       {showAddFkModal && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl border border-line bg-panel p-5 shadow-card flex flex-col gap-4">
+          <div className="w-full max-w-md rounded-xl border border-line bg-panel p-4 sm:p-5 shadow-card flex flex-col gap-4">
             <h3 className="text-sm font-semibold text-ink">Adicionar Chave Estrangeira (FK)</h3>
             <div className="flex flex-col gap-3 text-xs">
               <div>
@@ -981,21 +982,21 @@ export function TableStructure({
                 <select
                   value={newFk.column}
                   onChange={(e) => setNewFk({ ...newFk, column: e.target.value })}
-                  className="w-full rounded border border-line bg-subtle px-2.5 py-1.5 text-xs text-ink outline-none"
+                  className="w-full rounded border border-line bg-subtle px-2.5 py-1.5 text-base sm:text-xs text-ink outline-none"
                 >
                   {columns.map((c) => (
                     <option key={c.name} value={c.name}>{c.name}</option>
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className="block text-ink-secondary mb-1">Schema Referenciado:</label>
                   <input
                     type="text"
                     value={newFk.referencedSchema}
                     onChange={(e) => setNewFk({ ...newFk, referencedSchema: e.target.value })}
-                    className="w-full rounded border border-line bg-subtle px-2.5 py-1.5 text-xs text-ink outline-none"
+                    className="w-full rounded border border-line bg-subtle px-2.5 py-1.5 text-base sm:text-xs text-ink outline-none"
                   />
                 </div>
                 <div>
@@ -1005,7 +1006,7 @@ export function TableStructure({
                     placeholder="ex: usuarios"
                     value={newFk.referencedTable}
                     onChange={(e) => setNewFk({ ...newFk, referencedTable: e.target.value })}
-                    className="w-full rounded border border-line bg-subtle px-2.5 py-1.5 text-xs text-ink outline-none"
+                    className="w-full rounded border border-line bg-subtle px-2.5 py-1.5 text-base sm:text-xs text-ink outline-none"
                   />
                 </div>
               </div>
@@ -1016,16 +1017,16 @@ export function TableStructure({
                   placeholder="ex: id"
                   value={newFk.referencedColumn}
                   onChange={(e) => setNewFk({ ...newFk, referencedColumn: e.target.value })}
-                  className="w-full rounded border border-line bg-subtle px-2.5 py-1.5 text-xs text-ink outline-none"
+                  className="w-full rounded border border-line bg-subtle px-2.5 py-1.5 text-base sm:text-xs text-ink outline-none"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className="block text-ink-secondary mb-1">ON UPDATE:</label>
                   <select
                     value={newFk.onUpdate}
                     onChange={(e) => setNewFk({ ...newFk, onUpdate: e.target.value })}
-                    className="w-full rounded border border-line bg-subtle px-2 py-1 text-xs text-ink outline-none"
+                    className="w-full rounded border border-line bg-subtle px-2 py-1.5 text-base sm:text-xs text-ink outline-none"
                   >
                     <option value="NO ACTION">NO ACTION</option>
                     <option value="CASCADE">CASCADE</option>
@@ -1039,7 +1040,7 @@ export function TableStructure({
                   <select
                     value={newFk.onDelete}
                     onChange={(e) => setNewFk({ ...newFk, onDelete: e.target.value })}
-                    className="w-full rounded border border-line bg-subtle px-2 py-1 text-xs text-ink outline-none"
+                    className="w-full rounded border border-line bg-subtle px-2 py-1.5 text-base sm:text-xs text-ink outline-none"
                   >
                     <option value="NO ACTION">NO ACTION</option>
                     <option value="CASCADE">CASCADE</option>
@@ -1050,11 +1051,11 @@ export function TableStructure({
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-2">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 mt-2">
               <button
                 type="button"
                 onClick={() => setShowAddFkModal(false)}
-                className="cursor-pointer rounded border border-line bg-subtle px-3 py-1.5 text-xs text-ink"
+                className="w-full sm:w-auto cursor-pointer rounded border border-line bg-subtle px-3 py-2 sm:py-1.5 text-xs text-ink text-center transition-colors hover:bg-muted"
               >
                 Cancelar
               </button>
@@ -1067,7 +1068,7 @@ export function TableStructure({
                     setShowAddFkModal(false);
                   }
                 }}
-                className="cursor-pointer rounded bg-cta px-3 py-1.5 text-xs font-semibold text-cta-fg disabled:opacity-40"
+                className="w-full sm:w-auto cursor-pointer rounded bg-cta px-3 py-2 sm:py-1.5 text-xs font-semibold text-cta-fg disabled:opacity-40 text-center"
               >
                 Criar FK
               </button>
@@ -1078,7 +1079,7 @@ export function TableStructure({
 
       {showAddIdxModal && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl border border-line bg-panel p-5 shadow-card flex flex-col gap-4">
+          <div className="w-full max-w-md rounded-xl border border-line bg-panel p-4 sm:p-5 shadow-card flex flex-col gap-4">
             <h3 className="text-sm font-semibold text-ink">Criar Novo Índice</h3>
             <div className="flex flex-col gap-3 text-xs">
               <div>
@@ -1087,7 +1088,7 @@ export function TableStructure({
                   type="text"
                   value={newIdx.name}
                   onChange={(e) => setNewIdx({ ...newIdx, name: e.target.value })}
-                  className="w-full rounded border border-line bg-subtle px-2.5 py-1.5 text-xs text-ink outline-none"
+                  className="w-full rounded border border-line bg-subtle px-2.5 py-1.5 text-base sm:text-xs text-ink outline-none"
                 />
               </div>
               <div>
@@ -1096,7 +1097,7 @@ export function TableStructure({
                   {columns.map((c) => {
                     const checked = newIdx.columns.includes(c.name);
                     return (
-                      <label key={c.name} className="flex items-center gap-2 cursor-pointer text-ink text-xs font-mono">
+                      <label key={c.name} className="flex items-center gap-2 cursor-pointer text-ink text-xs font-mono py-0.5">
                         <input
                           type="checkbox"
                           checked={checked}
@@ -1114,13 +1115,13 @@ export function TableStructure({
                   })}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 items-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
                 <div>
                   <label className="block text-ink-secondary mb-1">Método:</label>
                   <select
                     value={newIdx.method}
                     onChange={(e) => setNewIdx({ ...newIdx, method: e.target.value })}
-                    className="w-full rounded border border-line bg-subtle px-2 py-1 text-xs text-ink outline-none"
+                    className="w-full rounded border border-line bg-subtle px-2 py-1.5 text-base sm:text-xs text-ink outline-none"
                   >
                     <option value="btree">BTREE</option>
                     <option value="hash">HASH</option>
@@ -1128,7 +1129,7 @@ export function TableStructure({
                     <option value="gist">GIST</option>
                   </select>
                 </div>
-                <div className="pt-4">
+                <div className="sm:pt-4">
                   <label className="flex items-center gap-2 cursor-pointer text-ink font-medium">
                     <input
                       type="checkbox"
@@ -1140,11 +1141,11 @@ export function TableStructure({
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-2">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 mt-2">
               <button
                 type="button"
                 onClick={() => setShowAddIdxModal(false)}
-                className="cursor-pointer rounded border border-line bg-subtle px-3 py-1.5 text-xs text-ink"
+                className="w-full sm:w-auto cursor-pointer rounded border border-line bg-subtle px-3 py-2 sm:py-1.5 text-xs text-ink text-center transition-colors hover:bg-muted"
               >
                 Cancelar
               </button>
@@ -1157,7 +1158,7 @@ export function TableStructure({
                     setShowAddIdxModal(false);
                   }
                 }}
-                className="cursor-pointer rounded bg-cta px-3 py-1.5 text-xs font-semibold text-cta-fg disabled:opacity-40"
+                className="w-full sm:w-auto cursor-pointer rounded bg-cta px-3 py-2 sm:py-1.5 text-xs font-semibold text-cta-fg disabled:opacity-40 text-center"
               >
                 Criar Índice
               </button>

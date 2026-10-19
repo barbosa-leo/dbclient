@@ -30,8 +30,8 @@ export function SqlEditor({
   const nearLimit = value.length >= MAX_SQL_LENGTH * 0.9;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-line bg-panel p-5 shadow-card">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-col gap-3 rounded-xl border border-line bg-panel p-4 sm:p-5 shadow-card">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
         <div className="flex items-center gap-2 text-xs text-ink-secondary">
           <span className="font-medium">Banco de dados:</span>
           <span className="rounded-md bg-muted px-2 py-0.5 font-mono font-medium text-ink">
@@ -40,7 +40,8 @@ export function SqlEditor({
         </div>
 
         <span className={`font-mono text-[11px] ${nearLimit ? 'text-danger' : 'text-ink-muted'}`}>
-          {value.length}/{MAX_SQL_LENGTH} caracteres · Ctrl/⌘ + Enter para executar
+          {value.length}/{MAX_SQL_LENGTH} caracteres
+          <span className="hidden sm:inline"> · Ctrl/⌘ + Enter para executar</span>
         </span>
       </div>
 
@@ -56,7 +57,11 @@ export function SqlEditor({
       />
 
       <div className="flex items-center justify-end">
-        <Button onClick={onRun} disabled={disabled || running || !value.trim()}>
+        <Button
+          onClick={onRun}
+          disabled={disabled || running || !value.trim()}
+          className="w-full sm:w-auto"
+        >
           {running ? 'Executando...' : 'Executar'}
         </Button>
       </div>

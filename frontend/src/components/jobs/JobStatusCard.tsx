@@ -22,10 +22,10 @@ export function JobStatusCard({ job, onCancel, canceling, actions }: JobStatusCa
   const barColor = job.status === 'failed' ? 'bg-danger' : 'bg-cta';
 
   return (
-    <div className="rounded-xl border border-line bg-panel p-5 shadow-card">
-      <div className="flex items-center justify-between gap-4">
+    <div className="rounded-xl border border-line bg-panel p-4 sm:p-5 shadow-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div>
-          <p className="font-mono text-xs font-semibold text-ink">{job.fileName}</p>
+          <p className="font-mono text-xs font-semibold text-ink break-all">{job.fileName}</p>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-muted">
             <span
               className={`font-semibold ${

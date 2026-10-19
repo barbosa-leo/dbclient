@@ -381,8 +381,8 @@ export function ResultTable({
 
   return (
     <div className="flex min-h-0 flex-col gap-2">
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-panel px-3 py-1.5 text-xs shadow-card">
-        <div className="flex min-w-0 flex-wrap items-center gap-3 font-mono text-[11px] text-ink-muted">
+      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 rounded-lg border border-line bg-panel px-2.5 py-1.5 sm:px-3 text-xs shadow-card">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3 font-mono text-[11px] text-ink-muted">
           {selectedCount > 0 && (
             <span className="text-ink">
               <strong className="font-semibold">{selectedCount}</strong> linha(s) selecionada(s)
@@ -405,14 +405,14 @@ export function ResultTable({
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-1">
           <button
             type="button"
             disabled={!canRefresh}
             aria-label="Atualizar"
             title="Atualizar"
             onClick={() => onRefresh?.()}
-            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+            className="flex h-8 w-8 sm:h-7 sm:w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
           >
             <svg
               viewBox="0 0 16 16"
@@ -443,7 +443,7 @@ export function ResultTable({
               aria-haspopup="menu"
               aria-expanded={copyMenuOpen}
               onClick={() => setCopyMenuOpen((prev) => !prev)}
-              className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
+              className={`flex h-8 w-8 sm:h-7 sm:w-7 cursor-pointer items-center justify-center rounded-md border border-line transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
                 copiedFormat
                   ? 'bg-online/15 text-online'
                   : 'bg-subtle text-ink hover:bg-muted disabled:hover:bg-subtle'
@@ -496,7 +496,7 @@ export function ResultTable({
                     type="button"
                     role="menuitem"
                     onClick={() => void handleCopyAs(format)}
-                    className="flex w-full cursor-pointer items-center justify-between rounded-lg px-2.5 py-1.5 text-left font-mono text-[11px] text-ink-secondary transition-colors hover:bg-muted hover:text-ink"
+                    className="flex w-full cursor-pointer items-center justify-between rounded-lg px-2.5 py-2 sm:py-1.5 text-left font-mono text-xs sm:text-[11px] text-ink-secondary transition-colors hover:bg-muted hover:text-ink"
                   >
                     <span>{label}</span>
                   </button>
@@ -512,7 +512,7 @@ export function ResultTable({
             title="Salvar alterações"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => void handleSaveAll()}
-            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted enabled:border-cta enabled:bg-cta enabled:text-cta-fg enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+            className="flex h-8 w-8 sm:h-7 sm:w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted enabled:border-cta enabled:bg-cta enabled:text-cta-fg enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
           >
             <svg
               viewBox="0 0 16 16"
@@ -533,7 +533,7 @@ export function ResultTable({
             title="Cancelar alterações / limpar seleção"
             onMouseDown={(e) => e.preventDefault()}
             onClick={handleCancelAll}
-            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+            className="flex h-8 w-8 sm:h-7 sm:w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
           >
             <svg
               viewBox="0 0 16 16"
@@ -616,7 +616,7 @@ export function ResultTable({
                                 }
                               }}
                               onBlur={() => setEditingCol(null)}
-                              className="absolute inset-0 w-full min-w-0 rounded border border-line-strong bg-panel px-1 py-0.5 font-mono text-[11px] font-normal text-ink outline-none"
+                              className="absolute inset-0 w-full min-w-0 rounded border border-line-strong bg-panel px-1 py-0.5 font-mono text-base sm:text-[11px] font-normal text-ink outline-none"
                             />
                           )}
                         </div>
@@ -722,7 +722,7 @@ export function ResultTable({
                               }
                             }}
                             onBlur={() => commitCellEdit(rowIndex, cellIndex, cellDraft)}
-                            className="absolute inset-0.5 w-[calc(100%-4px)] min-w-0 rounded border border-line-strong bg-panel px-2 py-0.5 font-mono text-[11px] font-normal text-ink outline-none"
+                            className="absolute inset-0.5 w-[calc(100%-4px)] min-w-0 rounded border border-line-strong bg-panel px-2 py-0.5 font-mono text-base sm:text-[11px] font-normal text-ink outline-none"
                           />
                         )}
                       </td>

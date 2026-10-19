@@ -782,8 +782,8 @@ function ExplorerContent() {
     <div className="flex min-h-0 flex-1 flex-col gap-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="font-mono text-xl font-bold tracking-tight text-ink">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+            <h1 className="font-mono text-lg sm:text-xl font-bold tracking-tight text-ink break-all">
               <span className="text-ink-muted">{schema}.</span>
               {objectName}
             </h1>
@@ -960,12 +960,12 @@ function ExplorerContent() {
               ? Esta operação executará <code className="font-mono">DROP</code> no banco de dados.
             </p>
 
-            <div className="mt-4 flex items-center justify-end gap-2">
+            <div className="mt-4 flex flex-col-reverse sm:flex-row items-center justify-end gap-2">
               <button
                 type="button"
                 disabled={deletingObject}
                 onClick={() => setConfirmingDelete(false)}
-                className="cursor-pointer rounded-md border border-line bg-subtle px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full sm:w-auto cursor-pointer rounded-md border border-line bg-subtle px-3 py-2 sm:py-1.5 text-xs font-medium text-ink text-center transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -973,7 +973,7 @@ function ExplorerContent() {
                 type="button"
                 disabled={deletingObject}
                 onClick={() => void handleConfirmDeleteCurrentObject()}
-                className="cursor-pointer rounded-md bg-danger px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full sm:w-auto cursor-pointer rounded-md bg-danger px-3 py-2 sm:py-1.5 text-xs font-semibold text-white text-center transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {deletingObject ? 'Excluindo...' : 'Excluir'}
               </button>

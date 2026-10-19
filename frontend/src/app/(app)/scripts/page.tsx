@@ -125,7 +125,7 @@ export default function ScriptsPage() {
 
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col gap-4 rounded-xl border border-line bg-panel p-5 shadow-card"
+        className="flex flex-col gap-4 rounded-xl border border-line bg-panel p-4 sm:p-5 shadow-card"
       >
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <label className="flex flex-col gap-1.5 text-xs font-medium text-ink-secondary">
@@ -135,11 +135,11 @@ export default function ScriptsPage() {
               accept=".sql"
               disabled={running}
               onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-              className="font-sans text-xs font-normal text-ink file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-line file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink hover:file:bg-line"
+              className="max-w-full font-sans text-xs font-normal text-ink file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-line file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink hover:file:bg-line"
             />
           </label>
           {fileName && (
-            <span className="font-mono text-xs text-ink-muted">
+            <span className="font-mono text-xs text-ink-muted break-all">
               Arquivo: <span className="text-ink font-semibold">{fileName}</span>
             </span>
           )}
@@ -175,7 +175,7 @@ export default function ScriptsPage() {
           </p>
         )}
 
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
           {sqlContent && (
             <Button
               type="button"
@@ -186,11 +186,16 @@ export default function ScriptsPage() {
                 setFileName('');
               }}
               disabled={running || submitting}
+              className="w-full sm:w-auto"
             >
               Limpar
             </Button>
           )}
-          <Button type="submit" disabled={!active || running || submitting || (!sqlContent.trim() && !file)}>
+          <Button
+            type="submit"
+            disabled={!active || running || submitting || (!sqlContent.trim() && !file)}
+            className="w-full sm:w-auto"
+          >
             {submitting ? 'Enviando...' : 'Executar script'}
           </Button>
         </div>

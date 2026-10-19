@@ -103,7 +103,7 @@ export function RowLimitSelector({
               onChange={(e) => setDraft(e.target.value.replace(/[^\d]/g, ''))}
               onBlur={() => commitValue(draft)}
               onKeyDown={handleKeyDown}
-              className="w-20 bg-transparent px-2.5 py-1.5 font-mono text-xs font-semibold text-ink outline-none disabled:opacity-50"
+              className="w-20 bg-transparent px-2.5 py-1.5 font-mono text-base sm:text-xs font-semibold text-ink outline-none disabled:opacity-50"
             />
             <button
               type="button"
@@ -114,7 +114,7 @@ export function RowLimitSelector({
                 e.preventDefault();
                 setOpen((prev) => !prev);
               }}
-              className="cursor-pointer border-l border-line px-2 py-1.5 text-ink-muted transition-colors hover:text-ink disabled:opacity-50"
+              className="cursor-pointer border-l border-line px-2.5 py-2 sm:px-2 sm:py-1.5 text-ink-muted transition-colors hover:text-ink disabled:opacity-50"
             >
               <svg
                 viewBox="0 0 16 16"
@@ -147,7 +147,7 @@ export function RowLimitSelector({
                   e.preventDefault();
                   selectOption(autoValue);
                 }}
-                className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-2.5 py-1.5 text-left font-mono text-[11px] transition-colors ${
+                className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-2.5 py-2 sm:py-1.5 text-left font-mono text-xs sm:text-[11px] transition-colors ${
                   isAuto
                     ? 'bg-muted font-semibold text-ink'
                     : 'text-ink-secondary hover:bg-muted/70 hover:text-ink'
@@ -171,7 +171,7 @@ export function RowLimitSelector({
                       e.preventDefault();
                       selectOption(preset);
                     }}
-                    className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-2.5 py-1.5 text-left font-mono text-[11px] transition-colors ${
+                    className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-2.5 py-2 sm:py-1.5 text-left font-mono text-xs sm:text-[11px] transition-colors ${
                       value === preset
                         ? 'bg-muted font-semibold text-ink'
                         : 'text-ink-secondary hover:bg-muted/70 hover:text-ink'

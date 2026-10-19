@@ -61,8 +61,8 @@ export function ObjectDefinitionEditor({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-panel px-3 py-1.5 text-xs shadow-card">
-        <div className="flex min-w-0 flex-wrap items-center gap-3 font-mono text-[11px] text-ink-muted">
+      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 rounded-lg border border-line bg-panel px-2.5 py-1.5 sm:px-3 text-xs shadow-card">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3 font-mono text-[11px] text-ink-muted">
           {hasChanges ? (
             <span className="font-semibold text-ink">
               Definição modificada · Salve para aplicar no banco
@@ -84,14 +84,14 @@ export function ObjectDefinitionEditor({
           </span>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-1">
           <button
             type="button"
             disabled={!canRefresh}
             aria-label="Atualizar definição"
             title="Atualizar definição"
             onClick={() => onRefresh?.()}
-            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+            className="flex h-8 w-8 sm:h-7 sm:w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
           >
             <svg
               viewBox="0 0 16 16"
@@ -118,7 +118,7 @@ export function ObjectDefinitionEditor({
                 title="Salvar definição (Ctrl/⌘ + Enter)"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => void handleSave()}
-                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted enabled:border-cta enabled:bg-cta enabled:text-cta-fg enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+                className="flex h-8 w-8 sm:h-7 sm:w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted enabled:border-cta enabled:bg-cta enabled:text-cta-fg enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
               >
                 <svg
                   viewBox="0 0 16 16"
@@ -143,7 +143,7 @@ export function ObjectDefinitionEditor({
                 title="Cancelar alterações"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={handleCancel}
-                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
+                className="flex h-8 w-8 sm:h-7 sm:w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-subtle"
               >
                 <svg
                   viewBox="0 0 16 16"

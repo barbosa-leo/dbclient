@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
@@ -27,12 +27,15 @@ function AppWorkspace({ children }: { children: ReactNode }) {
     }
   }, [loading, environments.length, pathname, router, user?.role]);
 
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
+
   return (
-    <div key={contextRevision} className="flex h-screen flex-col overflow-hidden bg-canvas">
-      <Topbar />
+    <div key={contextRevision} className="flex h-dvh flex-col overflow-hidden bg-canvas">
+      <Topbar onOpenMenu={() => setMobileNavOpen(true)} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="mx-auto flex min-h-0 w-full max-w-7xl min-w-0 flex-1 flex-col overflow-y-auto p-6">
+        <Sidebar mobileOpen={mobileNavOpen} onMobileClose={closeMobileNav} />
+        <main className="mx-auto flex min-h-0 w-full max-w-7xl min-w-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4 lg:p-6">
           {children}
         </main>
       </div>

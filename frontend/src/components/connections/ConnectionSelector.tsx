@@ -50,14 +50,14 @@ export function ConnectionSelector() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <label className="flex items-center gap-2">
+    <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:gap-3">
+      <label className="flex w-full items-center gap-2 lg:w-auto">
         <span className="text-xs font-medium text-ink-muted">Environment</span>
         <select
           value={activeEnvironment?.id ?? ''}
           onChange={(e) => selectEnvironment(Number(e.target.value))}
           disabled={environments.length === 0}
-          className="h-8 cursor-pointer rounded-lg border border-line bg-panel px-2.5 text-xs font-medium text-ink transition-colors outline-none hover:bg-muted focus:border-line-strong disabled:opacity-50"
+          className="h-10 min-w-0 flex-1 lg:h-8 lg:flex-none cursor-pointer rounded-lg border border-line bg-panel px-2.5 text-xs font-medium text-ink transition-colors outline-none hover:bg-muted focus:border-line-strong disabled:opacity-50"
         >
           {environments.map((env) => (
             <option key={env.id} value={env.id}>
@@ -75,13 +75,13 @@ export function ConnectionSelector() {
           Nenhuma conexão neste environment
         </Link>
       ) : (
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 lg:w-auto">
+          <label className="flex min-w-0 flex-1 items-center gap-2 lg:flex-none">
             <span className="text-xs font-medium text-ink-muted">Conexão</span>
             <select
               value={selectedConnectionId}
               onChange={(e) => setSelectedConnectionId(e.target.value)}
-              className="h-8 cursor-pointer rounded-lg border border-line bg-panel px-2.5 text-xs font-medium text-ink transition-colors outline-none hover:bg-muted focus:border-line-strong"
+              className="h-10 min-w-0 flex-1 lg:h-8 lg:flex-none cursor-pointer rounded-lg border border-line bg-panel px-2.5 text-xs font-medium text-ink transition-colors outline-none hover:bg-muted focus:border-line-strong"
             >
               <option value="">Selecione uma conexão...</option>
               {connections.map((connection) => (
@@ -96,7 +96,7 @@ export function ConnectionSelector() {
             type="button"
             disabled={!canConnect}
             onClick={() => void handleConnect()}
-            className="h-8 cursor-pointer rounded-lg border border-transparent bg-cta px-3 text-xs font-semibold text-cta-fg transition-colors hover:bg-cta-hover disabled:cursor-not-allowed disabled:border-line disabled:bg-transparent disabled:text-ink-muted"
+            className="h-10 shrink-0 lg:h-8 cursor-pointer rounded-lg border border-transparent bg-cta px-3 text-xs font-semibold text-cta-fg transition-colors hover:bg-cta-hover disabled:cursor-not-allowed disabled:border-line disabled:bg-transparent disabled:text-ink-muted"
           >
             {connecting ? 'Conectando...' : 'Conectar'}
           </button>

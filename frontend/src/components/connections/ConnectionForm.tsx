@@ -11,7 +11,6 @@ import {
   createConnection,
   sslModes,
   testConnection,
-  testConnectionById,
   updateConnection,
 } from '@/services/connections';
 import type { Connection, Environment, SslMode } from '@/services/connections';
@@ -68,29 +67,41 @@ export function ConnectionForm({
     setTestResult(null);
     setSubmitError(null);
 
-    if (!values.host.trim() || !values.database.trim() || !values.username.trim()) {
+    const port = Number(values.port);
+    if (
+      !values.host.trim() ||
+      !values.database.trim() ||
+      !values.username.trim() ||
+      !values.port.trim() ||
+      isNaN(port) ||
+      port <= 0 ||
+      port > 65535
+    ) {
       setTestResult({
         ok: false,
-        message: 'Preencha ao menos Host, Porta, Database e Usuário para testar a conexão.',
+        message: 'Preencha corretamente Host, Porta (1-65535), Database e Usuário para testar a conexão.',
+      });
+      return;
+    }
+
+    if (!values.password) {
+      setTestResult({
+        ok: false,
+        message: 'A senha é obrigatória para testar a conexão.',
       });
       return;
     }
 
     setTesting(true);
     try {
-      let result;
-      if (isEditing && !values.password) {
-        result = await testConnectionById(connection.id);
-      } else {
-        result = await testConnection({
-          host: values.host.trim(),
-          port: Number(values.port) || 5432,
-          database: values.database.trim(),
-          username: values.username.trim(),
-          password: values.password,
-          sslMode: values.sslMode,
-        });
-      }
+      const result = await testConnection({
+        host: values.host.trim(),
+        port,
+        database: values.database.trim(),
+        username: values.username.trim(),
+        password: values.password,
+        sslMode: values.sslMode,
+      });
 
       if (result.ok) {
         setTestResult({ ok: true, message: 'Conexão estabelecida com sucesso!' });
@@ -221,7 +232,7 @@ export function ConnectionForm({
           onChange={(e) => setField('sslMode', e.target.value as SslMode)}
         />
       </div>
-      {testResult && (
+      {!isEditing && testResult && (
         <div
           role="status"
           className={`mt-4 rounded-lg border p-3 text-xs ${
@@ -246,15 +257,21 @@ export function ConnectionForm({
           {submitError}
         </p>
       )}
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={testing || submitting}
-          onClick={() => void handleTestConnection()}
-        >
-          {testing ? 'Testando conexão...' : 'Testar conexão'}
-        </Button>
+      <div
+        className={`mt-6 flex flex-wrap items-center gap-3 ${
+          !isEditing ? 'justify-between' : 'justify-end'
+        }`}
+      >
+        {!isEditing && (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={testing || submitting}
+            onClick={() => void handleTestConnection()}
+          >
+            {testing ? 'Testando conexão...' : 'Testar conexão'}
+          </Button>
+        )}
         <div className="flex items-center gap-3">
           <Button type="button" variant="secondary" onClick={onCancel}>
             Cancelar

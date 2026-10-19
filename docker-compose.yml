@@ -1,7 +1,7 @@
 services:
   dbclient:
+    image: barbosasleonardo/dbclient:latest
     build: .
-    image: dbclient:latest
     restart: unless-stopped
     ports:
       - "8080:8080"

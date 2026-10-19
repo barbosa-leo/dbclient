@@ -3,6 +3,7 @@ backend/web/dist/*
 frontend/node_modules
 frontend/.next
 frontend/out
+frontend/*.tsbuildinfo
 *.db
 *.db-*
 *.sqlite
@@ -12,4 +13,3 @@ backend/.tmp
 .env
 .env.*
 !.env.example
-*.tsbuildinfo

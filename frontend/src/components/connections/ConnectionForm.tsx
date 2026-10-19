@@ -258,8 +258,8 @@ export function ConnectionForm({
         </p>
       )}
       <div
-        className={`mt-6 flex flex-wrap items-center gap-3 ${
-          !isEditing ? 'justify-between' : 'justify-end'
+        className={`mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center ${
+          !isEditing ? 'sm:justify-between' : 'sm:justify-end'
         }`}
       >
         {!isEditing && (
@@ -272,7 +272,7 @@ export function ConnectionForm({
             {testing ? 'Testando conexão...' : 'Testar conexão'}
           </Button>
         )}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
           <Button type="button" variant="secondary" onClick={onCancel}>
             Cancelar
           </Button>

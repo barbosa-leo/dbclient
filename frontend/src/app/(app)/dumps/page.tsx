@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
+import { DumpList } from '@/components/jobs/DumpList';
 import { JobStatusCard } from '@/components/jobs/JobStatusCard';
 import { useJobPolling } from '@/components/jobs/useJobPolling';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -17,13 +18,6 @@ function validateFile(file: File | null): string | null {
   if (!file.name.toLowerCase().endsWith('.sql')) return 'Apenas arquivos .sql são aceitos';
   if (file.size > MAX_FILE_SIZE) return 'O arquivo excede o limite de 50 MB';
   return null;
-}
-
-function formatBytes(bytes?: number): string {
-  if (!bytes || bytes <= 0) return '—';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 export default function DumpsPage() {
@@ -257,98 +251,7 @@ export default function DumpsPage() {
             {loadingDumps ? 'Carregando dumps...' : 'Nenhum dump exportado até o momento.'}
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-line">
-            <table className="w-full text-left font-sans text-xs">
-              <thead className="bg-muted text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
-                <tr>
-                  <th className="px-4 py-3">Arquivo</th>
-                  <th className="px-4 py-3">Conexão / Banco</th>
-                  <th className="px-4 py-3">Tamanho</th>
-                  <th className="px-4 py-3">Data</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {userDumps.map((d) => {
-                  const isDone = d.status === 'done';
-                  const isRunning = d.status === 'running' || d.status === 'pending';
-                  const isDeleting = deletingId === d.id;
-
-                  return (
-                    <tr key={d.id} className="hover:bg-muted/50 transition-colors">
-                      <td className="px-4 py-3 font-mono font-medium text-ink">
-                        {d.fileName}
-                      </td>
-                      <td className="px-4 py-3 text-ink-secondary">
-                        {d.connectionName ? (
-                          <span>
-                            <span className="font-medium text-ink">{d.connectionName}</span>
-                            {d.databaseName && (
-                              <span className="text-ink-muted"> ({d.databaseName})</span>
-                            )}
-                          </span>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-ink-secondary">
-                        {formatBytes(d.sizeBytes)}
-                      </td>
-                      <td className="px-4 py-3 text-ink-secondary">
-                        {d.createdAt ? new Date(d.createdAt).toLocaleString('pt-BR') : '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        {d.status === 'done' && (
-                          <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-500">
-                            Concluído
-                          </span>
-                        )}
-                        {d.status === 'failed' && (
-                          <span className="inline-flex items-center rounded-md bg-danger/10 px-2 py-0.5 text-[11px] font-medium text-danger">
-                            Falhou
-                          </span>
-                        )}
-                        {isRunning && (
-                          <span className="inline-flex items-center rounded-md bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-500">
-                            {d.progress}%
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {isDone && (
-                            <a
-                              href={getDumpDownloadUrl(d.id)}
-                              download={d.fileName}
-                              className="inline-flex items-center gap-1 rounded-md border border-line bg-panel px-2.5 py-1 text-[11px] font-medium text-ink transition-colors hover:bg-muted focus:outline-none"
-                              title="Baixar arquivo .sql"
-                            >
-                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                              </svg>
-                              Baixar
-                            </a>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setDumpToDelete(d)}
-                            disabled={isRunning || isDeleting}
-                            className="cursor-pointer inline-flex items-center justify-center rounded-md p-1.5 text-ink-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:cursor-not-allowed disabled:opacity-30 disabled:pointer-events-none"
-                            title="Excluir dump"
-                          >
-                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DumpList dumps={userDumps} deletingId={deletingId} onDelete={setDumpToDelete} />
         )}
       </section>
 

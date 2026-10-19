@@ -21,7 +21,7 @@ export function TextField({ label, error, ...props }: TextFieldProps) {
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className={`rounded-lg border bg-panel px-3 py-2 text-xs text-ink transition-colors outline-none focus:ring-1 ${
+        className={`rounded-lg border bg-panel px-3 py-2.5 text-base text-ink lg:py-2 lg:text-xs transition-colors outline-none focus:ring-1 ${
           error
             ? 'border-danger focus:ring-danger'
             : 'border-line focus:border-line-strong focus:ring-line-strong'

@@ -18,7 +18,7 @@ export function SelectField({ label, options, ...props }: SelectFieldProps) {
       </label>
       <select
         id={id}
-        className="cursor-pointer rounded-lg border border-line bg-panel px-3 py-2 text-xs text-ink transition-colors outline-none focus:border-line-strong focus:ring-1 focus:ring-line-strong"
+        className="cursor-pointer rounded-lg border border-line bg-panel px-3 py-2.5 text-base text-ink lg:py-2 lg:text-xs transition-colors outline-none focus:border-line-strong focus:ring-1 focus:ring-line-strong"
         {...props}
       >
         {options.map((option) => (

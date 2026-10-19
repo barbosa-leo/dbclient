@@ -57,7 +57,7 @@ export default function UsersPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <PageHeader title="Usuários" description="Gerencie os usuários da plataforma." />
         {editing === null && <Button onClick={() => setEditing('new')}>Novo usuário</Button>}
       </div>

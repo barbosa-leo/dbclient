@@ -159,11 +159,16 @@ Copie a saída gerada e defina-a na variável `DBCLIENT_ENCRYPTION_KEY` do seu a
 
 ## Como Rodar com Docker Compose
 
-Esta é a forma recomendada de executar o DBClient em produção ou em ambiente de desenvolvimento.
+Você pode rodar o DBClient via Docker Compose de duas formas: usando a imagem pré-construída do Docker Hub (sem precisar do código-fonte) ou construindo localmente a partir do repositório clonado.
 
-### 1. Criar o arquivo `.env`
+---
 
-Crie um arquivo `.env` na mesma pasta do seu `docker-compose.yml`:
+### Opção A: Apenas Docker Compose (Imagem do Docker Hub)
+
+Ideal para quem quer apenas subir e usar a aplicação em um servidor ou máquina local sem clonar o repositório.
+
+#### 1. Criar o arquivo `.env`
+No mesmo diretório onde salvar o `docker-compose.yml`:
 
 ```env
 # Gerada com: openssl rand -base64 32
@@ -175,10 +180,7 @@ DBCLIENT_SESSION_TTL=12h
 DBCLIENT_MAX_FILE_SIZE=52428800
 ```
 
-### 2. Exemplo de `docker-compose.yml`
-
-O compose abaixo utiliza a imagem oficial publicada no Docker Hub (`barbosasleonardo/dbclient:latest`):
-
+#### 2. Criar o arquivo `docker-compose.yml`
 ```yaml
 services:
   dbclient:
@@ -188,7 +190,7 @@ services:
     ports:
       - "8080:8080"
     extra_hosts:
-      # Permite que o container acerte bancos PostgreSQL rodando na máquina host (host.docker.internal)
+      # Permite conectar a bancos PostgreSQL rodando na máquina host
       - "host.docker.internal:host-gateway"
     environment:
       DBCLIENT_ENCRYPTION_KEY: ${DBCLIENT_ENCRYPTION_KEY:?Defina DBCLIENT_ENCRYPTION_KEY no arquivo .env}
@@ -202,16 +204,40 @@ volumes:
   dbclient-data:
 ```
 
-### 3. Executando o Container
-
-Inicie a aplicação em segundo plano:
-
+#### 3. Iniciar o container
 ```bash
 docker compose up -d
 ```
 
-Verifique se o container está saudável:
+---
 
+### Opção B: A partir do Repositório Clonado (Build Local)
+
+Ideal para quem clonou este repositório e deseja compilar o container a partir do código-fonte. O arquivo `docker-compose.yml` na raiz do projeto já vem configurado para compilar localmente (`build: .`).
+
+#### 1. Clonar e configurar o `.env`
+```bash
+git clone https://github.com/barbosasleonardo/dbclient.git
+cd dbclient
+
+cp .env.example .env
+# Gere a chave e adicione ao .env:
+openssl rand -base64 32
+```
+Edite o arquivo `.env` e cole a chave gerada em `DBCLIENT_ENCRYPTION_KEY`.
+
+#### 2. Compilar e subir o container
+```bash
+docker compose up -d --build
+```
+
+O `docker-compose.yml` do repositório compilará o frontend e o backend automaticamente e iniciará a aplicação.
+
+---
+
+### Verificando e Acessando
+
+Verifique se o container está saudável:
 ```bash
 docker compose ps
 docker compose logs -f

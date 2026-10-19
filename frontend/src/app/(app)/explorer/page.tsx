@@ -293,7 +293,7 @@ function ExplorerContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const { active } = useConnections();
+  const { active, loading: connectionsLoading } = useConnections();
   const activeId = active?.id;
   const database = active?.database ?? null;
   const canEdit = user?.role === 'admin' || user?.role === 'operator';
@@ -461,6 +461,7 @@ function ExplorerContent() {
   }, [activeId, schema, objectName, isCreating, isRoutine, isView, categoryParam]);
 
   useEffect(() => {
+    if (connectionsLoading) return;
     setDataResult(null);
     setColumns(null);
     setForeignKeys([]);
@@ -483,6 +484,7 @@ function ExplorerContent() {
       void loadStructure();
     }
   }, [
+    connectionsLoading,
     activeId,
     schema,
     objectName,
@@ -710,6 +712,14 @@ function ExplorerContent() {
     } finally {
       setDeletingObject(false);
     }
+  }
+
+  if (connectionsLoading) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-12">
+        <p className="text-xs font-medium text-ink-muted">Carregando...</p>
+      </div>
+    );
   }
 
   if (!schema || !objectName) {

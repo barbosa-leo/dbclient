@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
 import {
@@ -84,7 +84,7 @@ export function SidebarExplorer() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const canEdit = user?.role === 'admin' || user?.role === 'operator';
-  const { active } = useConnections();
+  const { active, loading: connectionsLoading } = useConnections();
   const activeConnectionId = active?.id;
 
   const activeSchema = pathname.startsWith('/explorer') ? searchParams.get('schema') : null;
@@ -96,13 +96,18 @@ export function SidebarExplorer() {
   const [databaseOpen, setDatabaseOpen] = useState(true);
   const [schemas, setSchemas] = useState<SchemaInfo[]>([]);
   const [loadingSchemas, setLoadingSchemas] = useState(false);
-  const [openSchemas, setOpenSchemas] = useState<Record<string, boolean>>({});
-  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
+  const [openSchemas, setOpenSchemas] = useState<Record<string, boolean>>(() =>
+    activeSchema ? { [activeSchema]: true } : {},
+  );
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>(() =>
+    activeSchema && activeCategory ? { [`${activeSchema}:${activeCategory}`]: true } : {},
+  );
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDeleteState | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [schemaError, setSchemaError] = useState<string | null>(null);
+  const lastConnectionIdRef = useRef<number | undefined>(undefined);
 
   const reloadSchemas = useCallback(async () => {
     if (activeConnectionId === undefined) return;
@@ -116,24 +121,51 @@ export function SidebarExplorer() {
   }, [activeConnectionId]);
 
   useEffect(() => {
-    setDatabaseOpen(true);
-    setOpenSchemas({});
-    setOpenCategories({});
-    setSchemas([]);
-    setSchemaError(null);
-
     if (!active || activeConnectionId === undefined) {
       setLoadingSchemas(false);
+      setSchemas([]);
       return;
+    }
+
+    const isConnectionChange =
+      lastConnectionIdRef.current !== undefined &&
+      lastConnectionIdRef.current !== activeConnectionId;
+    lastConnectionIdRef.current = activeConnectionId;
+
+    if (isConnectionChange) {
+      setSchemas([]);
+      setOpenSchemas(activeSchema ? { [activeSchema]: true } : {});
+      setOpenCategories(
+        activeSchema && activeCategory ? { [`${activeSchema}:${activeCategory}`]: true } : {},
+      );
+    } else if (activeSchema) {
+      setOpenSchemas((prev) => ({ ...prev, [activeSchema]: true }));
+      if (activeCategory) {
+        setOpenCategories((prev) => ({
+          ...prev,
+          [`${activeSchema}:${activeCategory}`]: true,
+        }));
+      }
     }
 
     let cancelled = false;
     setLoadingSchemas(true);
+    setSchemaError(null);
+
     listSchemas(activeConnectionId)
       .then((data) => {
         if (!cancelled) {
           setSchemas(data);
           setSchemaError(null);
+          if (activeSchema) {
+            setOpenSchemas((prev) => ({ ...prev, [activeSchema]: true }));
+            if (activeCategory) {
+              setOpenCategories((prev) => ({
+                ...prev,
+                [`${activeSchema}:${activeCategory}`]: true,
+              }));
+            }
+          }
         }
       })
       .catch((err) => {
@@ -149,7 +181,7 @@ export function SidebarExplorer() {
     return () => {
       cancelled = true;
     };
-  }, [active, activeConnectionId]);
+  }, [activeConnectionId, activeSchema, activeCategory]);
 
   useEffect(() => {
     return onExplorerRefresh(() => {
@@ -160,10 +192,12 @@ export function SidebarExplorer() {
   useEffect(() => {
     if (activeSchema) {
       setDatabaseOpen(true);
-      setOpenSchemas((prev) => ({ ...prev, [activeSchema]: true }));
+      setOpenSchemas((prev) => (prev[activeSchema] ? prev : { ...prev, [activeSchema]: true }));
       if (activeCategory) {
         const categoryKey = `${activeSchema}:${activeCategory}`;
-        setOpenCategories((prev) => ({ ...prev, [categoryKey]: true }));
+        setOpenCategories((prev) =>
+          prev[categoryKey] ? prev : { ...prev, [categoryKey]: true },
+        );
       }
     }
   }, [activeSchema, activeCategory]);
@@ -277,6 +311,10 @@ export function SidebarExplorer() {
       category,
       itemName,
     });
+  }
+
+  if (connectionsLoading) {
+    return <span className="px-2.5 py-1.5 text-[11px] text-ink-muted">Carregando...</span>;
   }
 
   if (!active) {

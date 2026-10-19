@@ -66,10 +66,24 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
     return allConnections.filter((conn) => conn.environmentId === activeEnvironment.id);
   }, [allConnections, activeEnvironment]);
 
-  const active = useMemo(
-    () => allConnections.find((connection) => connection.id === activeId) ?? null,
-    [allConnections, activeId],
-  );
+  const active = useMemo(() => {
+    if (activeId !== null) {
+      const match = allConnections.find((connection) => connection.id === activeId);
+      if (match) return match;
+    }
+    return connections[0] ?? allConnections[0] ?? null;
+  }, [allConnections, connections, activeId]);
+
+  useEffect(() => {
+    if (!loading && active && active.id !== activeId) {
+      setActiveId(active.id);
+      window.localStorage.setItem(CONNECTION_STORAGE_KEY, String(active.id));
+      if (active.environmentId !== activeEnvironmentId) {
+        setActiveEnvironmentId(active.environmentId);
+        window.localStorage.setItem(ENVIRONMENT_STORAGE_KEY, String(active.environmentId));
+      }
+    }
+  }, [loading, active, activeId, activeEnvironmentId]);
 
   const selectEnvironment = useCallback((id: number) => {
     setActiveEnvironmentId(id);

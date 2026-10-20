@@ -25,4 +25,3 @@ func (uc *GetSettings) MaxFileSize(ctx context.Context) (int64, error) {
 	}
 	return current.MaxFileSize, nil
 }
-

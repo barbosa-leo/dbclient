@@ -19,6 +19,7 @@ type RouterDeps struct {
 	Auth          *handler.AuthHandler
 	Users         *handler.UserHandler
 	Settings      *handler.SettingsHandler
+	History       *handler.HistoryHandler
 	Environments  *handler.EnvironmentHandler
 	Connections   *handler.ConnectionHandler
 	Explorer      *handler.ExplorerHandler
@@ -74,6 +75,8 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("GET /api/connections/{id}/schemas/{schema}/tables/{table}/structure", requireViewer(deps.Explorer.Structure))
 	mux.Handle("GET /api/connections/{id}/schemas/{schema}/objects/{category}/{name}/definition", requireViewer(deps.Explorer.ObjectDefinition))
 	mux.Handle("DELETE /api/connections/{id}/schemas/{schema}/objects/{category}/{name}", requireOperator(deps.Explorer.DropObject))
+
+	mux.Handle("GET /api/history", requireViewer(deps.History.List))
 
 	mux.Handle("POST /api/connections/{id}/query", requireViewer(deps.Query.Execute))
 	mux.Handle("POST /api/connections/{id}/scripts", requireOperator(deps.Script.Run))

@@ -40,6 +40,17 @@ type ConnectionRepository interface {
 	CountByEnvironmentID(ctx context.Context, environmentID int64) (int, error)
 }
 
+type ExecutionRecorder interface {
+	Record(ctx context.Context, record ExecutionRecord) error
+}
+
+type ExecutionHistoryRepository interface {
+	ExecutionRecorder
+	RecordWithPurge(ctx context.Context, record ExecutionRecord, purgeBefore time.Time) error
+	DeleteOlderThan(ctx context.Context, before time.Time) error
+	List(ctx context.Context, filter ExecutionHistoryFilter) ([]ExecutionRecord, error)
+}
+
 type SettingsReader interface {
 	Get(ctx context.Context) (Settings, error)
 }

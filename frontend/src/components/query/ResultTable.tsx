@@ -38,6 +38,7 @@ interface ResultTableProps {
   refreshing?: boolean;
   onSaveChanges?: (updates: CellUpdate[]) => Promise<void> | void;
   savingChanges?: boolean;
+  maxHeight?: string;
 }
 
 function formatCell(value: unknown): string {
@@ -185,6 +186,7 @@ export function ResultTable({
   refreshing = false,
   onSaveChanges,
   savingChanges = false,
+  maxHeight,
 }: ResultTableProps) {
   const [selectedRows, setSelectedRows] = useState<Set<number>>(() => new Set());
   const [editingCol, setEditingCol] = useState<string | null>(null);
@@ -594,7 +596,10 @@ export function ResultTable({
         </div>
       </div>
 
-      <div className="min-h-0 overflow-auto rounded-xl border border-line bg-panel shadow-card">
+      <div
+        className="min-h-0 overflow-auto rounded-xl border border-line bg-panel shadow-card"
+        style={maxHeight ? { maxHeight } : undefined}
+      >
         <table
           className={`text-left font-mono text-[11px] leading-tight ${hasCustomWidths ? '' : 'w-full'}`}
           style={hasCustomWidths ? { tableLayout: 'fixed', width: tableWidth } : undefined}

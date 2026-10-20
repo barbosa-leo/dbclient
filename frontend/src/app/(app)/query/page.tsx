@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
+import { ExecutionHistory } from '@/components/history/ExecutionHistory';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ResultTable } from '@/components/query/ResultTable';
 import { RowLimitSelector } from '@/components/query/RowLimitSelector';
@@ -23,6 +24,7 @@ export default function QueryPage() {
   const [limit, setLimit] = useState(MIN_ROW_LIMIT);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [historyVersion, setHistoryVersion] = useState(0);
   const resultAnchorRef = useRef<HTMLDivElement>(null);
 
   const measureAutoLimit = useCallback(() => {
@@ -55,6 +57,7 @@ export default function QueryPage() {
       setError(err instanceof Error ? err.message : 'Falha ao executar a consulta');
     } finally {
       setRunning(false);
+      setHistoryVersion((version) => version + 1);
     }
   }
 
@@ -91,6 +94,7 @@ export default function QueryPage() {
               result={result}
               onRefresh={() => void run(executedSql, limit)}
               refreshing={running}
+              maxHeight="80vh"
             />
             {result.columns.length > 0 && (
               <RowLimitSelector
@@ -104,6 +108,11 @@ export default function QueryPage() {
           </>
         )}
       </div>
+      <ExecutionHistory
+        kind="query"
+        refreshKey={historyVersion}
+        onReuse={(entry) => setSql(entry.sql ?? '')}
+      />
     </div>
   );
 }

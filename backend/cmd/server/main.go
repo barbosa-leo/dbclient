@@ -23,6 +23,7 @@ import (
 	"dbclient/backend/internal/usecase/dump"
 	"dbclient/backend/internal/usecase/environment"
 	"dbclient/backend/internal/usecase/explorer"
+	"dbclient/backend/internal/usecase/history"
 	"dbclient/backend/internal/usecase/job"
 	"dbclient/backend/internal/usecase/query"
 	"dbclient/backend/internal/usecase/script"
@@ -69,6 +70,7 @@ func main() {
 	environmentRepo := sqlite.NewEnvironmentRepository(db)
 	connectionRepo := sqlite.NewConnectionRepository(db)
 	settingsRepo := sqlite.NewSettingsRepository(db)
+	historyRepo := sqlite.NewExecutionHistoryRepository(db)
 
 	pgDriver := dbdriver.NewPostgresDriver()
 	pgDumper := dumper.NewPostgresDumper()
@@ -87,6 +89,9 @@ func main() {
 	getSettingsUC := settings.NewGetSettings(settingsRepo)
 	updateSettingsUC := settings.NewUpdateSettings(settingsRepo)
 
+	recordExecutionUC := history.NewRecordExecution(settingsRepo, historyRepo, logger)
+	listHistoryUC := history.NewListHistory(historyRepo, settingsRepo)
+
 	listEnvironmentsUC := environment.NewListEnvironments(environmentRepo)
 	createEnvironmentUC := environment.NewCreateEnvironment(environmentRepo)
 	deleteEnvironmentUC := environment.NewDeleteEnvironment(environmentRepo, connectionRepo)
@@ -104,8 +109,8 @@ func main() {
 	getObjectDefUC := explorer.NewGetObjectDefinition(resolveCredsUC, pgDriver)
 	dropObjectUC := explorer.NewDropObject(resolveCredsUC, pgDriver)
 
-	executeQueryUC := query.NewExecuteQuery(resolveCredsUC, pgDriver, logger)
-	runScriptUC := script.NewRunScript(resolveCredsUC, pgDumper, files, jobManager, settingsRepo, logger)
+	executeQueryUC := query.NewExecuteQuery(resolveCredsUC, pgDriver, recordExecutionUC, logger)
+	runScriptUC := script.NewRunScript(resolveCredsUC, pgDumper, files, jobManager, settingsRepo, recordExecutionUC, logger)
 	exportDumpUC := dump.NewExportDump(resolveCredsUC, pgDumper, files, jobManager, settingsRepo, logger)
 	importDumpUC := dump.NewImportDump(resolveCredsUC, pgDumper, files, jobManager, settingsRepo, logger)
 
@@ -118,6 +123,7 @@ func main() {
 		Auth:          handler.NewAuthHandler(loginUC, logoutUC, changePasswordUC),
 		Users:         handler.NewUserHandler(listUsersUC, createUserUC, updateUserUC, deleteUserUC),
 		Settings:      handler.NewSettingsHandler(getSettingsUC, updateSettingsUC),
+		History:       handler.NewHistoryHandler(listHistoryUC),
 		Environments:  handler.NewEnvironmentHandler(listEnvironmentsUC, createEnvironmentUC, deleteEnvironmentUC),
 		Connections:   handler.NewConnectionHandler(listConnectionsUC, createConnectionUC, updateConnectionUC, deleteConnectionUC, testConnectionUC),
 		Explorer:      handler.NewExplorerHandler(listSchemasUC, listColumnsUC, describeTableUC, getObjectDefUC, dropObjectUC),

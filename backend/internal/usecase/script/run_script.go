@@ -27,6 +27,7 @@ type RunScript struct {
 	files    domain.FileStore
 	jobs     *job.Manager
 	settings domain.SettingsReader
+	history  domain.ExecutionRecorder
 	logger   *slog.Logger
 }
 
@@ -36,6 +37,7 @@ func NewRunScript(
 	files domain.FileStore,
 	jobs *job.Manager,
 	settings domain.SettingsReader,
+	history domain.ExecutionRecorder,
 	logger *slog.Logger,
 ) *RunScript {
 	return &RunScript{
@@ -44,6 +46,7 @@ func NewRunScript(
 		files:    files,
 		jobs:     jobs,
 		settings: settings,
+		history:  history,
 		logger:   logger,
 	}
 }
@@ -64,10 +67,12 @@ func (uc *RunScript) Execute(ctx context.Context, input RunScriptInput) (domain.
 		return domain.Job{}, err
 	}
 
-	savedPath, err := uc.files.SaveStream(ctx, "script", input.Content, current.MaxFileSize)
+	counter := &countingReader{reader: input.Content}
+	savedPath, err := uc.files.SaveStream(ctx, "script", counter, current.MaxFileSize)
 	if err != nil {
 		return domain.Job{}, err
 	}
+	fileSize := counter.count
 
 	created := uc.jobs.Start(
 		domain.JobKindScript,
@@ -90,6 +95,8 @@ func (uc *RunScript) Execute(ctx context.Context, input RunScriptInput) (domain.
 				status = "failed"
 			}
 
+			uc.recordExecution(jobCtx, input, conn, creds.Database, fileName, fileSize, runErr, durationMs)
+
 			uc.logger.InfoContext(
 				jobCtx,
 				"audit_execution",
@@ -108,4 +115,46 @@ func (uc *RunScript) Execute(ctx context.Context, input RunScriptInput) (domain.
 	)
 
 	return created, nil
+}
+
+func (uc *RunScript) recordExecution(
+	ctx context.Context,
+	input RunScriptInput,
+	conn domain.Connection,
+	database string,
+	fileName string,
+	fileSize int64,
+	runErr error,
+	durationMs int64,
+) {
+	record := domain.ExecutionRecord{
+		UserID:         input.ActorUserID,
+		Kind:           domain.ExecutionKindScript,
+		ConnectionID:   conn.ID,
+		ConnectionName: conn.Name,
+		Database:       database,
+		FileName:       fileName,
+		FileSize:       fileSize,
+		Success:        runErr == nil,
+		DurationMs:     durationMs,
+	}
+	if runErr != nil {
+		record.Error = runErr.Error()
+	}
+
+	// A conclusão do job pode ocorrer após cancelamento do contexto; o histórico deve ser gravado mesmo assim.
+	if err := uc.history.Record(context.WithoutCancel(ctx), record); err != nil {
+		uc.logger.WarnContext(ctx, "failed to record script history", slog.String("error", err.Error()))
+	}
+}
+
+type countingReader struct {
+	reader io.Reader
+	count  int64
+}
+
+func (r *countingReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	r.count += int64(n)
+	return n, err
 }

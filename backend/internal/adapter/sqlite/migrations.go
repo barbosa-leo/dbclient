@@ -188,6 +188,44 @@ INSERT OR IGNORE INTO settings (key, value) VALUES ('max_file_size', '52428800')
 			return err
 		},
 	},
+	{
+		version: 5,
+		apply: func(ctx context.Context, tx *sql.Tx, hasher domain.PasswordHasher) error {
+			const historySchema = `
+CREATE TABLE IF NOT EXISTS execution_history (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	kind TEXT NOT NULL CHECK (kind IN ('query', 'script')),
+	connection_id INTEGER NOT NULL,
+	connection_name TEXT NOT NULL,
+	database TEXT NOT NULL,
+	sql_text TEXT NOT NULL DEFAULT '',
+	file_name TEXT NOT NULL DEFAULT '',
+	file_size INTEGER NOT NULL DEFAULT 0,
+	success INTEGER NOT NULL,
+	error TEXT NOT NULL DEFAULT '',
+	duration_ms INTEGER NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_execution_history_user_kind ON execution_history(user_id, kind, id DESC);
+CREATE INDEX IF NOT EXISTS idx_execution_history_kind ON execution_history(kind, id DESC);
+`
+			_, err := tx.ExecContext(ctx, historySchema)
+			return err
+		},
+	},
+	{
+		version: 6,
+		apply: func(ctx context.Context, tx *sql.Tx, hasher domain.PasswordHasher) error {
+			const settingsSeed = `
+INSERT OR IGNORE INTO settings (key, value) VALUES ('history_enabled', 'true');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('history_retention_days', '7');
+`
+			_, err := tx.ExecContext(ctx, settingsSeed)
+			return err
+		},
+	},
 }
 
 func runMigrations(ctx context.Context, db *sql.DB, hasher domain.PasswordHasher) error {

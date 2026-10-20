@@ -18,6 +18,7 @@ const (
 )
 
 type ExecuteQueryInput struct {
+	ActorID       int64
 	ActorUsername string
 	ActorRole     domain.Role
 	ConnectionID  int64
@@ -28,17 +29,20 @@ type ExecuteQueryInput struct {
 type ExecuteQuery struct {
 	resolver *connection.ResolveCredentials
 	driver   domain.DatabaseDriver
+	history  domain.ExecutionRecorder
 	logger   *slog.Logger
 }
 
 func NewExecuteQuery(
 	resolver *connection.ResolveCredentials,
 	driver domain.DatabaseDriver,
+	history domain.ExecutionRecorder,
 	logger *slog.Logger,
 ) *ExecuteQuery {
 	return &ExecuteQuery{
 		resolver: resolver,
 		driver:   driver,
+		history:  history,
 		logger:   logger,
 	}
 }
@@ -111,9 +115,39 @@ func (uc *ExecuteQuery) Execute(ctx context.Context, input ExecuteQueryInput) (d
 		slog.Int64("duration_ms", durationMs),
 	)
 
+	uc.recordExecution(ctx, input, conn, creds.Database, trimmed, execErr, durationMs)
+
 	if execErr != nil {
 		return domain.QueryResult{}, domain.NewValidationError(execErr.Error())
 	}
 
 	return result, nil
+}
+
+func (uc *ExecuteQuery) recordExecution(
+	ctx context.Context,
+	input ExecuteQueryInput,
+	conn domain.Connection,
+	database string,
+	sqlText string,
+	execErr error,
+	durationMs int64,
+) {
+	record := domain.ExecutionRecord{
+		UserID:         input.ActorID,
+		Kind:           domain.ExecutionKindQuery,
+		ConnectionID:   conn.ID,
+		ConnectionName: conn.Name,
+		Database:       database,
+		SQL:            sqlText,
+		Success:        execErr == nil,
+		DurationMs:     durationMs,
+	}
+	if execErr != nil {
+		record.Error = execErr.Error()
+	}
+
+	if err := uc.history.Record(ctx, record); err != nil {
+		uc.logger.WarnContext(ctx, "failed to record query history", slog.String("error", err.Error()))
+	}
 }

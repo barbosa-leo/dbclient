@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -16,7 +15,6 @@ type Config struct {
 	DumpDir       string
 	DumpTTL       time.Duration
 	SessionTTL    time.Duration
-	MaxFileSize   int64
 }
 
 func Load() (Config, error) {
@@ -43,11 +41,6 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
-	maxFileSize, err := parseInt64Env("DBCLIENT_MAX_FILE_SIZE", 52428800)
-	if err != nil {
-		return Config{}, err
-	}
-
 	return Config{
 		EncryptionKey: key,
 		Addr:          stringEnv("DBCLIENT_ADDR", ":8080"),
@@ -55,7 +48,6 @@ func Load() (Config, error) {
 		DumpDir:       stringEnv("DBCLIENT_DUMP_DIR", "/tmp/dbclient"),
 		DumpTTL:       dumpTTL,
 		SessionTTL:    sessionTTL,
-		MaxFileSize:   maxFileSize,
 	}, nil
 }
 
@@ -76,16 +68,4 @@ func parseDurationEnv(name string, fallback time.Duration) (time.Duration, error
 		return 0, fmt.Errorf("%s must be a positive duration", name)
 	}
 	return d, nil
-}
-
-func parseInt64Env(name string, fallback int64) (int64, error) {
-	v := os.Getenv(name)
-	if v == "" {
-		return fallback, nil
-	}
-	n, err := strconv.ParseInt(v, 10, 64)
-	if err != nil || n <= 0 {
-		return 0, fmt.Errorf("%s must be a positive integer", name)
-	}
-	return n, nil
 }

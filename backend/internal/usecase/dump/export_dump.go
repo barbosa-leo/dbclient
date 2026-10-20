@@ -13,12 +13,12 @@ import (
 )
 
 type ExportDump struct {
-	resolver    *connection.ResolveCredentials
-	dumper      domain.Dumper
-	files       domain.FileStore
-	jobs        *job.Manager
-	maxFileSize int64
-	logger      *slog.Logger
+	resolver *connection.ResolveCredentials
+	dumper   domain.Dumper
+	files    domain.FileStore
+	jobs     *job.Manager
+	settings domain.SettingsReader
+	logger   *slog.Logger
 }
 
 func NewExportDump(
@@ -26,16 +26,16 @@ func NewExportDump(
 	dumper domain.Dumper,
 	files domain.FileStore,
 	jobs *job.Manager,
-	maxFileSize int64,
+	settings domain.SettingsReader,
 	logger *slog.Logger,
 ) *ExportDump {
 	return &ExportDump{
-		resolver:    resolver,
-		dumper:      dumper,
-		files:       files,
-		jobs:        jobs,
-		maxFileSize: maxFileSize,
-		logger:      logger,
+		resolver: resolver,
+		dumper:   dumper,
+		files:    files,
+		jobs:     jobs,
+		settings: settings,
+		logger:   logger,
 	}
 }
 
@@ -45,7 +45,12 @@ func (uc *ExportDump) Execute(ctx context.Context, actorUserID int64, actorUsern
 		return domain.Job{}, err
 	}
 
-	path, writer, err := uc.files.CreateWriter("dump-export", uc.maxFileSize)
+	current, err := uc.settings.Get(ctx)
+	if err != nil {
+		return domain.Job{}, err
+	}
+
+	path, writer, err := uc.files.CreateWriter("dump-export", current.MaxFileSize)
 	if err != nil {
 		return domain.Job{}, err
 	}
@@ -77,7 +82,7 @@ func (uc *ExportDump) Execute(ctx context.Context, actorUserID int64, actorUsern
 				status = "failed"
 				_ = uc.files.Remove(path)
 				if errors.Is(exportErr, domain.ErrFileTooLarge) {
-					exportErr = errors.New("Dump excedeu o limite máximo de 50 MB")
+					exportErr = fmt.Errorf("Dump excedeu o limite máximo de %d MB", current.MaxFileSize/(1024*1024))
 				}
 			}
 

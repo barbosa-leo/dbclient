@@ -29,6 +29,10 @@ type Session struct {
 	ExpiresAt time.Time
 }
 
+type Settings struct {
+	MaxFileSize int64 `json:"maxFileSize"`
+}
+
 type SSLMode string
 
 const (

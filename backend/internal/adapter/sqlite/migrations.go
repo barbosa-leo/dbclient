@@ -173,6 +173,21 @@ CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 			return err
 		},
 	},
+	{
+		version: 4,
+		apply: func(ctx context.Context, tx *sql.Tx, hasher domain.PasswordHasher) error {
+			const settingsSchema = `
+CREATE TABLE IF NOT EXISTS settings (
+	key TEXT PRIMARY KEY,
+	value TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO settings (key, value) VALUES ('max_file_size', '52428800');
+`
+			_, err := tx.ExecContext(ctx, settingsSchema)
+			return err
+		},
+	},
 }
 
 func runMigrations(ctx context.Context, db *sql.DB, hasher domain.PasswordHasher) error {

@@ -18,6 +18,7 @@ type RouterDeps struct {
 	Health        *handler.HealthHandler
 	Auth          *handler.AuthHandler
 	Users         *handler.UserHandler
+	Settings      *handler.SettingsHandler
 	Environments  *handler.EnvironmentHandler
 	Connections   *handler.ConnectionHandler
 	Explorer      *handler.ExplorerHandler
@@ -53,6 +54,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("POST /api/users", requireAdmin(deps.Users.Create))
 	mux.Handle("PUT /api/users/{id}", requireAdmin(deps.Users.Update))
 	mux.Handle("DELETE /api/users/{id}", requireAdmin(deps.Users.Delete))
+
+	mux.Handle("GET /api/settings", requireAdmin(deps.Settings.Get))
+	mux.Handle("PUT /api/settings", requireAdmin(deps.Settings.Update))
 
 	mux.Handle("GET /api/environments", requireViewer(deps.Environments.List))
 	mux.Handle("POST /api/environments", requireAdmin(deps.Environments.Create))

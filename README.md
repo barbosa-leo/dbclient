@@ -153,7 +153,6 @@ Copie a saída gerada e defina-a na variável `DBCLIENT_ENCRYPTION_KEY` do seu a
 | `DBCLIENT_DUMP_DIR` | Não | `/tmp/dbclient` | Diretório temporário para processamento de dumps e scripts |
 | `DBCLIENT_DUMP_TTL` | Não | `24h` | Tempo de vida (TTL) até a exclusão automática de arquivos temporários |
 | `DBCLIENT_SESSION_TTL` | Não | `12h` | Duração do cookie de sessão autenticada |
-| `DBCLIENT_MAX_FILE_SIZE` | Não | `52428800` | Tamanho máximo em bytes para scripts e dumps (52428800 = 50 MB) |
 
 ---
 
@@ -177,7 +176,6 @@ DBCLIENT_ENCRYPTION_KEY=SuaChaveBase64De32BytesAquiExatamente=
 # Opcionais (valores padrão já pré-configurados)
 DBCLIENT_DUMP_TTL=24h
 DBCLIENT_SESSION_TTL=12h
-DBCLIENT_MAX_FILE_SIZE=52428800
 ```
 
 #### 2. Criar o arquivo `docker-compose.yml`
@@ -196,7 +194,6 @@ services:
       DBCLIENT_ENCRYPTION_KEY: ${DBCLIENT_ENCRYPTION_KEY:?Defina DBCLIENT_ENCRYPTION_KEY no arquivo .env}
       DBCLIENT_DUMP_TTL: ${DBCLIENT_DUMP_TTL:-24h}
       DBCLIENT_SESSION_TTL: ${DBCLIENT_SESSION_TTL:-12h}
-      DBCLIENT_MAX_FILE_SIZE: ${DBCLIENT_MAX_FILE_SIZE:-52428800}
     volumes:
       - dbclient-data:/data
 

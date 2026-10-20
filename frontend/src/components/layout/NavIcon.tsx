@@ -53,5 +53,13 @@ export function NavIcon({ name }: { name: NavIconName }) {
           <path d="M16 14.8c2.2.3 4 1.8 4 4.2" strokeLinecap="round" />
         </svg>
       );
+    case 'settings':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-[18px] w-[18px] shrink-0">
+          <path d="M4 7h9M17 7h3M4 17h3M11 17h9" strokeLinecap="round" />
+          <circle cx="15" cy="7" r="2" />
+          <circle cx="9" cy="17" r="2" />
+        </svg>
+      );
   }
 }

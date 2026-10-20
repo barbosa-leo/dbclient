@@ -40,6 +40,15 @@ type ConnectionRepository interface {
 	CountByEnvironmentID(ctx context.Context, environmentID int64) (int, error)
 }
 
+type SettingsReader interface {
+	Get(ctx context.Context) (Settings, error)
+}
+
+type SettingsRepository interface {
+	SettingsReader
+	Update(ctx context.Context, settings Settings) error
+}
+
 type PasswordHasher interface {
 	Hash(password string) (string, error)
 	Compare(hash, password string) error

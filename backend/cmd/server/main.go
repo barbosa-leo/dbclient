@@ -26,6 +26,7 @@ import (
 	"dbclient/backend/internal/usecase/job"
 	"dbclient/backend/internal/usecase/query"
 	"dbclient/backend/internal/usecase/script"
+	"dbclient/backend/internal/usecase/settings"
 	"dbclient/backend/internal/usecase/user"
 	"dbclient/backend/web"
 )
@@ -67,6 +68,7 @@ func main() {
 	sessionRepo := sqlite.NewSessionRepository(db)
 	environmentRepo := sqlite.NewEnvironmentRepository(db)
 	connectionRepo := sqlite.NewConnectionRepository(db)
+	settingsRepo := sqlite.NewSettingsRepository(db)
 
 	pgDriver := dbdriver.NewPostgresDriver()
 	pgDumper := dumper.NewPostgresDumper()
@@ -81,6 +83,9 @@ func main() {
 	createUserUC := user.NewCreateUser(userRepo, hasher)
 	updateUserUC := user.NewUpdateUser(userRepo, hasher)
 	deleteUserUC := user.NewDeleteUser(userRepo, sessionRepo)
+
+	getSettingsUC := settings.NewGetSettings(settingsRepo)
+	updateSettingsUC := settings.NewUpdateSettings(settingsRepo)
 
 	listEnvironmentsUC := environment.NewListEnvironments(environmentRepo)
 	createEnvironmentUC := environment.NewCreateEnvironment(environmentRepo)
@@ -100,9 +105,9 @@ func main() {
 	dropObjectUC := explorer.NewDropObject(resolveCredsUC, pgDriver)
 
 	executeQueryUC := query.NewExecuteQuery(resolveCredsUC, pgDriver, logger)
-	runScriptUC := script.NewRunScript(resolveCredsUC, pgDumper, files, jobManager, cfg.MaxFileSize, logger)
-	exportDumpUC := dump.NewExportDump(resolveCredsUC, pgDumper, files, jobManager, cfg.MaxFileSize, logger)
-	importDumpUC := dump.NewImportDump(resolveCredsUC, pgDumper, files, jobManager, cfg.MaxFileSize, logger)
+	runScriptUC := script.NewRunScript(resolveCredsUC, pgDumper, files, jobManager, settingsRepo, logger)
+	exportDumpUC := dump.NewExportDump(resolveCredsUC, pgDumper, files, jobManager, settingsRepo, logger)
+	importDumpUC := dump.NewImportDump(resolveCredsUC, pgDumper, files, jobManager, settingsRepo, logger)
 
 	frontendFS, _ := web.DistFS()
 
@@ -112,12 +117,13 @@ func main() {
 		Health:        handler.NewHealthHandler(db),
 		Auth:          handler.NewAuthHandler(loginUC, logoutUC, changePasswordUC),
 		Users:         handler.NewUserHandler(listUsersUC, createUserUC, updateUserUC, deleteUserUC),
+		Settings:      handler.NewSettingsHandler(getSettingsUC, updateSettingsUC),
 		Environments:  handler.NewEnvironmentHandler(listEnvironmentsUC, createEnvironmentUC, deleteEnvironmentUC),
 		Connections:   handler.NewConnectionHandler(listConnectionsUC, createConnectionUC, updateConnectionUC, deleteConnectionUC, testConnectionUC),
 		Explorer:      handler.NewExplorerHandler(listSchemasUC, listColumnsUC, describeTableUC, getObjectDefUC, dropObjectUC),
 		Query:         handler.NewQueryHandler(executeQueryUC),
-		Script:        handler.NewScriptHandler(runScriptUC, cfg.MaxFileSize),
-		Dump:          handler.NewDumpHandler(exportDumpUC, importDumpUC, jobManager, cfg.MaxFileSize),
+		Script:        handler.NewScriptHandler(runScriptUC, getSettingsUC),
+		Dump:          handler.NewDumpHandler(exportDumpUC, importDumpUC, jobManager, getSettingsUC),
 		FrontendFiles: frontendFS,
 	})
 

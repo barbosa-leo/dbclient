@@ -22,12 +22,12 @@ type RunScriptInput struct {
 }
 
 type RunScript struct {
-	resolver    *connection.ResolveCredentials
-	runner      domain.ScriptRunner
-	files       domain.FileStore
-	jobs        *job.Manager
-	maxFileSize int64
-	logger      *slog.Logger
+	resolver *connection.ResolveCredentials
+	runner   domain.ScriptRunner
+	files    domain.FileStore
+	jobs     *job.Manager
+	settings domain.SettingsReader
+	logger   *slog.Logger
 }
 
 func NewRunScript(
@@ -35,16 +35,16 @@ func NewRunScript(
 	runner domain.ScriptRunner,
 	files domain.FileStore,
 	jobs *job.Manager,
-	maxFileSize int64,
+	settings domain.SettingsReader,
 	logger *slog.Logger,
 ) *RunScript {
 	return &RunScript{
-		resolver:    resolver,
-		runner:      runner,
-		files:       files,
-		jobs:        jobs,
-		maxFileSize: maxFileSize,
-		logger:      logger,
+		resolver: resolver,
+		runner:   runner,
+		files:    files,
+		jobs:     jobs,
+		settings: settings,
+		logger:   logger,
 	}
 }
 
@@ -59,7 +59,12 @@ func (uc *RunScript) Execute(ctx context.Context, input RunScriptInput) (domain.
 		return domain.Job{}, err
 	}
 
-	savedPath, err := uc.files.SaveStream(ctx, "script", input.Content, uc.maxFileSize)
+	current, err := uc.settings.Get(ctx)
+	if err != nil {
+		return domain.Job{}, err
+	}
+
+	savedPath, err := uc.files.SaveStream(ctx, "script", input.Content, current.MaxFileSize)
 	if err != nil {
 		return domain.Job{}, err
 	}

@@ -3,6 +3,15 @@
 import { useEffect, useRef, useState } from 'react';
 import type { QueryResult } from '@/services/query';
 
+const DEFAULT_COLUMN_WIDTH = 150;
+const MIN_COLUMN_WIDTH = 50;
+const HEADER_CHAR_WIDTH = 7;
+const HEADER_CHROME_WIDTH = 64;
+
+function minWidthForColumn(column: string): number {
+  return Math.max(MIN_COLUMN_WIDTH, column.length * HEADER_CHAR_WIDTH + HEADER_CHROME_WIDTH);
+}
+
 export type SortDirection = 'asc' | 'desc';
 
 export interface ColumnSort {
@@ -188,6 +197,8 @@ export function ResultTable({
   const [copyMenuOpen, setCopyMenuOpen] = useState(false);
   const [copiedFormat, setCopiedFormat] = useState<CopyFormat | null>(null);
   const copyMenuRef = useRef<HTMLDivElement>(null);
+  const headerRefs = useRef<Record<string, HTMLTableCellElement | null>>({});
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setSelectedRows(new Set());
@@ -250,6 +261,40 @@ export function ResultTable({
       }
       return next;
     });
+  }
+
+  const hasCustomWidths = Object.keys(columnWidths).length > 0;
+  const tableWidth = hasCustomWidths
+    ? 40 + result.columns.reduce((acc, col) => acc + (columnWidths[col] ?? DEFAULT_COLUMN_WIDTH), 0)
+    : undefined;
+
+  function startColumnResize(event: React.PointerEvent<HTMLDivElement>, column: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const snapshot: Record<string, number> = {};
+    for (const col of result.columns) {
+      snapshot[col] = headerRefs.current[col]?.offsetWidth ?? DEFAULT_COLUMN_WIDTH;
+    }
+    const startWidth = snapshot[column] ?? DEFAULT_COLUMN_WIDTH;
+    setColumnWidths(snapshot);
+
+    function handleMove(moveEvent: PointerEvent) {
+      const width = Math.max(minWidthForColumn(column), startWidth + moveEvent.clientX - startX);
+      setColumnWidths((prev) => ({ ...prev, [column]: width }));
+    }
+
+    function handleUp() {
+      document.removeEventListener('pointermove', handleMove);
+      document.removeEventListener('pointerup', handleUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('pointermove', handleMove);
+    document.addEventListener('pointerup', handleUp);
   }
 
   function cycleSort(column: string) {
@@ -550,7 +595,10 @@ export function ResultTable({
       </div>
 
       <div className="min-h-0 overflow-auto rounded-xl border border-line bg-panel shadow-card">
-        <table className="w-full text-left font-mono text-[11px] leading-tight">
+        <table
+          className={`text-left font-mono text-[11px] leading-tight ${hasCustomWidths ? '' : 'w-full'}`}
+          style={hasCustomWidths ? { tableLayout: 'fixed', width: tableWidth } : undefined}
+        >
           <thead className="sticky top-0 z-10 border-b border-line bg-subtle font-sans text-[11px] font-medium text-ink-muted">
             <tr>
               <th
@@ -574,7 +622,26 @@ export function ResultTable({
                 const isEditing = editingCol === column;
 
                 return (
-                  <th key={column} scope="col" className="whitespace-nowrap px-3.5 py-1.5">
+                  <th
+                    key={column}
+                    ref={(el) => {
+                      headerRefs.current[column] = el;
+                    }}
+                    scope="col"
+                    style={{
+                      minWidth: minWidthForColumn(column),
+                      ...(hasCustomWidths ? { width: columnWidths[column] } : {}),
+                    }}
+                    className="relative overflow-hidden whitespace-nowrap border-r border-line px-3.5 py-1.5 last:border-r-0"
+                  >
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label={`Redimensionar coluna ${column}`}
+                      onPointerDown={(e) => startColumnResize(e, column)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none transition-colors hover:bg-line-strong"
+                    />
                     <div className="flex items-center justify-between gap-2">
                       {onFilterChange ? (
                         <div className="relative flex min-w-0 flex-1 items-center">
@@ -688,6 +755,8 @@ export function ResultTable({
                         }}
                         title={onSaveChanges ? 'Duplo clique para editar' : undefined}
                         className={`relative whitespace-nowrap px-3.5 py-1 text-ink ${
+                          hasCustomWidths ? 'overflow-hidden text-ellipsis' : ''
+                        } ${
                           isCellDirty ? 'bg-online/10 font-semibold' : ''
                         }`}
                       >

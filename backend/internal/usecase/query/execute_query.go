@@ -24,6 +24,7 @@ type ExecuteQueryInput struct {
 	ConnectionID  int64
 	SQL           string
 	Limit         int
+	SaveHistory   bool
 }
 
 type ExecuteQuery struct {
@@ -115,7 +116,9 @@ func (uc *ExecuteQuery) Execute(ctx context.Context, input ExecuteQueryInput) (d
 		slog.Int64("duration_ms", durationMs),
 	)
 
-	uc.recordExecution(ctx, input, conn, creds.Database, trimmed, execErr, durationMs)
+	if input.SaveHistory {
+		uc.recordExecution(ctx, input, conn, creds.Database, trimmed, execErr, durationMs)
+	}
 
 	if execErr != nil {
 		return domain.QueryResult{}, domain.NewValidationError(execErr.Error())

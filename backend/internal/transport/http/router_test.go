@@ -253,8 +253,9 @@ func TestEndToEndFlow(t *testing.T) {
 	}
 
 	queryRes := doReq(http.MethodPost, "/api/connections/1/query", map[string]any{
-		"sql":   "SELECT 1",
-		"limit": 50,
+		"sql":         "SELECT 1",
+		"limit":       50,
+		"saveHistory": true,
 	})
 	if queryRes.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 on query, got %d", queryRes.StatusCode)

@@ -24,8 +24,9 @@ func (h *QueryHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		SQL   string `json:"sql"`
-		Limit int    `json:"limit"`
+		SQL         string `json:"sql"`
+		Limit       int    `json:"limit"`
+		SaveHistory bool   `json:"saveHistory"`
 	}
 	if err := decodeJSON(r, &body); err != nil {
 		writeError(w, http.StatusBadRequest, "Payload inválido")
@@ -39,6 +40,7 @@ func (h *QueryHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		ConnectionID:  connID,
 		SQL:           body.SQL,
 		Limit:         body.Limit,
+		SaveHistory:   body.SaveHistory,
 	})
 	if err != nil {
 		writeDomainError(w, err)

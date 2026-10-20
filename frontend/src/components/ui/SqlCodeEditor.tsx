@@ -12,6 +12,7 @@ interface SqlCodeEditorProps {
   disabled?: boolean;
   maxLength?: number;
   minHeight?: string;
+  height?: string;
   className?: string;
   ariaLabel?: string;
 }
@@ -175,6 +176,7 @@ export function SqlCodeEditor({
   disabled = false,
   maxLength,
   minHeight = '140px',
+  height,
   className = '',
   ariaLabel = 'Editor SQL',
 }: SqlCodeEditorProps) {
@@ -210,16 +212,18 @@ export function SqlCodeEditor({
     onKeyDown?.(e);
   }
 
+  const containerStyle = height ? { height } : { minHeight };
+
   return (
     <div
-      style={{ minHeight }}
+      style={containerStyle}
       className={`relative w-full overflow-hidden rounded-lg border border-line bg-subtle font-mono text-base lg:text-xs leading-relaxed transition-colors focus-within:border-line-strong focus-within:bg-panel ${className}`}
     >
       <pre
         ref={preRef}
         aria-hidden="true"
         dangerouslySetInnerHTML={{ __html: highlightedHtml || `<span class="text-ink-muted/40">${placeholder}</span>` }}
-        className="pointer-events-none absolute inset-0 m-0 h-full w-full overflow-auto p-4 whitespace-pre-wrap break-words font-mono text-base lg:text-xs leading-relaxed text-ink"
+        className="pointer-events-none absolute inset-0 m-0 h-full w-full overflow-hidden p-4 whitespace-pre-wrap break-words font-mono text-base lg:text-xs leading-relaxed text-ink"
       />
       <textarea
         id={id}
@@ -234,7 +238,9 @@ export function SqlCodeEditor({
         spellCheck={false}
         aria-label={ariaLabel}
         placeholder={placeholder}
-        className="relative z-10 m-0 h-full min-h-[inherit] w-full resize-y overflow-auto bg-transparent p-4 whitespace-pre-wrap break-words font-mono text-base lg:text-xs leading-relaxed text-transparent caret-ink outline-none selection:bg-cta/25 placeholder:text-transparent disabled:cursor-not-allowed disabled:opacity-50"
+        className={`relative z-10 m-0 h-full w-full overflow-auto bg-transparent p-4 whitespace-pre-wrap break-words font-mono text-base lg:text-xs leading-relaxed text-transparent caret-ink outline-none selection:bg-cta/25 placeholder:text-transparent disabled:cursor-not-allowed disabled:opacity-50 ${
+          height ? 'resize-none' : 'min-h-[inherit] resize-y'
+        }`}
       />
     </div>
   );

@@ -96,4 +96,3 @@ func TestRecordExecution_EnabledWithPurge(t *testing.T) {
 		t.Fatalf("unexpected purgedBefore: %v (expected around %v)", historyRepo.purgedBefore, expectedPurgeBefore)
 	}
 }
-

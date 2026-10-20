@@ -9,6 +9,8 @@ interface ExecutionHistoryProps {
   kind: HistoryKind;
   refreshKey?: string | number;
   onReuse?: (entry: HistoryEntry) => void;
+  collapsible?: boolean;
+  maxHeight?: string;
 }
 
 function formatBytes(bytes?: number): string {
@@ -34,16 +36,25 @@ function StatusBadge({ success }: { success: boolean }) {
   );
 }
 
-export function ExecutionHistory({ kind, refreshKey, onReuse }: ExecutionHistoryProps) {
+export function ExecutionHistory({
+  kind,
+  refreshKey,
+  onReuse,
+  collapsible = true,
+  maxHeight,
+}: ExecutionHistoryProps) {
   const { user } = useAuth();
   const showUser = user?.role === 'admin';
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(!collapsible);
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reusedId, setReusedId] = useState<number | null>(null);
+
+  const shouldFetch = !collapsible || open;
 
   useEffect(() => {
-    if (!open) return;
+    if (!shouldFetch) return;
     let cancelled = false;
     setLoading(true);
     listHistory(kind)
@@ -62,24 +73,44 @@ export function ExecutionHistory({ kind, refreshKey, onReuse }: ExecutionHistory
     return () => {
       cancelled = true;
     };
-  }, [open, kind, refreshKey]);
+  }, [shouldFetch, kind, refreshKey]);
+
+  function handleReuse(entry: HistoryEntry) {
+    if (!onReuse) return;
+    onReuse(entry);
+    setReusedId(entry.id);
+    setTimeout(() => {
+      setReusedId((current) => (current === entry.id ? null : current));
+    }, 1500);
+  }
+
+  const isVisible = !collapsible || open;
 
   return (
     <section className="rounded-xl border border-line bg-panel shadow-card">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        aria-expanded={open}
-        className="flex w-full cursor-pointer items-center justify-between px-4 py-2.5 text-left text-xs font-semibold text-ink"
-      >
-        <span>Histórico de {kind === 'query' ? 'consultas' : 'scripts'}</span>
-        <span aria-hidden="true" className="text-ink-muted">
-          {open ? '▾' : '▸'}
-        </span>
-      </button>
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          aria-expanded={open}
+          className="flex w-full cursor-pointer items-center justify-between px-4 py-2.5 text-left text-xs font-semibold text-ink"
+        >
+          <span>Histórico de {kind === 'query' ? 'consultas' : 'scripts'}</span>
+          <span aria-hidden="true" className="text-ink-muted">
+            {open ? '▾' : '▸'}
+          </span>
+        </button>
+      ) : (
+        <div className="flex items-center justify-between border-b border-line px-4 py-2.5 text-xs text-ink-muted">
+          <span className="font-semibold text-ink">
+            Histórico de {kind === 'query' ? 'consultas' : 'scripts'}
+          </span>
+          {entries.length > 0 && <span>{entries.length} registro(s)</span>}
+        </div>
+      )}
 
-      {open && (
-        <div className="border-t border-line">
+      {isVisible && (
+        <div className={collapsible ? 'border-t border-line' : ''}>
           {error && (
             <p role="alert" className="p-4 text-xs text-danger">
               {error}
@@ -92,7 +123,10 @@ export function ExecutionHistory({ kind, refreshKey, onReuse }: ExecutionHistory
             <p className="p-4 text-xs text-ink-muted">Nenhuma execução registrada.</p>
           )}
           {entries.length > 0 && (
-            <ul className="max-h-80 divide-y divide-line overflow-y-auto">
+            <ul
+              style={maxHeight ? { maxHeight } : undefined}
+              className={`divide-y divide-line overflow-y-auto ${!maxHeight ? (collapsible ? 'max-h-80' : 'max-h-[500px]') : ''}`}
+            >
               {entries.map((entry) => (
                 <li key={entry.id} className="flex flex-col gap-1.5 px-4 py-3">
                   <div className="flex flex-wrap items-center gap-2 text-[11px] text-ink-muted">
@@ -126,10 +160,14 @@ export function ExecutionHistory({ kind, refreshKey, onReuse }: ExecutionHistory
                       {onReuse && (
                         <button
                           type="button"
-                          onClick={() => onReuse(entry)}
-                          className="shrink-0 cursor-pointer rounded-md border border-line bg-subtle px-2.5 py-1 text-[11px] font-medium text-ink transition-colors hover:bg-muted"
+                          onClick={() => handleReuse(entry)}
+                          className={`shrink-0 cursor-pointer rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                            reusedId === entry.id
+                              ? 'border-online/40 bg-online/15 text-online'
+                              : 'border-line bg-subtle text-ink hover:bg-muted'
+                          }`}
                         >
-                          Usar no editor
+                          {reusedId === entry.id ? 'Carregado!' : 'Usar no editor'}
                         </button>
                       )}
                     </div>

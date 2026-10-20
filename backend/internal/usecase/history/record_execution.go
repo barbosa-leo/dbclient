@@ -45,4 +45,3 @@ func (uc *RecordExecution) Record(ctx context.Context, record domain.ExecutionRe
 	purgeBefore := time.Now().UTC().AddDate(0, 0, -retentionDays)
 	return uc.history.RecordWithPurge(ctx, record, purgeBefore)
 }
-

@@ -10,6 +10,7 @@ interface SqlEditorProps {
   onRun: () => void;
   running: boolean;
   disabled: boolean;
+  height?: string;
 }
 
 export function SqlEditor({
@@ -19,6 +20,7 @@ export function SqlEditor({
   onRun,
   running,
   disabled,
+  height = '160px',
 }: SqlEditorProps) {
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
@@ -53,7 +55,7 @@ export function SqlEditor({
         disabled={disabled || running}
         ariaLabel="Consulta SQL"
         placeholder="SELECT * FROM ..."
-        minHeight="160px"
+        height={height}
       />
 
       <div className="flex items-center justify-end">

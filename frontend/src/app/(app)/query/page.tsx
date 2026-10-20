@@ -15,8 +15,11 @@ import {
 } from '@/services/query';
 import type { QueryResult } from '@/services/query';
 
+type QueryTab = 'result' | 'history';
+
 export default function QueryPage() {
   const { active } = useConnections();
+  const [tab, setTab] = useState<QueryTab>('result');
   const [sql, setSql] = useState('');
   const [executedSql, setExecutedSql] = useState('');
   const [result, setResult] = useState<QueryResult | null>(null);
@@ -44,20 +47,23 @@ export default function QueryPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, [measureAutoLimit]);
 
-  async function run(statement: string, targetLimit: number) {
+  async function run(statement: string, targetLimit: number, saveHistory = false) {
     if (!active || !statement.trim()) return;
     const clamped = clampRowLimit(targetLimit);
     setRunning(true);
     setError(null);
+    setTab('result');
     try {
-      setResult(await executeQuery(active.id, statement, clamped));
+      setResult(await executeQuery(active.id, statement, clamped, { saveHistory }));
       setExecutedSql(statement);
       setLimit(clamped);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao executar a consulta');
     } finally {
       setRunning(false);
-      setHistoryVersion((version) => version + 1);
+      if (saveHistory) {
+        setHistoryVersion((version) => version + 1);
+      }
     }
   }
 
@@ -75,44 +81,93 @@ export default function QueryPage() {
         value={sql}
         onChange={setSql}
         databaseName={active?.database ?? null}
-        onRun={() => run(sql, limit)}
+        onRun={() => run(sql, limit, true)}
         running={running}
         disabled={!active}
+        height="160px"
       />
-      <div ref={resultAnchorRef} className="flex min-h-0 flex-1 flex-col gap-3">
-        {error && (
-          <pre
-            role="alert"
-            className="whitespace-pre-wrap rounded-xl border border-danger/50 bg-panel p-4 font-mono text-xs text-danger"
+
+      <div className="flex items-center justify-between border-b border-line pb-2">
+        <div role="tablist" aria-label="Abas da consulta" className="flex rounded-lg bg-muted p-1">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'result'}
+            onClick={() => setTab('result')}
+            className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              tab === 'result' ? 'bg-panel text-ink shadow-card' : 'text-ink-muted hover:text-ink'
+            }`}
           >
-            {error}
-          </pre>
-        )}
-        {result && (
-          <>
-            <ResultTable
-              result={result}
-              onRefresh={() => void run(executedSql, limit)}
-              refreshing={running}
-              maxHeight="80vh"
-            />
-            {result.columns.length > 0 && (
-              <RowLimitSelector
-                value={limit}
-                autoValue={autoLimit}
-                rowCount={result.rows.length}
-                disabled={running}
-                onChange={(next) => run(executedSql, next)}
-              />
+            Resultado
+            {result && result.columns.length > 0 && (
+              <span className="ml-1.5 font-mono text-[11px] text-ink-muted">
+                ({result.rows.length})
+              </span>
             )}
-          </>
-        )}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'history'}
+            onClick={() => setTab('history')}
+            className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              tab === 'history' ? 'bg-panel text-ink shadow-card' : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            Histórico
+          </button>
+        </div>
       </div>
-      <ExecutionHistory
-        kind="query"
-        refreshKey={historyVersion}
-        onReuse={(entry) => setSql(entry.sql ?? '')}
-      />
+
+      <div className={tab === 'result' ? 'flex min-h-0 flex-1 flex-col gap-3' : 'hidden'}>
+        <div ref={resultAnchorRef} className="flex min-h-0 flex-1 flex-col gap-3">
+          {error && (
+            <pre
+              role="alert"
+              className="whitespace-pre-wrap rounded-xl border border-danger/50 bg-panel p-4 font-mono text-xs text-danger"
+            >
+              {error}
+            </pre>
+          )}
+          {result ? (
+            <>
+              <ResultTable
+                result={result}
+                onRefresh={() => void run(executedSql, limit, false)}
+                refreshing={running}
+                maxHeight="max(300px, calc(100vh - 440px))"
+              />
+              {result.columns.length > 0 && (
+                <RowLimitSelector
+                  value={limit}
+                  autoValue={autoLimit}
+                  rowCount={result.rows.length}
+                  disabled={running}
+                  onChange={(next) => run(executedSql, next, false)}
+                />
+              )}
+            </>
+          ) : (
+            !error && (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-line bg-panel p-8 text-center shadow-card">
+                <p className="text-xs text-ink-muted">
+                  Nenhum resultado para exibir. Escreva uma consulta SQL acima e clique em Executar.
+                </p>
+              </div>
+            )
+          )}
+        </div>
+      </div>
+
+      <div className={tab === 'history' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
+        <ExecutionHistory
+          kind="query"
+          refreshKey={historyVersion}
+          collapsible={false}
+          maxHeight="max(300px, calc(100vh - 440px))"
+          onReuse={(entry) => setSql(entry.sql ?? '')}
+        />
+      </div>
     </div>
   );
 }

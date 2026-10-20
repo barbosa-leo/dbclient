@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ForeignKeyInfo } from '@/services/explorer';
 import type { QueryResult } from '@/services/query';
 
 const DEFAULT_COLUMN_WIDTH = 150;
@@ -30,6 +31,8 @@ export interface CellUpdate {
 interface ResultTableProps {
   result: QueryResult;
   tableName?: string;
+  foreignKeys?: ForeignKeyInfo[];
+  onNavigateForeignKey?: (fk: ForeignKeyInfo, value: unknown) => void;
   sort?: ColumnSort | null;
   onSortChange?: (sort: ColumnSort | null) => void;
   filters?: Record<string, string>;
@@ -178,6 +181,8 @@ function SortIcon({ direction }: { direction: SortDirection | null }) {
 export function ResultTable({
   result,
   tableName,
+  foreignKeys,
+  onNavigateForeignKey,
   sort = null,
   onSortChange,
   filters,
@@ -188,6 +193,16 @@ export function ResultTable({
   savingChanges = false,
   maxHeight,
 }: ResultTableProps) {
+  const fkByColumn = useMemo(() => {
+    const map = new Map<string, ForeignKeyInfo>();
+    if (foreignKeys) {
+      for (const fk of foreignKeys) {
+        map.set(fk.column, fk);
+      }
+    }
+    return map;
+  }, [foreignKeys]);
+
   const [selectedRows, setSelectedRows] = useState<Set<number>>(() => new Set());
   const [editingCol, setEditingCol] = useState<string | null>(null);
   const [filterDraft, setFilterDraft] = useState('');
@@ -625,6 +640,7 @@ export function ResultTable({
                 const colSort = sort?.column === column ? sort.direction : null;
                 const activeFilter = filters?.[column]?.trim() ?? '';
                 const isEditing = editingCol === column;
+                const fk = fkByColumn.get(column);
 
                 return (
                   <th
@@ -634,7 +650,7 @@ export function ResultTable({
                     }}
                     scope="col"
                     style={{
-                      minWidth: minWidthForColumn(column),
+                      minWidth: minWidthForColumn(column) + (fk ? 28 : 0),
                       ...(hasCustomWidths ? { width: columnWidths[column] } : {}),
                     }}
                     className="relative overflow-hidden whitespace-nowrap border-r border-line px-3.5 py-1.5 last:border-r-0"
@@ -662,6 +678,14 @@ export function ResultTable({
                             <span className={activeFilter ? 'font-semibold text-ink' : ''}>
                               {column}
                             </span>
+                            {fk && (
+                              <span
+                                title={`Chave estrangeira → ${fk.referencedSchema}.${fk.referencedTable}(${fk.referencedColumn})`}
+                                className="cursor-help rounded bg-muted px-1 py-0.2 font-mono text-[9px] font-semibold text-ink-secondary"
+                              >
+                                FK
+                              </span>
+                            )}
                             {activeFilter && (
                               <span className="max-w-[120px] truncate rounded bg-muted px-1.5 py-0.2 font-mono text-[10px] font-normal text-ink">
                                 {activeFilter}
@@ -693,7 +717,17 @@ export function ResultTable({
                           )}
                         </div>
                       ) : (
-                        <span>{column}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span>{column}</span>
+                          {fk && (
+                            <span
+                              title={`Chave estrangeira → ${fk.referencedSchema}.${fk.referencedTable}(${fk.referencedColumn})`}
+                              className="cursor-help rounded bg-muted px-1 py-0.2 font-mono text-[9px] font-semibold text-ink-secondary"
+                            >
+                              FK
+                            </span>
+                          )}
+                        </div>
                       )}
 
                       {onSortChange && (
@@ -749,6 +783,15 @@ export function ResultTable({
                     const isCellDirty =
                       pendingEdits[rowIndex] !== undefined &&
                       Object.prototype.hasOwnProperty.call(pendingEdits[rowIndex], cellIndex);
+                    const column = result.columns[cellIndex];
+                    const fk = column ? fkByColumn.get(column) : undefined;
+                    const hasFkLink = Boolean(
+                      fk &&
+                        onNavigateForeignKey &&
+                        effectiveVal !== null &&
+                        effectiveVal !== undefined &&
+                        effectiveVal !== '',
+                    );
 
                     return (
                       <td
@@ -770,6 +813,35 @@ export function ResultTable({
                             <span className="rounded bg-muted px-1 py-0.2 text-[10px] font-medium text-ink-muted">
                               NULL
                             </span>
+                          ) : hasFkLink && fk ? (
+                            <div className="group/cell flex items-center justify-between gap-1.5">
+                              <span className="truncate">{formatCell(effectiveVal)}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onNavigateForeignKey?.(fk, effectiveVal);
+                                }}
+                                title={`Ir para ${fk.referencedTable} (${fk.referencedColumn} = ${formatCell(effectiveVal)})`}
+                                aria-label={`Ir para ${fk.referencedTable} onde ${fk.referencedColumn} é ${formatCell(effectiveVal)}`}
+                                className="inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded text-ink-muted transition-colors hover:bg-cta/15 hover:text-cta"
+                              >
+                                <svg
+                                  viewBox="0 0 16 16"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.75"
+                                  aria-hidden="true"
+                                  className="h-3 w-3"
+                                >
+                                  <path
+                                    d="M6 3.5h6.5V10M12.5 3.5 3.5 12.5"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
                           ) : (
                             formatCell(effectiveVal)
                           )}

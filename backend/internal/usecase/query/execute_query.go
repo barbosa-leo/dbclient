@@ -90,7 +90,7 @@ func (uc *ExecuteQuery) Execute(ctx context.Context, input ExecuteQueryInput) (d
 		limit = MaxRowLimit
 	}
 
-	conn, creds, err := uc.resolver.Execute(ctx, input.ConnectionID)
+	conn, creds, err := uc.resolver.Execute(ctx, domain.User{ID: input.ActorID, Role: input.ActorRole}, input.ConnectionID)
 	if err != nil {
 		return domain.QueryResult{}, err
 	}

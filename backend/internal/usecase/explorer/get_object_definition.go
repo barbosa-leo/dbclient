@@ -22,6 +22,7 @@ func NewGetObjectDefinition(resolver *connection.ResolveCredentials, driver doma
 
 func (uc *GetObjectDefinition) Execute(
 	ctx context.Context,
+	actor domain.User,
 	connectionID int64,
 	schema, category, name string,
 ) (string, error) {
@@ -32,7 +33,7 @@ func (uc *GetObjectDefinition) Execute(
 		return "", domain.NewValidationError("Schema, categoria e nome do objeto são obrigatórios")
 	}
 
-	_, creds, err := uc.resolver.Execute(ctx, connectionID)
+	_, creds, err := uc.resolver.Execute(ctx, actor, connectionID)
 	if err != nil {
 		return "", err
 	}

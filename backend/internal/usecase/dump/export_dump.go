@@ -39,8 +39,8 @@ func NewExportDump(
 	}
 }
 
-func (uc *ExportDump) Execute(ctx context.Context, actorUserID int64, actorUsername string, connectionID int64) (domain.Job, error) {
-	conn, creds, err := uc.resolver.Execute(ctx, connectionID)
+func (uc *ExportDump) Execute(ctx context.Context, actor domain.User, connectionID int64) (domain.Job, error) {
+	conn, creds, err := uc.resolver.Execute(ctx, actor, connectionID)
 	if err != nil {
 		return domain.Job{}, err
 	}
@@ -62,7 +62,7 @@ func (uc *ExportDump) Execute(ctx context.Context, actorUserID int64, actorUsern
 		domain.JobKindDumpExport,
 		fileName,
 		path,
-		actorUserID,
+		actor.ID,
 		conn.ID,
 		conn.Name,
 		creds.Database,
@@ -89,7 +89,7 @@ func (uc *ExportDump) Execute(ctx context.Context, actorUserID int64, actorUsern
 			uc.logger.InfoContext(
 				jobCtx,
 				"audit_execution",
-				slog.String("user", actorUsername),
+				slog.String("user", actor.Email),
 				slog.Int64("connection_id", conn.ID),
 				slog.String("connection_name", conn.Name),
 				slog.String("database", creds.Database),

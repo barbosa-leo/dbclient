@@ -14,6 +14,7 @@ import (
 )
 
 type ImportDumpInput struct {
+	Actor         domain.User
 	ActorUsername string
 	ConnectionID  int64
 	FileName      string
@@ -53,7 +54,7 @@ func (uc *ImportDump) Execute(ctx context.Context, input ImportDumpInput) (domai
 		return domain.Job{}, domain.NewValidationError("Apenas arquivos .sql são permitidos")
 	}
 
-	conn, creds, err := uc.resolver.Execute(ctx, input.ConnectionID)
+	conn, creds, err := uc.resolver.Execute(ctx, input.Actor, input.ConnectionID)
 	if err != nil {
 		return domain.Job{}, err
 	}

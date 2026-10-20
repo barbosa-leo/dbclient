@@ -14,6 +14,7 @@ import (
 )
 
 type RunScriptInput struct {
+	Actor         domain.User
 	ActorUserID   int64
 	ActorUsername string
 	ConnectionID  int64
@@ -57,7 +58,11 @@ func (uc *RunScript) Execute(ctx context.Context, input RunScriptInput) (domain.
 		return domain.Job{}, domain.NewValidationError("Apenas arquivos .sql são permitidos")
 	}
 
-	conn, creds, err := uc.resolver.Execute(ctx, input.ConnectionID)
+	actor := input.Actor
+	if actor.ID == 0 && input.ActorUserID != 0 {
+		actor.ID = input.ActorUserID
+	}
+	conn, creds, err := uc.resolver.Execute(ctx, actor, input.ConnectionID)
 	if err != nil {
 		return domain.Job{}, err
 	}

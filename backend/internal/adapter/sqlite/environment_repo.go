@@ -34,6 +34,32 @@ func (r *EnvironmentRepo) List(ctx context.Context) ([]domain.Environment, error
 	return envs, rows.Err()
 }
 
+func (r *EnvironmentRepo) ListByUser(ctx context.Context, userID int64) ([]domain.Environment, error) {
+	rows, err := r.db.QueryContext(
+		ctx,
+		`SELECT e.id, e.name 
+		 FROM environments e 
+		 INNER JOIN user_environments ue ON e.id = ue.environment_id 
+		 WHERE ue.user_id = ? 
+		 ORDER BY e.id ASC`,
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	envs := make([]domain.Environment, 0)
+	for rows.Next() {
+		var env domain.Environment
+		if err := rows.Scan(&env.ID, &env.Name); err != nil {
+			return nil, err
+		}
+		envs = append(envs, env)
+	}
+	return envs, rows.Err()
+}
+
 func (r *EnvironmentRepo) FindByID(ctx context.Context, id int64) (domain.Environment, error) {
 	var env domain.Environment
 	err := r.db.QueryRowContext(ctx, `SELECT id, name FROM environments WHERE id = ?`, id).Scan(&env.ID, &env.Name)

@@ -8,22 +8,26 @@ import { Button } from '@/components/ui/Button';
 import { SelectField } from '@/components/ui/SelectField';
 import { TextField } from '@/components/ui/TextField';
 import type { Role, User } from '@/services/auth';
+import type { Environment } from '@/services/connections';
 import { createUser, updateUser } from '@/services/users';
 
 interface UserFormProps {
   user: User | null;
+  environments: Environment[];
   onSaved: () => void;
   onCancel: () => void;
 }
 
 const roles: readonly Role[] = ['viewer', 'operator', 'admin'];
 
-export function UserForm({ user, onSaved, onCancel }: UserFormProps) {
+export function UserForm({ user, environments, onSaved, onCancel }: UserFormProps) {
   const [values, setValues] = useState<UserFormValues>({
     name: user?.name ?? '',
     email: user?.email ?? '',
     password: '',
     role: user?.role ?? 'viewer',
+    environmentIds:
+      user?.environmentIds ?? (environments.length === 1 ? environments.map((e) => e.id) : []),
   });
   const [errors, setErrors] = useState<UserFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -45,6 +49,7 @@ export function UserForm({ user, onSaved, onCancel }: UserFormProps) {
           name: values.name.trim(),
           email: values.email.trim(),
           role: values.role,
+          environmentIds: values.role === 'admin' ? [] : values.environmentIds,
           ...(values.password ? { password: values.password } : {}),
         });
       } else {
@@ -53,6 +58,7 @@ export function UserForm({ user, onSaved, onCancel }: UserFormProps) {
           email: values.email.trim(),
           password: values.password,
           role: values.role,
+          environmentIds: values.role === 'admin' ? [] : values.environmentIds,
         });
       }
       onSaved();
@@ -102,6 +108,97 @@ export function UserForm({ user, onSaved, onCancel }: UserFormProps) {
           value={values.role}
           onChange={(e) => setValues({ ...values, role: e.target.value as Role })}
         />
+
+        {values.role === 'admin' ? (
+          <div className="rounded-lg border border-line bg-muted/40 p-3 text-xs text-ink-muted sm:col-span-2">
+            <span className="font-semibold text-ink">Acesso irrestrito:</span> Administradores possuem acesso automático a todos os ambientes e conexões da plataforma.
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-ink-secondary">
+                Ambientes permitidos <span className="text-danger">*</span>
+              </label>
+              {environments.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setValues({ ...values, environmentIds: environments.map((e) => e.id) })
+                    }
+                    className="cursor-pointer text-[11px] font-medium text-cta hover:underline"
+                  >
+                    Selecionar todos
+                  </button>
+                  <span className="text-ink-muted">·</span>
+                  <button
+                    type="button"
+                    onClick={() => setValues({ ...values, environmentIds: [] })}
+                    className="cursor-pointer text-[11px] font-medium text-ink-muted hover:text-ink"
+                  >
+                    Limpar
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {environments.length === 0 ? (
+              <p className="text-xs text-ink-muted">Nenhum ambiente cadastrado na plataforma ainda.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {environments.map((env) => {
+                  const selected = values.environmentIds?.includes(env.id);
+                  return (
+                    <button
+                      key={env.id}
+                      type="button"
+                      onClick={() => {
+                        const current = values.environmentIds ?? [];
+                        const next = current.includes(env.id)
+                          ? current.filter((id) => id !== env.id)
+                          : [...current, env.id];
+                        setValues({ ...values, environmentIds: next });
+                      }}
+                      className={`cursor-pointer inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
+                        selected
+                          ? 'border-cta bg-cta/10 text-ink shadow-sm'
+                          : 'border-line bg-panel text-ink-muted hover:border-line-strong hover:text-ink'
+                      }`}
+                    >
+                      <span
+                        className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${
+                          selected ? 'border-cta bg-cta text-cta-fg' : 'border-line bg-subtle'
+                        }`}
+                      >
+                        {selected && (
+                          <svg
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            aria-hidden="true"
+                            className="h-3 w-3 stroke-current stroke-2"
+                          >
+                            <path
+                              d="M3.5 8.5 6.5 11.5 12.5 4.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </span>
+                      <span>{env.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {errors.environmentIds && (
+              <p role="alert" className="text-xs text-danger">
+                {errors.environmentIds}
+              </p>
+            )}
+          </div>
+        )}
       </div>
       {submitError && (
         <p role="alert" className="mt-4 text-sm text-danger">

@@ -14,6 +14,9 @@ func NewListConnections(connections domain.ConnectionRepository) *ListConnection
 	return &ListConnections{connections: connections}
 }
 
-func (uc *ListConnections) Execute(ctx context.Context, environmentID *int64) ([]domain.Connection, error) {
-	return uc.connections.List(ctx, environmentID)
+func (uc *ListConnections) Execute(ctx context.Context, actor domain.User, environmentID *int64) ([]domain.Connection, error) {
+	if actor.Role == domain.RoleAdmin || actor.Role == "" {
+		return uc.connections.List(ctx, environmentID)
+	}
+	return uc.connections.ListByUser(ctx, actor.ID, environmentID)
 }

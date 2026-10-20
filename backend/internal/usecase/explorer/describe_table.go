@@ -22,6 +22,7 @@ func NewDescribeTable(resolver *connection.ResolveCredentials, driver domain.Dat
 
 func (uc *DescribeTable) Execute(
 	ctx context.Context,
+	actor domain.User,
 	connectionID int64,
 	schema, table string,
 ) (domain.TableStructureInfo, error) {
@@ -31,7 +32,7 @@ func (uc *DescribeTable) Execute(
 		return domain.TableStructureInfo{}, domain.NewValidationError("Schema e tabela são obrigatórios")
 	}
 
-	_, creds, err := uc.resolver.Execute(ctx, connectionID)
+	_, creds, err := uc.resolver.Execute(ctx, actor, connectionID)
 	if err != nil {
 		return domain.TableStructureInfo{}, err
 	}

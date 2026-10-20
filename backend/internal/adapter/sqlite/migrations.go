@@ -226,6 +226,24 @@ INSERT OR IGNORE INTO settings (key, value) VALUES ('history_retention_days', '7
 			return err
 		},
 	},
+	{
+		version: 7,
+		apply: func(ctx context.Context, tx *sql.Tx, hasher domain.PasswordHasher) error {
+			const schema = `
+CREATE TABLE IF NOT EXISTS user_environments (
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	environment_id INTEGER NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
+	PRIMARY KEY (user_id, environment_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_environments_env ON user_environments(environment_id);
+
+INSERT OR IGNORE INTO user_environments (user_id, environment_id)
+SELECT u.id, e.id FROM users u CROSS JOIN environments e WHERE u.role != 'admin';
+`
+			_, err := tx.ExecContext(ctx, schema)
+			return err
+		},
+	},
 }
 
 func runMigrations(ctx context.Context, db *sql.DB, hasher domain.PasswordHasher) error {

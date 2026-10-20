@@ -15,12 +15,13 @@ func (r Role) IsValid() bool {
 }
 
 type User struct {
-	ID                 int64  `json:"id"`
-	Name               string `json:"name"`
-	Email              string `json:"email"`
-	PasswordHash       string `json:"-"`
-	Role               Role   `json:"role"`
-	MustChangePassword bool   `json:"mustChangePassword"`
+	ID                 int64   `json:"id"`
+	Name               string  `json:"name"`
+	Email              string  `json:"email"`
+	PasswordHash       string  `json:"-"`
+	Role               Role    `json:"role"`
+	MustChangePassword bool    `json:"mustChangePassword"`
+	EnvironmentIDs     []int64 `json:"environmentIds"`
 }
 
 type Session struct {

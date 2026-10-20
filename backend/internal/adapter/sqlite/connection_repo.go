@@ -63,6 +63,75 @@ func (r *ConnectionRepo) List(ctx context.Context, environmentID *int64) ([]doma
 	return conns, rows.Err()
 }
 
+func (r *ConnectionRepo) ListByUser(ctx context.Context, userID int64, environmentID *int64) ([]domain.Connection, error) {
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	if environmentID != nil {
+		rows, err = r.db.QueryContext(
+			ctx,
+			`SELECT c.id, c.environment_id, c.name, c.host, c.port, c.database, c.username, c.encrypted_password, c.ssl_mode
+			 FROM connections c
+			 INNER JOIN user_environments ue ON c.environment_id = ue.environment_id
+			 WHERE ue.user_id = ? AND c.environment_id = ? 
+			 ORDER BY c.id ASC`,
+			userID,
+			*environmentID,
+		)
+	} else {
+		rows, err = r.db.QueryContext(
+			ctx,
+			`SELECT c.id, c.environment_id, c.name, c.host, c.port, c.database, c.username, c.encrypted_password, c.ssl_mode
+			 FROM connections c
+			 INNER JOIN user_environments ue ON c.environment_id = ue.environment_id
+			 WHERE ue.user_id = ? 
+			 ORDER BY c.id ASC`,
+			userID,
+		)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	conns := make([]domain.Connection, 0)
+	for rows.Next() {
+		var c domain.Connection
+		var sslMode string
+		if err := rows.Scan(
+			&c.ID,
+			&c.EnvironmentID,
+			&c.Name,
+			&c.Host,
+			&c.Port,
+			&c.Database,
+			&c.Username,
+			&c.EncryptedPassword,
+			&sslMode,
+		); err != nil {
+			return nil, err
+		}
+		c.SSLMode = domain.SSLMode(sslMode)
+		conns = append(conns, c)
+	}
+	return conns, rows.Err()
+}
+
+func (r *ConnectionRepo) HasUserAccess(ctx context.Context, userID int64, connectionID int64) (bool, error) {
+	var count int
+	err := r.db.QueryRowContext(
+		ctx,
+		`SELECT COUNT(*)
+		 FROM connections c
+		 INNER JOIN user_environments ue ON c.environment_id = ue.environment_id
+		 WHERE ue.user_id = ? AND c.id = ?`,
+		userID,
+		connectionID,
+	).Scan(&count)
+	return count > 0, err
+}
+
 func (r *ConnectionRepo) FindByID(ctx context.Context, id int64) (domain.Connection, error) {
 	var c domain.Connection
 	var sslMode string

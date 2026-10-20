@@ -1,6 +1,13 @@
 import type { Role } from '@/services/auth';
 
-export type NavIconName = 'explorer' | 'query' | 'scripts' | 'dumps' | 'connections' | 'users';
+export type NavIconName =
+  | 'explorer'
+  | 'query'
+  | 'scripts'
+  | 'dumps'
+  | 'connections'
+  | 'users'
+  | 'settings';
 
 export interface NavItem {
   href: string;
@@ -35,6 +42,7 @@ export const navSections: NavSection[] = [
     items: [
       { href: '/connections', label: 'Conexões', icon: 'connections' },
       { href: '/users', label: 'Usuários', icon: 'users', roles: ['admin'] },
+      { href: '/settings', label: 'Configurações', icon: 'settings', roles: ['admin'] },
     ],
   },
 ];

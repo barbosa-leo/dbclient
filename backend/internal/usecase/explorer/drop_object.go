@@ -22,6 +22,7 @@ func NewDropObject(resolver *connection.ResolveCredentials, driver domain.Databa
 
 func (uc *DropObject) Execute(
 	ctx context.Context,
+	actor domain.User,
 	connectionID int64,
 	schema, category, name string,
 ) error {
@@ -32,7 +33,7 @@ func (uc *DropObject) Execute(
 		return domain.NewValidationError("Schema, categoria e nome do objeto são obrigatórios")
 	}
 
-	_, creds, err := uc.resolver.Execute(ctx, connectionID)
+	_, creds, err := uc.resolver.Execute(ctx, actor, connectionID)
 	if err != nil {
 		return err
 	}

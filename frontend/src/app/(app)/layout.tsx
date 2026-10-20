@@ -35,8 +35,10 @@ function AppWorkspace({ children }: { children: ReactNode }) {
       <Topbar onOpenMenu={() => setMobileNavOpen(true)} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <Sidebar mobileOpen={mobileNavOpen} onMobileClose={closeMobileNav} />
-        <main className="mx-auto flex min-h-0 w-full max-w-7xl min-w-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4 lg:p-6">
-          {children}
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="mx-auto flex min-h-0 w-full max-w-7xl min-w-0 flex-1 flex-col p-3 sm:p-4 lg:p-6">
+            {children}
+          </div>
         </main>
       </div>
     </div>

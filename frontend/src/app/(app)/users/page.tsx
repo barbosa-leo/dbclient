@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { UserForm } from '@/components/users/UserForm';
 import { UserList } from '@/components/users/UserList';
 import type { User } from '@/services/auth';
+import { listEnvironments, type Environment } from '@/services/connections';
 import { deleteUser, listUsers } from '@/services/users';
 
 type Editing = User | 'new' | null;
@@ -15,13 +16,16 @@ export default function UsersPage() {
   const { user: currentUser } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
   const [users, setUsers] = useState<User[]>([]);
+  const [environments, setEnvironments] = useState<Environment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Editing>(null);
 
   const reload = useCallback(async () => {
     try {
-      setUsers(await listUsers());
+      const [usersData, envsData] = await Promise.all([listUsers(), listEnvironments()]);
+      setUsers(usersData);
+      setEnvironments(envsData);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao carregar usuários');
@@ -66,6 +70,7 @@ export default function UsersPage() {
         <UserForm
           key={editing === 'new' ? 'new' : editing.id}
           user={editing === 'new' ? null : editing}
+          environments={environments}
           onSaved={handleSaved}
           onCancel={() => setEditing(null)}
         />
@@ -82,6 +87,7 @@ export default function UsersPage() {
       ) : (
         <UserList
           users={users}
+          environments={environments}
           currentUserId={currentUser?.id}
           onEdit={setEditing}
           onDelete={handleDelete}

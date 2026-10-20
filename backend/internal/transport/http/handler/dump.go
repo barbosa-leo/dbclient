@@ -14,14 +14,14 @@ type DumpHandler struct {
 	exportDump  *dump.ExportDump
 	importDump  *dump.ImportDump
 	jobs        *job.Manager
-	maxFileSize int64
+	maxFileSize maxFileSizeProvider
 }
 
 func NewDumpHandler(
 	exportDump *dump.ExportDump,
 	importDump *dump.ImportDump,
 	jobs *job.Manager,
-	maxFileSize int64,
+	maxFileSize maxFileSizeProvider,
 ) *DumpHandler {
 	return &DumpHandler{
 		exportDump:  exportDump,
@@ -39,7 +39,7 @@ func (h *DumpHandler) Export(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdJob, err := h.exportDump.Execute(r.Context(), user.ID, user.Email, connID)
+	createdJob, err := h.exportDump.Execute(r.Context(), user, connID)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -71,7 +71,13 @@ func (h *DumpHandler) Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filePart, fileName, err := nextUploadedFilePart(w, r, h.maxFileSize)
+	maxFileSize, err := h.maxFileSize.MaxFileSize(r.Context())
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+
+	filePart, fileName, err := nextUploadedFilePart(w, r, maxFileSize)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -79,6 +85,7 @@ func (h *DumpHandler) Import(w http.ResponseWriter, r *http.Request) {
 	defer filePart.Close()
 
 	createdJob, err := h.importDump.Execute(r.Context(), dump.ImportDumpInput{
+		Actor:         user,
 		ActorUsername: user.Email,
 		ConnectionID:  connID,
 		FileName:      fileName,

@@ -26,6 +26,7 @@ type SessionRepository interface {
 
 type EnvironmentRepository interface {
 	List(ctx context.Context) ([]Environment, error)
+	ListByUser(ctx context.Context, userID int64) ([]Environment, error)
 	FindByID(ctx context.Context, id int64) (Environment, error)
 	Create(ctx context.Context, name string) (Environment, error)
 	Delete(ctx context.Context, id int64) error
@@ -33,11 +34,33 @@ type EnvironmentRepository interface {
 
 type ConnectionRepository interface {
 	List(ctx context.Context, environmentID *int64) ([]Connection, error)
+	ListByUser(ctx context.Context, userID int64, environmentID *int64) ([]Connection, error)
+	HasUserAccess(ctx context.Context, userID int64, connectionID int64) (bool, error)
 	FindByID(ctx context.Context, id int64) (Connection, error)
 	Create(ctx context.Context, conn Connection) (Connection, error)
 	Update(ctx context.Context, conn Connection) (Connection, error)
 	Delete(ctx context.Context, id int64) error
 	CountByEnvironmentID(ctx context.Context, environmentID int64) (int, error)
+}
+
+type ExecutionRecorder interface {
+	Record(ctx context.Context, record ExecutionRecord) error
+}
+
+type ExecutionHistoryRepository interface {
+	ExecutionRecorder
+	RecordWithPurge(ctx context.Context, record ExecutionRecord, purgeBefore time.Time) error
+	DeleteOlderThan(ctx context.Context, before time.Time) error
+	List(ctx context.Context, filter ExecutionHistoryFilter) ([]ExecutionRecord, error)
+}
+
+type SettingsReader interface {
+	Get(ctx context.Context) (Settings, error)
+}
+
+type SettingsRepository interface {
+	SettingsReader
+	Update(ctx context.Context, settings Settings) error
 }
 
 type PasswordHasher interface {

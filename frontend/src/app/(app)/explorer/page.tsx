@@ -273,10 +273,14 @@ function buildTableQuery(
   const conditions = Object.entries(filters)
     .map(([col, val]) => [col, val.trim()] as const)
     .filter(([, val]) => val.length > 0)
-    .map(
-      ([col, val]) =>
-        `CAST(${tableRef}.${quoteIdentifier(col)} AS TEXT) ILIKE '%${escapeSqlLiteral(val)}%'`,
-    );
+    .map(([col, val]) => {
+      if (val.startsWith('=')) {
+        return `CAST(${tableRef}.${quoteIdentifier(col)} AS TEXT) = '${escapeSqlLiteral(
+          val.slice(1).trim(),
+        )}'`;
+      }
+      return `CAST(${tableRef}.${quoteIdentifier(col)} AS TEXT) ILIKE '%${escapeSqlLiteral(val)}%'`;
+    });
 
   let sql = `SELECT * FROM ${tableRef}`;
   if (conditions.length > 0) {
@@ -286,6 +290,19 @@ function buildTableQuery(
     sql += ` ORDER BY ${tableRef}.${quoteIdentifier(sort.column)} ${sort.direction.toUpperCase()}`;
   }
   return sql;
+}
+
+function parseFiltersFromSearchParams(params: URLSearchParams): Record<string, string> {
+  const parsed: Record<string, string> = {};
+  params.forEach((val, key) => {
+    if (key.startsWith('filter_')) {
+      const col = key.slice(7);
+      if (col && val.trim().length > 0) {
+        parsed[col] = val.trim();
+      }
+    }
+  });
+  return parsed;
 }
 
 function ExplorerContent() {
@@ -342,6 +359,12 @@ function ExplorerContent() {
     : isView
       ? 'views'
       : 'tables';
+
+  const filterKey = Array.from(searchParams.entries())
+    .filter((entry) => entry[0]?.startsWith('filter_'))
+    .map((entry) => `${entry[0] ?? ''}=${entry[1] ?? ''}`)
+    .sort()
+    .join('&');
 
   const [autoLimit, setAutoLimit] = useState(MIN_ROW_LIMIT);
   const [limit, setLimit] = useState(MIN_ROW_LIMIT);
@@ -436,6 +459,21 @@ function ExplorerContent() {
     }
   }, [activeId, schema, table, isView]);
 
+  const loadForeignKeys = useCallback(async () => {
+    if (activeId === undefined || !schema || !table || isView) {
+      setForeignKeys([]);
+      return;
+    }
+    try {
+      const struct = await getTableStructure(activeId, schema, table);
+      setColumns(struct.columns);
+      setForeignKeys(struct.foreignKeys ?? []);
+      setIndexes(struct.indexes ?? []);
+    } catch {
+      // Ignora erro para não impedir a exibição dos dados se falhar
+    }
+  }, [activeId, schema, table, isView]);
+
   const loadDefinition = useCallback(async () => {
     if (activeId === undefined || !schema || !objectName) return;
     if (isCreating && categoryParam) {
@@ -470,7 +508,9 @@ function ExplorerContent() {
     setSavedMessage(null);
     setConfirmingDelete(false);
     setSort(null);
-    setFilters({});
+
+    const initialFilters = parseFiltersFromSearchParams(searchParams);
+    setFilters(initialFilters);
     if (!schema || !objectName || activeId === undefined) return;
 
     if (tab === 'definition') {
@@ -479,7 +519,10 @@ function ExplorerContent() {
       const computedAuto = measureAutoLimit();
       setAutoLimit(computedAuto);
       setLimit(computedAuto);
-      void loadData(computedAuto, {}, null);
+      void loadData(computedAuto, initialFilters, null);
+      if (!isView) {
+        void loadForeignKeys();
+      }
     } else {
       void loadStructure();
     }
@@ -489,10 +532,14 @@ function ExplorerContent() {
     schema,
     objectName,
     tab,
+    filterKey,
+    isView,
+    searchParams,
     measureAutoLimit,
     loadData,
     loadStructure,
     loadDefinition,
+    loadForeignKeys,
   ]);
 
   useEffect(() => {
@@ -523,6 +570,24 @@ function ExplorerContent() {
     }
     setFilters(nextFilters);
     void loadData(limit, nextFilters, sort);
+  }
+
+  function handleNavigateForeignKey(fk: ForeignKeyInfo, value: unknown) {
+    if (value === null || value === undefined) return;
+    const stringVal = typeof value === 'object' ? JSON.stringify(value) : String(value);
+    const targetSchema = fk.referencedSchema || schema || 'public';
+    const targetTable = fk.referencedTable;
+    const targetColumn = fk.referencedColumn;
+
+    const params = new URLSearchParams();
+    params.set('schema', targetSchema);
+    params.set('category', 'tables');
+    params.set('table', targetTable);
+    params.set('kind', 'table');
+    params.set('tab', 'data');
+    params.set(`filter_${targetColumn}`, `=${stringVal}`);
+
+    router.push(`/explorer?${params.toString()}`);
   }
 
   async function handleSaveChanges(updates: CellUpdate[]) {
@@ -901,6 +966,8 @@ function ExplorerContent() {
             <ResultTable
               result={dataResult}
               tableName={`${schema}.${table}`}
+              foreignKeys={foreignKeys}
+              onNavigateForeignKey={handleNavigateForeignKey}
               sort={sort}
               onSortChange={handleSortChange}
               filters={filters}

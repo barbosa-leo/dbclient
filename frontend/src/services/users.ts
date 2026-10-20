@@ -6,6 +6,7 @@ export interface UserCreateInput {
   email: string;
   password: string;
   role: Role;
+  environmentIds?: number[];
 }
 
 export interface UserUpdateInput {
@@ -13,6 +14,7 @@ export interface UserUpdateInput {
   email: string;
   role: Role;
   password?: string;
+  environmentIds?: number[];
 }
 
 export function listUsers() {

@@ -9,10 +9,11 @@ import (
 )
 
 type CreateUserInput struct {
-	Name     string
-	Email    string
-	Password string
-	Role     domain.Role
+	Name           string
+	Email          string
+	Password       string
+	Role           domain.Role
+	EnvironmentIDs []int64
 }
 
 type CreateUser struct {
@@ -50,10 +51,18 @@ func (uc *CreateUser) Execute(ctx context.Context, input CreateUserInput) (domai
 	if !input.Role.IsValid() {
 		return domain.User{}, domain.NewValidationError("Papel inválido")
 	}
+	if input.Role != domain.RoleAdmin && len(input.EnvironmentIDs) == 0 {
+		return domain.User{}, domain.NewValidationError("Selecione ao menos um ambiente para o usuário")
+	}
 
 	hash, err := uc.hasher.Hash(input.Password)
 	if err != nil {
 		return domain.User{}, err
+	}
+
+	envIDs := input.EnvironmentIDs
+	if input.Role == domain.RoleAdmin {
+		envIDs = nil
 	}
 
 	return uc.users.Create(ctx, domain.User{
@@ -62,5 +71,6 @@ func (uc *CreateUser) Execute(ctx context.Context, input CreateUserInput) (domai
 		PasswordHash:       hash,
 		Role:               input.Role,
 		MustChangePassword: true,
+		EnvironmentIDs:     envIDs,
 	})
 }

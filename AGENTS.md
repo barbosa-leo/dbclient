@@ -45,7 +45,7 @@ Este documento define as regras estritas de operação, estilo, arquitetura e li
 * Credenciais nunca transitam em logs, respostas da API ou argumentos de linha de comando (usar `PGPASSWORD` no ambiente do processo filho).
 
 ### Dumps e Scripts SQL
-* **Formato único:** apenas arquivos `.sql` em SQL puro (`pg_dump --format=plain`). Limite de `DBCLIENT_MAX_FILE_SIZE` (padrão 50 MB) para uploads e exportações.
+* **Formato único:** apenas arquivos `.sql` em SQL puro (`pg_dump --format=plain`). Limite de tamanho (padrão 50 MB) para uploads e exportações, configurável na página de configurações (admin) e persistido na tabela `settings` do SQLite (populada por migration).
 * **Editor de SQL:** máximo de 5000 caracteres por execução.
 * **Streaming obrigatório:** dumps, uploads e scripts nunca são carregados inteiros em memória; usar `io.Reader`/`io.Writer` ponta a ponta.
 * **Exportação:** executada via `pg_dump` como processo filho, gravando em `DBCLIENT_DUMP_DIR`; o usuário baixa o arquivo depois. Arquivos são temporários e podem ser perdidos ao reiniciar o container.
@@ -53,6 +53,7 @@ Este documento define as regras estritas de operação, estilo, arquitetura e li
 * **Jobs assíncronos:** operações longas rodam como job com status (`pending`, `running`, `done`, `failed`), progresso e cancelamento via `context`.
 * **Limpeza:** arquivos expirados (TTL configurável) são removidos periodicamente.
 * **Auditoria:** toda execução de query, script ou dump é registrada em log estruturado no stdout (usuário, conexão, ação, status, duração).
+* **Histórico de execuções:** persistido na tabela `execution_history` do SQLite (consultas com texto completo, scripts com metadados). Habilitação (padrão true) e tempo máximo de retenção (padrão 7 dias) são configuráveis em `settings`. Registros vencidos são expurgados antes de cada gravação, sem uso de cron.
 
 ### Frontend (Next.js)
 * **Arquitetura de Componentes:** componentes focados e de responsabilidade única.
@@ -71,7 +72,6 @@ Este documento define as regras estritas de operação, estilo, arquitetura e li
 | `DBCLIENT_DUMP_DIR` | não | `/tmp/dbclient` | Diretório temporário de dumps e scripts |
 | `DBCLIENT_DUMP_TTL` | não | `24h` | Tempo até remoção de arquivos temporários |
 | `DBCLIENT_SESSION_TTL` | não | `12h` | Duração da sessão |
-| `DBCLIENT_MAX_FILE_SIZE` | não | `52428800` | Tamanho máximo (bytes) de dumps e scripts |
 
 ---
 

@@ -1,7 +1,23 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ForeignKeyInfo } from '@/services/explorer';
 import type { QueryResult } from '@/services/query';
+
+const DEFAULT_COLUMN_WIDTH = 150;
+const MIN_COLUMN_WIDTH = 50;
+const MAX_INITIAL_COLUMN_WIDTH = 250;
+const HEADER_CHAR_WIDTH = 7;
+const HEADER_CHROME_WIDTH = 64;
+
+function minWidthForColumn(column: string): number {
+  return Math.max(MIN_COLUMN_WIDTH, column.length * HEADER_CHAR_WIDTH + HEADER_CHROME_WIDTH);
+}
+
+function maxWidthForColumn(column: string, hasFk = false): number {
+  const min = minWidthForColumn(column) + (hasFk ? 28 : 0);
+  return Math.max(MAX_INITIAL_COLUMN_WIDTH, min);
+}
 
 export type SortDirection = 'asc' | 'desc';
 
@@ -21,6 +37,8 @@ export interface CellUpdate {
 interface ResultTableProps {
   result: QueryResult;
   tableName?: string;
+  foreignKeys?: ForeignKeyInfo[];
+  onNavigateForeignKey?: (fk: ForeignKeyInfo, value: unknown) => void;
   sort?: ColumnSort | null;
   onSortChange?: (sort: ColumnSort | null) => void;
   filters?: Record<string, string>;
@@ -29,6 +47,7 @@ interface ResultTableProps {
   refreshing?: boolean;
   onSaveChanges?: (updates: CellUpdate[]) => Promise<void> | void;
   savingChanges?: boolean;
+  maxHeight?: string;
 }
 
 function formatCell(value: unknown): string {
@@ -168,6 +187,8 @@ function SortIcon({ direction }: { direction: SortDirection | null }) {
 export function ResultTable({
   result,
   tableName,
+  foreignKeys,
+  onNavigateForeignKey,
   sort = null,
   onSortChange,
   filters,
@@ -176,7 +197,18 @@ export function ResultTable({
   refreshing = false,
   onSaveChanges,
   savingChanges = false,
+  maxHeight,
 }: ResultTableProps) {
+  const fkByColumn = useMemo(() => {
+    const map = new Map<string, ForeignKeyInfo>();
+    if (foreignKeys) {
+      for (const fk of foreignKeys) {
+        map.set(fk.column, fk);
+      }
+    }
+    return map;
+  }, [foreignKeys]);
+
   const [selectedRows, setSelectedRows] = useState<Set<number>>(() => new Set());
   const [editingCol, setEditingCol] = useState<string | null>(null);
   const [filterDraft, setFilterDraft] = useState('');
@@ -188,12 +220,15 @@ export function ResultTable({
   const [copyMenuOpen, setCopyMenuOpen] = useState(false);
   const [copiedFormat, setCopiedFormat] = useState<CopyFormat | null>(null);
   const copyMenuRef = useRef<HTMLDivElement>(null);
+  const headerRefs = useRef<Record<string, HTMLTableCellElement | null>>({});
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setSelectedRows(new Set());
     setEditingCell(null);
     setPendingEdits({});
     setCopyMenuOpen(false);
+    setColumnWidths({});
   }, [result]);
 
   useEffect(() => {
@@ -250,6 +285,51 @@ export function ResultTable({
       }
       return next;
     });
+  }
+
+  const hasCustomWidths = Object.keys(columnWidths).length > 0;
+  const tableWidth = hasCustomWidths
+    ? 40 +
+      result.columns.reduce(
+        (acc, col) =>
+          acc +
+          (columnWidths[col] ??
+            maxWidthForColumn(col, fkByColumn.has(col))),
+        0,
+      )
+    : undefined;
+
+  function startColumnResize(event: React.PointerEvent<HTMLDivElement>, column: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const snapshot: Record<string, number> = {};
+    for (const col of result.columns) {
+      const hasFk = fkByColumn.has(col);
+      const min = minWidthForColumn(col) + (hasFk ? 28 : 0);
+      const currentWidth = headerRefs.current[col]?.offsetWidth;
+      snapshot[col] = currentWidth ? Math.max(min, currentWidth) : min;
+    }
+    const startWidth = snapshot[column] ?? minWidthForColumn(column);
+    setColumnWidths(snapshot);
+
+    function handleMove(moveEvent: PointerEvent) {
+      const min = minWidthForColumn(column) + (fkByColumn.has(column) ? 28 : 0);
+      const width = Math.max(min, startWidth + moveEvent.clientX - startX);
+      setColumnWidths((prev) => ({ ...prev, [column]: width }));
+    }
+
+    function handleUp() {
+      document.removeEventListener('pointermove', handleMove);
+      document.removeEventListener('pointerup', handleUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('pointermove', handleMove);
+    document.addEventListener('pointerup', handleUp);
   }
 
   function cycleSort(column: string) {
@@ -549,8 +629,14 @@ export function ResultTable({
         </div>
       </div>
 
-      <div className="min-h-0 overflow-auto rounded-xl border border-line bg-panel shadow-card">
-        <table className="w-full text-left font-mono text-[11px] leading-tight">
+      <div
+        className="min-h-0 overflow-auto rounded-xl border border-line bg-panel shadow-card"
+        style={maxHeight ? { maxHeight } : undefined}
+      >
+        <table
+          className={`text-left font-mono text-[11px] leading-tight ${hasCustomWidths ? '' : 'w-full'}`}
+          style={hasCustomWidths ? { tableLayout: 'fixed', width: tableWidth } : undefined}
+        >
           <thead className="sticky top-0 z-10 border-b border-line bg-subtle font-sans text-[11px] font-medium text-ink-muted">
             <tr>
               <th
@@ -572,9 +658,33 @@ export function ResultTable({
                 const colSort = sort?.column === column ? sort.direction : null;
                 const activeFilter = filters?.[column]?.trim() ?? '';
                 const isEditing = editingCol === column;
+                const fk = fkByColumn.get(column);
+                const colMinWidth = minWidthForColumn(column) + (fk ? 28 : 0);
+                const colMaxWidth = maxWidthForColumn(column, Boolean(fk));
+                const customWidth = columnWidths[column];
 
                 return (
-                  <th key={column} scope="col" className="whitespace-nowrap px-3.5 py-1.5">
+                  <th
+                    key={column}
+                    ref={(el) => {
+                      headerRefs.current[column] = el;
+                    }}
+                    scope="col"
+                    style={{
+                      minWidth: colMinWidth,
+                      maxWidth: hasCustomWidths ? undefined : colMaxWidth,
+                      ...(hasCustomWidths && customWidth ? { width: customWidth } : {}),
+                    }}
+                    className="relative overflow-hidden whitespace-nowrap border-r border-line px-3.5 py-1.5 last:border-r-0"
+                  >
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label={`Redimensionar coluna ${column}`}
+                      onPointerDown={(e) => startColumnResize(e, column)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none transition-colors hover:bg-line-strong"
+                    />
                     <div className="flex items-center justify-between gap-2">
                       {onFilterChange ? (
                         <div className="relative flex min-w-0 flex-1 items-center">
@@ -590,6 +700,14 @@ export function ResultTable({
                             <span className={activeFilter ? 'font-semibold text-ink' : ''}>
                               {column}
                             </span>
+                            {fk && (
+                              <span
+                                title={`Chave estrangeira → ${fk.referencedSchema}.${fk.referencedTable}(${fk.referencedColumn})`}
+                                className="cursor-help rounded bg-muted px-1 py-0.2 font-mono text-[9px] font-semibold text-ink-secondary"
+                              >
+                                FK
+                              </span>
+                            )}
                             {activeFilter && (
                               <span className="max-w-[120px] truncate rounded bg-muted px-1.5 py-0.2 font-mono text-[10px] font-normal text-ink">
                                 {activeFilter}
@@ -621,7 +739,17 @@ export function ResultTable({
                           )}
                         </div>
                       ) : (
-                        <span>{column}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span>{column}</span>
+                          {fk && (
+                            <span
+                              title={`Chave estrangeira → ${fk.referencedSchema}.${fk.referencedTable}(${fk.referencedColumn})`}
+                              className="cursor-help rounded bg-muted px-1 py-0.2 font-mono text-[9px] font-semibold text-ink-secondary"
+                            >
+                              FK
+                            </span>
+                          )}
+                        </div>
                       )}
 
                       {onSortChange && (
@@ -647,6 +775,7 @@ export function ResultTable({
                   </th>
                 );
               })}
+              {!hasCustomWidths && <th scope="col" aria-hidden="true" className="p-0 border-0" />}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -677,6 +806,26 @@ export function ResultTable({
                     const isCellDirty =
                       pendingEdits[rowIndex] !== undefined &&
                       Object.prototype.hasOwnProperty.call(pendingEdits[rowIndex], cellIndex);
+                    const column = result.columns[cellIndex];
+                    const fk = column ? fkByColumn.get(column) : undefined;
+                    const colMinWidth = column
+                      ? minWidthForColumn(column) + (fk ? 28 : 0)
+                      : MIN_COLUMN_WIDTH;
+                    const colMaxWidth = column
+                      ? maxWidthForColumn(column, Boolean(fk))
+                      : MAX_INITIAL_COLUMN_WIDTH;
+                    const customWidth = column ? columnWidths[column] : undefined;
+                    const hasFkLink = Boolean(
+                      fk &&
+                        onNavigateForeignKey &&
+                        effectiveVal !== null &&
+                        effectiveVal !== undefined &&
+                        effectiveVal !== '',
+                    );
+                    const fullText = effectiveVal === null ? 'NULL' : formatCell(effectiveVal);
+                    const cellTitle = onSaveChanges
+                      ? `${fullText} (duplo clique para editar)`
+                      : fullText;
 
                     return (
                       <td
@@ -686,8 +835,12 @@ export function ResultTable({
                           e.stopPropagation();
                           startCellEditing(rowIndex, cellIndex);
                         }}
-                        title={onSaveChanges ? 'Duplo clique para editar' : undefined}
-                        className={`relative whitespace-nowrap px-3.5 py-1 text-ink ${
+                        title={cellTitle}
+                        style={{
+                          minWidth: colMinWidth,
+                          maxWidth: hasCustomWidths && customWidth ? customWidth : colMaxWidth,
+                        }}
+                        className={`relative whitespace-nowrap px-3.5 py-1 text-ink overflow-hidden text-ellipsis ${
                           isCellDirty ? 'bg-online/10 font-semibold' : ''
                         }`}
                       >
@@ -696,6 +849,35 @@ export function ResultTable({
                             <span className="rounded bg-muted px-1 py-0.2 text-[10px] font-medium text-ink-muted">
                               NULL
                             </span>
+                          ) : hasFkLink && fk ? (
+                            <div className="group/cell flex items-center justify-between gap-1.5">
+                              <span className="truncate">{formatCell(effectiveVal)}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onNavigateForeignKey?.(fk, effectiveVal);
+                                }}
+                                title={`Ir para ${fk.referencedTable} (${fk.referencedColumn} = ${formatCell(effectiveVal)})`}
+                                aria-label={`Ir para ${fk.referencedTable} onde ${fk.referencedColumn} é ${formatCell(effectiveVal)}`}
+                                className="inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded text-ink-muted transition-colors hover:bg-cta/15 hover:text-cta"
+                              >
+                                <svg
+                                  viewBox="0 0 16 16"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.75"
+                                  aria-hidden="true"
+                                  className="h-3 w-3"
+                                >
+                                  <path
+                                    d="M6 3.5h6.5V10M12.5 3.5 3.5 12.5"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
                           ) : (
                             formatCell(effectiveVal)
                           )}
@@ -728,6 +910,7 @@ export function ResultTable({
                       </td>
                     );
                   })}
+                  {!hasCustomWidths && <td aria-hidden="true" className="p-0 border-0" />}
                 </tr>
               );
             })}

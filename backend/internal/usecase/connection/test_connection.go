@@ -7,6 +7,7 @@ import (
 )
 
 type TestConnectionInput struct {
+	Actor        domain.User
 	ConnectionID *int64
 	Host         string
 	Port         int
@@ -39,7 +40,7 @@ func (uc *TestConnection) Execute(ctx context.Context, input TestConnectionInput
 	}
 
 	if input.ConnectionID != nil && *input.ConnectionID > 0 {
-		_, resolved, err := uc.resolver.Execute(ctx, *input.ConnectionID)
+		_, resolved, err := uc.resolver.Execute(ctx, input.Actor, *input.ConnectionID)
 		if err != nil {
 			return err
 		}

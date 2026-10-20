@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -12,12 +13,16 @@ import (
 	"dbclient/backend/internal/usecase/script"
 )
 
-type ScriptHandler struct {
-	runScript   *script.RunScript
-	maxFileSize int64
+type maxFileSizeProvider interface {
+	MaxFileSize(ctx context.Context) (int64, error)
 }
 
-func NewScriptHandler(runScript *script.RunScript, maxFileSize int64) *ScriptHandler {
+type ScriptHandler struct {
+	runScript   *script.RunScript
+	maxFileSize maxFileSizeProvider
+}
+
+func NewScriptHandler(runScript *script.RunScript, maxFileSize maxFileSizeProvider) *ScriptHandler {
 	return &ScriptHandler{
 		runScript:   runScript,
 		maxFileSize: maxFileSize,
@@ -32,7 +37,13 @@ func (h *ScriptHandler) Run(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filePart, fileName, err := nextUploadedFilePart(w, r, h.maxFileSize)
+	maxFileSize, err := h.maxFileSize.MaxFileSize(r.Context())
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+
+	filePart, fileName, err := nextUploadedFilePart(w, r, maxFileSize)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -40,6 +51,7 @@ func (h *ScriptHandler) Run(w http.ResponseWriter, r *http.Request) {
 	defer filePart.Close()
 
 	createdJob, err := h.runScript.Execute(r.Context(), script.RunScriptInput{
+		Actor:         user,
 		ActorUserID:   user.ID,
 		ActorUsername: user.Email,
 		ConnectionID:  connID,

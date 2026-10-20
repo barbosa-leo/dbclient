@@ -15,9 +15,12 @@ import (
 type RouterDeps struct {
 	Logger        *slog.Logger
 	AuthSession   *auth.AuthenticateSession
+	RateLimiter   *middleware.RateLimiter
 	Health        *handler.HealthHandler
 	Auth          *handler.AuthHandler
 	Users         *handler.UserHandler
+	Settings      *handler.SettingsHandler
+	History       *handler.HistoryHandler
 	Environments  *handler.EnvironmentHandler
 	Connections   *handler.ConnectionHandler
 	Explorer      *handler.ExplorerHandler
@@ -54,6 +57,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("PUT /api/users/{id}", requireAdmin(deps.Users.Update))
 	mux.Handle("DELETE /api/users/{id}", requireAdmin(deps.Users.Delete))
 
+	mux.Handle("GET /api/settings", requireAdmin(deps.Settings.Get))
+	mux.Handle("PUT /api/settings", requireAdmin(deps.Settings.Update))
+
 	mux.Handle("GET /api/environments", requireViewer(deps.Environments.List))
 	mux.Handle("POST /api/environments", requireAdmin(deps.Environments.Create))
 	mux.Handle("DELETE /api/environments/{id}", requireAdmin(deps.Environments.Delete))
@@ -71,6 +77,8 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("GET /api/connections/{id}/schemas/{schema}/objects/{category}/{name}/definition", requireViewer(deps.Explorer.ObjectDefinition))
 	mux.Handle("DELETE /api/connections/{id}/schemas/{schema}/objects/{category}/{name}", requireOperator(deps.Explorer.DropObject))
 
+	mux.Handle("GET /api/history", requireViewer(deps.History.List))
+
 	mux.Handle("POST /api/connections/{id}/query", requireViewer(deps.Query.Execute))
 	mux.Handle("POST /api/connections/{id}/scripts", requireOperator(deps.Script.Run))
 
@@ -85,7 +93,12 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 	mux.Handle("/", newSPAHandler(deps.FrontendFiles))
 
-	return middleware.Logging(deps.Logger)(mux)
+	var handler http.Handler = mux
+	if deps.RateLimiter != nil {
+		handler = deps.RateLimiter.Middleware()(handler)
+	}
+
+	return middleware.Logging(deps.Logger)(handler)
 }
 
 func newSPAHandler(distFS fs.FS) http.Handler {

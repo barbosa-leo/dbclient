@@ -173,6 +173,77 @@ CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 			return err
 		},
 	},
+	{
+		version: 4,
+		apply: func(ctx context.Context, tx *sql.Tx, hasher domain.PasswordHasher) error {
+			const settingsSchema = `
+CREATE TABLE IF NOT EXISTS settings (
+	key TEXT PRIMARY KEY,
+	value TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO settings (key, value) VALUES ('max_file_size', '52428800');
+`
+			_, err := tx.ExecContext(ctx, settingsSchema)
+			return err
+		},
+	},
+	{
+		version: 5,
+		apply: func(ctx context.Context, tx *sql.Tx, hasher domain.PasswordHasher) error {
+			const historySchema = `
+CREATE TABLE IF NOT EXISTS execution_history (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	kind TEXT NOT NULL CHECK (kind IN ('query', 'script')),
+	connection_id INTEGER NOT NULL,
+	connection_name TEXT NOT NULL,
+	database TEXT NOT NULL,
+	sql_text TEXT NOT NULL DEFAULT '',
+	file_name TEXT NOT NULL DEFAULT '',
+	file_size INTEGER NOT NULL DEFAULT 0,
+	success INTEGER NOT NULL,
+	error TEXT NOT NULL DEFAULT '',
+	duration_ms INTEGER NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_execution_history_user_kind ON execution_history(user_id, kind, id DESC);
+CREATE INDEX IF NOT EXISTS idx_execution_history_kind ON execution_history(kind, id DESC);
+`
+			_, err := tx.ExecContext(ctx, historySchema)
+			return err
+		},
+	},
+	{
+		version: 6,
+		apply: func(ctx context.Context, tx *sql.Tx, hasher domain.PasswordHasher) error {
+			const settingsSeed = `
+INSERT OR IGNORE INTO settings (key, value) VALUES ('history_enabled', 'true');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('history_retention_days', '7');
+`
+			_, err := tx.ExecContext(ctx, settingsSeed)
+			return err
+		},
+	},
+	{
+		version: 7,
+		apply: func(ctx context.Context, tx *sql.Tx, hasher domain.PasswordHasher) error {
+			const schema = `
+CREATE TABLE IF NOT EXISTS user_environments (
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	environment_id INTEGER NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
+	PRIMARY KEY (user_id, environment_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_environments_env ON user_environments(environment_id);
+
+INSERT OR IGNORE INTO user_environments (user_id, environment_id)
+SELECT u.id, e.id FROM users u CROSS JOIN environments e WHERE u.role != 'admin';
+`
+			_, err := tx.ExecContext(ctx, schema)
+			return err
+		},
+	},
 }
 
 func runMigrations(ctx context.Context, db *sql.DB, hasher domain.PasswordHasher) error {

@@ -1,8 +1,10 @@
 import { Button } from '@/components/ui/Button';
 import type { User } from '@/services/auth';
+import type { Environment } from '@/services/connections';
 
 interface UserListProps {
   users: User[];
+  environments: Environment[];
   currentUserId: number | undefined;
   onEdit: (user: User) => void;
   onDelete: (user: User) => void;
@@ -20,7 +22,59 @@ function UserStatus({ user }: { user: User }) {
   );
 }
 
-export function UserList({ users, currentUserId, onEdit, onDelete }: UserListProps) {
+function UserEnvironments({ user, environments }: { user: User; environments: Environment[] }) {
+  if (user.role === 'admin') {
+    return (
+      <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-medium text-ink">
+        Todos (Admin)
+      </span>
+    );
+  }
+
+  const assigned = environments.filter((e) => user.environmentIds?.includes(e.id));
+  if (assigned.length === 0) {
+    return <span className="text-[11px] text-danger">Nenhum</span>;
+  }
+
+  if (assigned.length <= 2) {
+    return (
+      <div className="flex flex-wrap gap-1">
+        {assigned.map((e) => (
+          <span
+            key={e.id}
+            className="rounded border border-line bg-subtle px-1.5 py-0.2 font-mono text-[10px] text-ink"
+          >
+            {e.name}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  const firstTwo = assigned.slice(0, 2);
+  const remainingNames = assigned.slice(2).map((e) => e.name).join(', ');
+
+  return (
+    <div className="flex items-center gap-1">
+      {firstTwo.map((e) => (
+        <span
+          key={e.id}
+          className="rounded border border-line bg-subtle px-1.5 py-0.2 font-mono text-[10px] text-ink"
+        >
+          {e.name}
+        </span>
+      ))}
+      <span
+        title={remainingNames}
+        className="cursor-help rounded bg-muted px-1.5 py-0.2 font-mono text-[10px] font-medium text-ink-secondary"
+      >
+        +{assigned.length - 2}
+      </span>
+    </div>
+  );
+}
+
+export function UserList({ users, environments, currentUserId, onEdit, onDelete }: UserListProps) {
   return (
     <>
       <ul className="flex flex-col gap-3 md:hidden">
@@ -33,9 +87,13 @@ export function UserList({ users, currentUserId, onEdit, onDelete }: UserListPro
               </span>
             </div>
             <p className="mt-1 font-mono text-[11px] break-all text-ink-secondary">{user.email}</p>
-            <p className="mt-0.5 text-[11px] text-ink-secondary">
-              <UserStatus user={user} />
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <UserEnvironments user={user} environments={environments} />
+              <span className="text-ink-muted">·</span>
+              <span className="text-[11px] text-ink-secondary">
+                <UserStatus user={user} />
+              </span>
+            </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <Button variant="secondary" className="min-h-10" onClick={() => onEdit(user)}>
                 Editar
@@ -60,6 +118,7 @@ export function UserList({ users, currentUserId, onEdit, onDelete }: UserListPro
               <th className="px-4 py-1.5">Nome</th>
               <th className="px-4 py-1.5">E-mail</th>
               <th className="px-4 py-1.5">Papel</th>
+              <th className="px-4 py-1.5">Ambientes</th>
               <th className="px-4 py-1.5">Situação</th>
               <th className="px-4 py-1.5 text-right">Ações</th>
             </tr>
@@ -73,6 +132,9 @@ export function UserList({ users, currentUserId, onEdit, onDelete }: UserListPro
                   <span className="rounded bg-muted px-1.5 py-0.2 text-[10px] font-medium text-ink-secondary uppercase">
                     {user.role}
                   </span>
+                </td>
+                <td className="px-4 py-1.5">
+                  <UserEnvironments user={user} environments={environments} />
                 </td>
                 <td className="px-4 py-1.5 text-[11px] text-ink-secondary">
                   <UserStatus user={user} />

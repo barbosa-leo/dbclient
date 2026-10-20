@@ -8,6 +8,7 @@ export interface User {
   email: string;
   role: Role;
   mustChangePassword: boolean;
+  environmentIds?: number[];
 }
 
 export function login(email: string, password: string) {

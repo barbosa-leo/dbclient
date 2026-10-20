@@ -15,18 +15,60 @@ func (r Role) IsValid() bool {
 }
 
 type User struct {
-	ID                 int64  `json:"id"`
-	Name               string `json:"name"`
-	Email              string `json:"email"`
-	PasswordHash       string `json:"-"`
-	Role               Role   `json:"role"`
-	MustChangePassword bool   `json:"mustChangePassword"`
+	ID                 int64   `json:"id"`
+	Name               string  `json:"name"`
+	Email              string  `json:"email"`
+	PasswordHash       string  `json:"-"`
+	Role               Role    `json:"role"`
+	MustChangePassword bool    `json:"mustChangePassword"`
+	EnvironmentIDs     []int64 `json:"environmentIds"`
 }
 
 type Session struct {
 	Token     string
 	UserID    int64
 	ExpiresAt time.Time
+}
+
+type ExecutionKind string
+
+const (
+	ExecutionKindQuery  ExecutionKind = "query"
+	ExecutionKindScript ExecutionKind = "script"
+)
+
+func (k ExecutionKind) IsValid() bool {
+	return k == ExecutionKindQuery || k == ExecutionKindScript
+}
+
+type ExecutionRecord struct {
+	ID             int64         `json:"id"`
+	UserID         int64         `json:"-"`
+	UserEmail      string        `json:"userEmail"`
+	Kind           ExecutionKind `json:"kind"`
+	ConnectionID   int64         `json:"connectionId"`
+	ConnectionName string        `json:"connectionName"`
+	Database       string        `json:"database"`
+	SQL            string        `json:"sql,omitempty"`
+	FileName       string        `json:"fileName,omitempty"`
+	FileSize       int64         `json:"fileSize,omitempty"`
+	Success        bool          `json:"success"`
+	Error          string        `json:"error,omitempty"`
+	DurationMs     int64         `json:"durationMs"`
+	CreatedAt      time.Time     `json:"createdAt"`
+}
+
+type ExecutionHistoryFilter struct {
+	Kind   ExecutionKind
+	UserID *int64
+	Limit  int
+	Since  *time.Time
+}
+
+type Settings struct {
+	MaxFileSize          int64 `json:"maxFileSize"`
+	HistoryEnabled       bool  `json:"historyEnabled"`
+	HistoryRetentionDays int   `json:"historyRetentionDays"`
 }
 
 type SSLMode string

@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
+import { ExecutionHistory } from '@/components/history/ExecutionHistory';
 import { JobStatusCard } from '@/components/jobs/JobStatusCard';
 import { useJobPolling } from '@/components/jobs/useJobPolling';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -202,6 +203,11 @@ export default function ScriptsPage() {
       </form>
 
       {job && <JobStatusCard job={job} onCancel={handleCancel} canceling={canceling} />}
+
+      <ExecutionHistory
+        kind="script"
+        refreshKey={job && isJobFinished(job) ? `${job.id}:${job.status}` : 'idle'}
+      />
     </div>
   );
 }

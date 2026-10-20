@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"dbclient/backend/internal/domain"
+	"dbclient/backend/internal/transport/http/middleware"
 	"dbclient/backend/internal/usecase/connection"
 )
 
@@ -51,7 +52,8 @@ func (h *ConnectionHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	conns, err := h.listConnections.Execute(r.Context(), envID)
+	actor, _ := middleware.UserFromContext(r.Context())
+	conns, err := h.listConnections.Execute(r.Context(), actor, envID)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -142,7 +144,9 @@ func (h *ConnectionHandler) Test(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	actor, _ := middleware.UserFromContext(r.Context())
 	err := h.testConnection.Execute(r.Context(), connection.TestConnectionInput{
+		Actor:        actor,
 		ConnectionID: body.ConnectionID,
 		Host:         body.Host,
 		Port:         body.Port,
@@ -166,7 +170,9 @@ func (h *ConnectionHandler) TestByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	actor, _ := middleware.UserFromContext(r.Context())
 	err = h.testConnection.Execute(r.Context(), connection.TestConnectionInput{
+		Actor:        actor,
 		ConnectionID: &id,
 	})
 	if err != nil {

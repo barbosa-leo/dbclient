@@ -18,14 +18,17 @@ import (
 	"dbclient/backend/internal/config"
 	transporthttp "dbclient/backend/internal/transport/http"
 	"dbclient/backend/internal/transport/http/handler"
+	"dbclient/backend/internal/transport/http/middleware"
 	"dbclient/backend/internal/usecase/auth"
 	"dbclient/backend/internal/usecase/connection"
 	"dbclient/backend/internal/usecase/dump"
 	"dbclient/backend/internal/usecase/environment"
 	"dbclient/backend/internal/usecase/explorer"
+	"dbclient/backend/internal/usecase/history"
 	"dbclient/backend/internal/usecase/job"
 	"dbclient/backend/internal/usecase/query"
 	"dbclient/backend/internal/usecase/script"
+	"dbclient/backend/internal/usecase/settings"
 	"dbclient/backend/internal/usecase/user"
 	"dbclient/backend/web"
 )
@@ -67,6 +70,8 @@ func main() {
 	sessionRepo := sqlite.NewSessionRepository(db)
 	environmentRepo := sqlite.NewEnvironmentRepository(db)
 	connectionRepo := sqlite.NewConnectionRepository(db)
+	settingsRepo := sqlite.NewSettingsRepository(db)
+	historyRepo := sqlite.NewExecutionHistoryRepository(db)
 
 	pgDriver := dbdriver.NewPostgresDriver()
 	pgDumper := dumper.NewPostgresDumper()
@@ -81,6 +86,12 @@ func main() {
 	createUserUC := user.NewCreateUser(userRepo, hasher)
 	updateUserUC := user.NewUpdateUser(userRepo, hasher)
 	deleteUserUC := user.NewDeleteUser(userRepo, sessionRepo)
+
+	getSettingsUC := settings.NewGetSettings(settingsRepo)
+	updateSettingsUC := settings.NewUpdateSettings(settingsRepo)
+
+	recordExecutionUC := history.NewRecordExecution(settingsRepo, historyRepo, logger)
+	listHistoryUC := history.NewListHistory(historyRepo, settingsRepo)
 
 	listEnvironmentsUC := environment.NewListEnvironments(environmentRepo)
 	createEnvironmentUC := environment.NewCreateEnvironment(environmentRepo)
@@ -99,25 +110,36 @@ func main() {
 	getObjectDefUC := explorer.NewGetObjectDefinition(resolveCredsUC, pgDriver)
 	dropObjectUC := explorer.NewDropObject(resolveCredsUC, pgDriver)
 
-	executeQueryUC := query.NewExecuteQuery(resolveCredsUC, pgDriver, logger)
-	runScriptUC := script.NewRunScript(resolveCredsUC, pgDumper, files, jobManager, cfg.MaxFileSize, logger)
-	exportDumpUC := dump.NewExportDump(resolveCredsUC, pgDumper, files, jobManager, cfg.MaxFileSize, logger)
-	importDumpUC := dump.NewImportDump(resolveCredsUC, pgDumper, files, jobManager, cfg.MaxFileSize, logger)
+	executeQueryUC := query.NewExecuteQuery(resolveCredsUC, pgDriver, recordExecutionUC, logger)
+	runScriptUC := script.NewRunScript(resolveCredsUC, pgDumper, files, jobManager, settingsRepo, recordExecutionUC, logger)
+	exportDumpUC := dump.NewExportDump(resolveCredsUC, pgDumper, files, jobManager, settingsRepo, logger)
+	importDumpUC := dump.NewImportDump(resolveCredsUC, pgDumper, files, jobManager, settingsRepo, logger)
 
 	frontendFS, _ := web.DistFS()
+
+	rateLimiter := middleware.NewRateLimiter(middleware.RateLimiterConfig{
+		Enabled:   cfg.RateLimitEnabled,
+		APIRate:   cfg.RateLimitAPI,
+		AuthRate:  cfg.RateLimitAuth,
+		QueryRate: cfg.RateLimitQuery,
+	})
+	defer rateLimiter.Stop()
 
 	router := transporthttp.NewRouter(transporthttp.RouterDeps{
 		Logger:        logger,
 		AuthSession:   authSessionUC,
+		RateLimiter:   rateLimiter,
 		Health:        handler.NewHealthHandler(db),
 		Auth:          handler.NewAuthHandler(loginUC, logoutUC, changePasswordUC),
 		Users:         handler.NewUserHandler(listUsersUC, createUserUC, updateUserUC, deleteUserUC),
+		Settings:      handler.NewSettingsHandler(getSettingsUC, updateSettingsUC),
+		History:       handler.NewHistoryHandler(listHistoryUC),
 		Environments:  handler.NewEnvironmentHandler(listEnvironmentsUC, createEnvironmentUC, deleteEnvironmentUC),
 		Connections:   handler.NewConnectionHandler(listConnectionsUC, createConnectionUC, updateConnectionUC, deleteConnectionUC, testConnectionUC),
 		Explorer:      handler.NewExplorerHandler(listSchemasUC, listColumnsUC, describeTableUC, getObjectDefUC, dropObjectUC),
 		Query:         handler.NewQueryHandler(executeQueryUC),
-		Script:        handler.NewScriptHandler(runScriptUC, cfg.MaxFileSize),
-		Dump:          handler.NewDumpHandler(exportDumpUC, importDumpUC, jobManager, cfg.MaxFileSize),
+		Script:        handler.NewScriptHandler(runScriptUC, getSettingsUC),
+		Dump:          handler.NewDumpHandler(exportDumpUC, importDumpUC, jobManager, getSettingsUC),
 		FrontendFiles: frontendFS,
 	})
 

@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"dbclient/backend/internal/transport/http/middleware"
 	"dbclient/backend/internal/usecase/environment"
 )
 
@@ -25,7 +26,8 @@ func NewEnvironmentHandler(
 }
 
 func (h *EnvironmentHandler) List(w http.ResponseWriter, r *http.Request) {
-	envs, err := h.listEnvironments.Execute(r.Context())
+	actor, _ := middleware.UserFromContext(r.Context())
+	envs, err := h.listEnvironments.Execute(r.Context(), actor)
 	if err != nil {
 		writeDomainError(w, err)
 		return

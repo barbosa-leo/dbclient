@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"dbclient/backend/internal/transport/http/middleware"
 	"dbclient/backend/internal/usecase/explorer"
 )
 
@@ -37,7 +38,8 @@ func (h *ExplorerHandler) Schemas(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schemas, err := h.listSchemas.Execute(r.Context(), connID)
+	actor, _ := middleware.UserFromContext(r.Context())
+	schemas, err := h.listSchemas.Execute(r.Context(), actor, connID)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -55,7 +57,8 @@ func (h *ExplorerHandler) Columns(w http.ResponseWriter, r *http.Request) {
 	schema := r.PathValue("schema")
 	table := r.PathValue("table")
 
-	columns, err := h.listColumns.Execute(r.Context(), connID, schema, table)
+	actor, _ := middleware.UserFromContext(r.Context())
+	columns, err := h.listColumns.Execute(r.Context(), actor, connID, schema, table)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -73,7 +76,8 @@ func (h *ExplorerHandler) Structure(w http.ResponseWriter, r *http.Request) {
 	schema := r.PathValue("schema")
 	table := r.PathValue("table")
 
-	structure, err := h.describeTable.Execute(r.Context(), connID, schema, table)
+	actor, _ := middleware.UserFromContext(r.Context())
+	structure, err := h.describeTable.Execute(r.Context(), actor, connID, schema, table)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -92,7 +96,8 @@ func (h *ExplorerHandler) ObjectDefinition(w http.ResponseWriter, r *http.Reques
 	category := r.PathValue("category")
 	name := r.PathValue("name")
 
-	definition, err := h.getObjectDefinition.Execute(r.Context(), connID, schema, category, name)
+	actor, _ := middleware.UserFromContext(r.Context())
+	definition, err := h.getObjectDefinition.Execute(r.Context(), actor, connID, schema, category, name)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -111,7 +116,8 @@ func (h *ExplorerHandler) DropObject(w http.ResponseWriter, r *http.Request) {
 	category := r.PathValue("category")
 	name := r.PathValue("name")
 
-	if err := h.dropObject.Execute(r.Context(), connID, schema, category, name); err != nil {
+	actor, _ := middleware.UserFromContext(r.Context())
+	if err := h.dropObject.Execute(r.Context(), actor, connID, schema, category, name); err != nil {
 		writeDomainError(w, err)
 		return
 	}

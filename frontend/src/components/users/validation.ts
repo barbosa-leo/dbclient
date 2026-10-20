@@ -5,6 +5,7 @@ export interface UserFormValues {
   email: string;
   password: string;
   role: Role;
+  environmentIds?: number[];
 }
 
 export type UserFormErrors = Partial<Record<keyof UserFormValues, string>>;
@@ -31,6 +32,10 @@ export function validateUser(values: UserFormValues, options: { isEditing: boole
     errors.password = 'Campo obrigatório';
   } else if (values.password && values.password.length < MIN_PASSWORD_LENGTH) {
     errors.password = `A senha deve ter ao menos ${MIN_PASSWORD_LENGTH} caracteres`;
+  }
+
+  if (values.role !== 'admin' && (!values.environmentIds || values.environmentIds.length === 0)) {
+    errors.environmentIds = 'Selecione ao menos um ambiente';
   }
 
   return errors;

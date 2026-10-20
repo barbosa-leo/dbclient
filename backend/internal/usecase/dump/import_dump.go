@@ -14,6 +14,7 @@ import (
 )
 
 type ImportDumpInput struct {
+	Actor         domain.User
 	ActorUsername string
 	ConnectionID  int64
 	FileName      string
@@ -21,12 +22,12 @@ type ImportDumpInput struct {
 }
 
 type ImportDump struct {
-	resolver    *connection.ResolveCredentials
-	dumper      domain.Dumper
-	files       domain.FileStore
-	jobs        *job.Manager
-	maxFileSize int64
-	logger      *slog.Logger
+	resolver *connection.ResolveCredentials
+	dumper   domain.Dumper
+	files    domain.FileStore
+	jobs     *job.Manager
+	settings domain.SettingsReader
+	logger   *slog.Logger
 }
 
 func NewImportDump(
@@ -34,16 +35,16 @@ func NewImportDump(
 	dumper domain.Dumper,
 	files domain.FileStore,
 	jobs *job.Manager,
-	maxFileSize int64,
+	settings domain.SettingsReader,
 	logger *slog.Logger,
 ) *ImportDump {
 	return &ImportDump{
-		resolver:    resolver,
-		dumper:      dumper,
-		files:       files,
-		jobs:        jobs,
-		maxFileSize: maxFileSize,
-		logger:      logger,
+		resolver: resolver,
+		dumper:   dumper,
+		files:    files,
+		jobs:     jobs,
+		settings: settings,
+		logger:   logger,
 	}
 }
 
@@ -53,12 +54,17 @@ func (uc *ImportDump) Execute(ctx context.Context, input ImportDumpInput) (domai
 		return domain.Job{}, domain.NewValidationError("Apenas arquivos .sql são permitidos")
 	}
 
-	conn, creds, err := uc.resolver.Execute(ctx, input.ConnectionID)
+	conn, creds, err := uc.resolver.Execute(ctx, input.Actor, input.ConnectionID)
 	if err != nil {
 		return domain.Job{}, err
 	}
 
-	savedPath, err := uc.files.SaveStream(ctx, "dump-import", input.Content, uc.maxFileSize)
+	current, err := uc.settings.Get(ctx)
+	if err != nil {
+		return domain.Job{}, err
+	}
+
+	savedPath, err := uc.files.SaveStream(ctx, "dump-import", input.Content, current.MaxFileSize)
 	if err != nil {
 		return domain.Job{}, err
 	}

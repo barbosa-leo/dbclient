@@ -22,9 +22,11 @@ import (
 	"dbclient/backend/internal/usecase/dump"
 	"dbclient/backend/internal/usecase/environment"
 	"dbclient/backend/internal/usecase/explorer"
+	"dbclient/backend/internal/usecase/history"
 	"dbclient/backend/internal/usecase/job"
 	"dbclient/backend/internal/usecase/query"
 	"dbclient/backend/internal/usecase/script"
+	"dbclient/backend/internal/usecase/settings"
 	"dbclient/backend/internal/usecase/user"
 )
 
@@ -116,6 +118,8 @@ func TestEndToEndFlow(t *testing.T) {
 	sessionRepo := sqlite.NewSessionRepository(db)
 	envRepo := sqlite.NewEnvironmentRepository(db)
 	connRepo := sqlite.NewConnectionRepository(db)
+	settingsRepo := sqlite.NewSettingsRepository(db)
+	historyRepo := sqlite.NewExecutionHistoryRepository(db)
 
 	drv := &fakeDriver{}
 	dmp := &fakeDumper{}
@@ -131,6 +135,12 @@ func TestEndToEndFlow(t *testing.T) {
 	createUserUC := user.NewCreateUser(userRepo, hasher)
 	updateUserUC := user.NewUpdateUser(userRepo, hasher)
 	deleteUserUC := user.NewDeleteUser(userRepo, sessionRepo)
+
+	getSettingsUC := settings.NewGetSettings(settingsRepo)
+	updateSettingsUC := settings.NewUpdateSettings(settingsRepo)
+
+	recordExecutionUC := history.NewRecordExecution(settingsRepo, historyRepo, logger)
+	listHistoryUC := history.NewListHistory(historyRepo, settingsRepo)
 
 	listEnvsUC := environment.NewListEnvironments(envRepo)
 	createEnvUC := environment.NewCreateEnvironment(envRepo)
@@ -149,6 +159,8 @@ func TestEndToEndFlow(t *testing.T) {
 		Health:       handler.NewHealthHandler(db),
 		Auth:         handler.NewAuthHandler(loginUC, logoutUC, changePassUC),
 		Users:        handler.NewUserHandler(listUsersUC, createUserUC, updateUserUC, deleteUserUC),
+		Settings:     handler.NewSettingsHandler(getSettingsUC, updateSettingsUC),
+		History:      handler.NewHistoryHandler(listHistoryUC),
 		Environments: handler.NewEnvironmentHandler(listEnvsUC, createEnvUC, deleteEnvUC),
 		Connections:  handler.NewConnectionHandler(listConnsUC, createConnUC, updateConnUC, deleteConnUC, testConnUC),
 		Explorer: handler.NewExplorerHandler(
@@ -158,13 +170,13 @@ func TestEndToEndFlow(t *testing.T) {
 			explorer.NewGetObjectDefinition(resolveUC, drv),
 			explorer.NewDropObject(resolveUC, drv),
 		),
-		Query:  handler.NewQueryHandler(query.NewExecuteQuery(resolveUC, drv, logger)),
-		Script: handler.NewScriptHandler(script.NewRunScript(resolveUC, dmp, files, jobs, 1024*1024, logger), 1024*1024),
+		Query:  handler.NewQueryHandler(query.NewExecuteQuery(resolveUC, drv, recordExecutionUC, logger)),
+		Script: handler.NewScriptHandler(script.NewRunScript(resolveUC, dmp, files, jobs, settingsRepo, recordExecutionUC, logger), getSettingsUC),
 		Dump: handler.NewDumpHandler(
-			dump.NewExportDump(resolveUC, dmp, files, jobs, 1024*1024, logger),
-			dump.NewImportDump(resolveUC, dmp, files, jobs, 1024*1024, logger),
+			dump.NewExportDump(resolveUC, dmp, files, jobs, settingsRepo, logger),
+			dump.NewImportDump(resolveUC, dmp, files, jobs, settingsRepo, logger),
 			jobs,
-			1024*1024,
+			getSettingsUC,
 		),
 	})
 
@@ -241,10 +253,44 @@ func TestEndToEndFlow(t *testing.T) {
 	}
 
 	queryRes := doReq(http.MethodPost, "/api/connections/1/query", map[string]any{
-		"sql":   "SELECT 1",
-		"limit": 50,
+		"sql":         "SELECT 1",
+		"limit":       50,
+		"saveHistory": true,
 	})
 	if queryRes.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 on query, got %d", queryRes.StatusCode)
+	}
+
+	settingsRes := doReq(http.MethodGet, "/api/settings", nil)
+	if settingsRes.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 on GET /api/settings, got %d", settingsRes.StatusCode)
+	}
+	var currentSettings domain.Settings
+	if err := json.NewDecoder(settingsRes.Body).Decode(&currentSettings); err != nil {
+		t.Fatalf("failed to decode settings: %v", err)
+	}
+	if !currentSettings.HistoryEnabled || currentSettings.HistoryRetentionDays != 7 || currentSettings.MaxFileSize != 52428800 {
+		t.Fatalf("unexpected settings values: %+v", currentSettings)
+	}
+
+	updateSettingsRes := doReq(http.MethodPut, "/api/settings", domain.Settings{
+		MaxFileSize:          10485760,
+		HistoryEnabled:       true,
+		HistoryRetentionDays: 14,
+	})
+	if updateSettingsRes.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 on PUT /api/settings, got %d", updateSettingsRes.StatusCode)
+	}
+
+	historyRes := doReq(http.MethodGet, "/api/history?kind=query", nil)
+	if historyRes.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 on GET /api/history, got %d", historyRes.StatusCode)
+	}
+	var historyEntries []domain.ExecutionRecord
+	if err := json.NewDecoder(historyRes.Body).Decode(&historyEntries); err != nil {
+		t.Fatalf("failed to decode history: %v", err)
+	}
+	if len(historyEntries) != 1 || historyEntries[0].SQL != "SELECT 1" || !historyEntries[0].Success {
+		t.Fatalf("unexpected history entries: %+v", historyEntries)
 	}
 }

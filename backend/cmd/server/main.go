@@ -18,6 +18,7 @@ import (
 	"dbclient/backend/internal/config"
 	transporthttp "dbclient/backend/internal/transport/http"
 	"dbclient/backend/internal/transport/http/handler"
+	"dbclient/backend/internal/transport/http/middleware"
 	"dbclient/backend/internal/usecase/auth"
 	"dbclient/backend/internal/usecase/connection"
 	"dbclient/backend/internal/usecase/dump"
@@ -116,9 +117,18 @@ func main() {
 
 	frontendFS, _ := web.DistFS()
 
+	rateLimiter := middleware.NewRateLimiter(middleware.RateLimiterConfig{
+		Enabled:   cfg.RateLimitEnabled,
+		APIRate:   cfg.RateLimitAPI,
+		AuthRate:  cfg.RateLimitAuth,
+		QueryRate: cfg.RateLimitQuery,
+	})
+	defer rateLimiter.Stop()
+
 	router := transporthttp.NewRouter(transporthttp.RouterDeps{
 		Logger:        logger,
 		AuthSession:   authSessionUC,
+		RateLimiter:   rateLimiter,
 		Health:        handler.NewHealthHandler(db),
 		Auth:          handler.NewAuthHandler(loginUC, logoutUC, changePasswordUC),
 		Users:         handler.NewUserHandler(listUsersUC, createUserUC, updateUserUC, deleteUserUC),

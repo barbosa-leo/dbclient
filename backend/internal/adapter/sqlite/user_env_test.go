@@ -144,4 +144,3 @@ func TestUserEnvironments(t *testing.T) {
 		t.Fatalf("expected access to conn2 after update, got %v", hasAccess2After)
 	}
 }
-

@@ -15,6 +15,7 @@ import (
 type RouterDeps struct {
 	Logger        *slog.Logger
 	AuthSession   *auth.AuthenticateSession
+	RateLimiter   *middleware.RateLimiter
 	Health        *handler.HealthHandler
 	Auth          *handler.AuthHandler
 	Users         *handler.UserHandler
@@ -92,7 +93,12 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 	mux.Handle("/", newSPAHandler(deps.FrontendFiles))
 
-	return middleware.Logging(deps.Logger)(mux)
+	var handler http.Handler = mux
+	if deps.RateLimiter != nil {
+		handler = deps.RateLimiter.Middleware()(handler)
+	}
+
+	return middleware.Logging(deps.Logger)(handler)
 }
 
 func newSPAHandler(distFS fs.FS) http.Handler {

@@ -6,11 +6,17 @@ import type { QueryResult } from '@/services/query';
 
 const DEFAULT_COLUMN_WIDTH = 150;
 const MIN_COLUMN_WIDTH = 50;
+const MAX_INITIAL_COLUMN_WIDTH = 250;
 const HEADER_CHAR_WIDTH = 7;
 const HEADER_CHROME_WIDTH = 64;
 
 function minWidthForColumn(column: string): number {
   return Math.max(MIN_COLUMN_WIDTH, column.length * HEADER_CHAR_WIDTH + HEADER_CHROME_WIDTH);
+}
+
+function maxWidthForColumn(column: string, hasFk = false): number {
+  const min = minWidthForColumn(column) + (hasFk ? 28 : 0);
+  return Math.max(MAX_INITIAL_COLUMN_WIDTH, min);
 }
 
 export type SortDirection = 'asc' | 'desc';
@@ -222,6 +228,7 @@ export function ResultTable({
     setEditingCell(null);
     setPendingEdits({});
     setCopyMenuOpen(false);
+    setColumnWidths({});
   }, [result]);
 
   useEffect(() => {
@@ -282,7 +289,14 @@ export function ResultTable({
 
   const hasCustomWidths = Object.keys(columnWidths).length > 0;
   const tableWidth = hasCustomWidths
-    ? 40 + result.columns.reduce((acc, col) => acc + (columnWidths[col] ?? DEFAULT_COLUMN_WIDTH), 0)
+    ? 40 +
+      result.columns.reduce(
+        (acc, col) =>
+          acc +
+          (columnWidths[col] ??
+            maxWidthForColumn(col, fkByColumn.has(col))),
+        0,
+      )
     : undefined;
 
   function startColumnResize(event: React.PointerEvent<HTMLDivElement>, column: string) {
@@ -291,13 +305,17 @@ export function ResultTable({
     const startX = event.clientX;
     const snapshot: Record<string, number> = {};
     for (const col of result.columns) {
-      snapshot[col] = headerRefs.current[col]?.offsetWidth ?? DEFAULT_COLUMN_WIDTH;
+      const hasFk = fkByColumn.has(col);
+      const min = minWidthForColumn(col) + (hasFk ? 28 : 0);
+      const currentWidth = headerRefs.current[col]?.offsetWidth;
+      snapshot[col] = currentWidth ? Math.max(min, currentWidth) : min;
     }
-    const startWidth = snapshot[column] ?? DEFAULT_COLUMN_WIDTH;
+    const startWidth = snapshot[column] ?? minWidthForColumn(column);
     setColumnWidths(snapshot);
 
     function handleMove(moveEvent: PointerEvent) {
-      const width = Math.max(minWidthForColumn(column), startWidth + moveEvent.clientX - startX);
+      const min = minWidthForColumn(column) + (fkByColumn.has(column) ? 28 : 0);
+      const width = Math.max(min, startWidth + moveEvent.clientX - startX);
       setColumnWidths((prev) => ({ ...prev, [column]: width }));
     }
 
@@ -641,6 +659,9 @@ export function ResultTable({
                 const activeFilter = filters?.[column]?.trim() ?? '';
                 const isEditing = editingCol === column;
                 const fk = fkByColumn.get(column);
+                const colMinWidth = minWidthForColumn(column) + (fk ? 28 : 0);
+                const colMaxWidth = maxWidthForColumn(column, Boolean(fk));
+                const customWidth = columnWidths[column];
 
                 return (
                   <th
@@ -650,8 +671,9 @@ export function ResultTable({
                     }}
                     scope="col"
                     style={{
-                      minWidth: minWidthForColumn(column) + (fk ? 28 : 0),
-                      ...(hasCustomWidths ? { width: columnWidths[column] } : {}),
+                      minWidth: colMinWidth,
+                      maxWidth: hasCustomWidths ? undefined : colMaxWidth,
+                      ...(hasCustomWidths && customWidth ? { width: customWidth } : {}),
                     }}
                     className="relative overflow-hidden whitespace-nowrap border-r border-line px-3.5 py-1.5 last:border-r-0"
                   >
@@ -753,6 +775,7 @@ export function ResultTable({
                   </th>
                 );
               })}
+              {!hasCustomWidths && <th scope="col" aria-hidden="true" className="p-0 border-0" />}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -785,6 +808,13 @@ export function ResultTable({
                       Object.prototype.hasOwnProperty.call(pendingEdits[rowIndex], cellIndex);
                     const column = result.columns[cellIndex];
                     const fk = column ? fkByColumn.get(column) : undefined;
+                    const colMinWidth = column
+                      ? minWidthForColumn(column) + (fk ? 28 : 0)
+                      : MIN_COLUMN_WIDTH;
+                    const colMaxWidth = column
+                      ? maxWidthForColumn(column, Boolean(fk))
+                      : MAX_INITIAL_COLUMN_WIDTH;
+                    const customWidth = column ? columnWidths[column] : undefined;
                     const hasFkLink = Boolean(
                       fk &&
                         onNavigateForeignKey &&
@@ -792,6 +822,10 @@ export function ResultTable({
                         effectiveVal !== undefined &&
                         effectiveVal !== '',
                     );
+                    const fullText = effectiveVal === null ? 'NULL' : formatCell(effectiveVal);
+                    const cellTitle = onSaveChanges
+                      ? `${fullText} (duplo clique para editar)`
+                      : fullText;
 
                     return (
                       <td
@@ -801,10 +835,12 @@ export function ResultTable({
                           e.stopPropagation();
                           startCellEditing(rowIndex, cellIndex);
                         }}
-                        title={onSaveChanges ? 'Duplo clique para editar' : undefined}
-                        className={`relative whitespace-nowrap px-3.5 py-1 text-ink ${
-                          hasCustomWidths ? 'overflow-hidden text-ellipsis' : ''
-                        } ${
+                        title={cellTitle}
+                        style={{
+                          minWidth: colMinWidth,
+                          maxWidth: hasCustomWidths && customWidth ? customWidth : colMaxWidth,
+                        }}
+                        className={`relative whitespace-nowrap px-3.5 py-1 text-ink overflow-hidden text-ellipsis ${
                           isCellDirty ? 'bg-online/10 font-semibold' : ''
                         }`}
                       >
@@ -874,6 +910,7 @@ export function ResultTable({
                       </td>
                     );
                   })}
+                  {!hasCustomWidths && <td aria-hidden="true" className="p-0 border-0" />}
                 </tr>
               );
             })}

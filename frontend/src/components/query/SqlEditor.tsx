@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import type { KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/Button';
-import { SqlCodeEditor } from '@/components/ui/SqlCodeEditor';
 import { MAX_SQL_LENGTH } from '@/services/query';
+import { SqlAutocompleteEditor } from './SqlAutocompleteEditor';
 
 interface SqlEditorProps {
   value: string;
   onChange: (value: string) => void;
   databaseName: string | null;
+  connectionId: number | null;
+  metadataRevision: number;
   onRun: () => void;
   running: boolean;
   disabled: boolean;
@@ -19,6 +20,8 @@ export function SqlEditor({
   value,
   onChange,
   databaseName,
+  connectionId,
+  metadataRevision,
   onRun,
   running,
   disabled,
@@ -26,13 +29,6 @@ export function SqlEditor({
   onToggleCollapse,
 }: SqlEditorProps) {
   const [expandedHeight, setExpandedHeight] = useState(false);
-
-  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-      event.preventDefault();
-      onRun();
-    }
-  }
 
   const nearLimit = value.length >= MAX_SQL_LENGTH * 0.9;
   const editorHeight = expandedHeight ? '200px' : '105px';
@@ -96,14 +92,13 @@ export function SqlEditor({
       </div>
 
       {!collapsed && (
-        <SqlCodeEditor
+        <SqlAutocompleteEditor
           value={value}
           onChange={onChange}
-          onKeyDown={handleKeyDown}
-          maxLength={MAX_SQL_LENGTH}
+          onRun={onRun}
+          connectionId={connectionId}
+          metadataRevision={metadataRevision}
           disabled={disabled || running}
-          ariaLabel="Consulta SQL"
-          placeholder="SELECT * FROM ..."
           height={editorHeight}
         />
       )}

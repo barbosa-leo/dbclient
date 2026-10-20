@@ -29,6 +29,7 @@ export default function QueryPage() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [historyVersion, setHistoryVersion] = useState(0);
+  const [metadataRevision, setMetadataRevision] = useState(0);
   const resultAnchorRef = useRef<HTMLDivElement>(null);
 
   const measureAutoLimit = useCallback(() => {
@@ -65,6 +66,9 @@ export default function QueryPage() {
       setResult(await executeQuery(active.id, statement, clamped, { saveHistory }));
       setExecutedSql(statement);
       setLimit(clamped);
+      if (/(?:^|;)\s*(?:CREATE|ALTER|DROP|TRUNCATE|RENAME|COMMENT)\b/i.test(statement)) {
+        setMetadataRevision((revision) => revision + 1);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao executar a consulta');
     } finally {
@@ -89,6 +93,8 @@ export default function QueryPage() {
         value={sql}
         onChange={setSql}
         databaseName={active?.database ?? null}
+        connectionId={active?.id ?? null}
+        metadataRevision={metadataRevision}
         onRun={() => run(sql, limit, true)}
         running={running}
         disabled={!active}

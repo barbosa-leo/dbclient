@@ -22,42 +22,48 @@ func NewExecutionHistoryRepository(db *sql.DB) *ExecutionHistoryRepo {
 }
 
 func (r *ExecutionHistoryRepo) DeleteOlderThan(ctx context.Context, before time.Time) error {
-	_, err := r.db.ExecContext(
-		ctx,
-		`DELETE FROM execution_history WHERE created_at < ?`,
-		before.UTC().Format(sqliteDateTimeLayout),
-	)
-	return err
-}
-
-func (r *ExecutionHistoryRepo) Record(ctx context.Context, record domain.ExecutionRecord) error {
-	return r.RecordWithPurge(ctx, record, time.Time{})
-}
-
-func (r *ExecutionHistoryRepo) RecordWithPurge(ctx context.Context, record domain.ExecutionRecord, purgeBefore time.Time) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if !purgeBefore.IsZero() {
+	if !before.IsZero() {
 		_, err = tx.ExecContext(
 			ctx,
 			`DELETE FROM execution_history WHERE created_at < ?`,
-			purgeBefore.UTC().Format(sqliteDateTimeLayout),
+			before.UTC().Format(sqliteDateTimeLayout),
 		)
 		if err != nil {
 			return err
 		}
 	}
 
+	_, err = tx.ExecContext(
+		ctx,
+		`DELETE FROM execution_history
+		 WHERE id NOT IN (
+			 SELECT id FROM (
+				 SELECT id, ROW_NUMBER() OVER (PARTITION BY user_id, kind ORDER BY id DESC) AS rn
+				 FROM execution_history
+			 ) WHERE rn <= ?
+		 )`,
+		maxHistoryPerUserAndKind,
+	)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (r *ExecutionHistoryRepo) Record(ctx context.Context, record domain.ExecutionRecord) error {
 	createdAt := record.CreatedAt
 	if createdAt.IsZero() {
 		createdAt = time.Now().UTC()
 	}
 
-	_, err = tx.ExecContext(
+	_, err := r.db.ExecContext(
 		ctx,
 		`INSERT INTO execution_history
 			(user_id, kind, connection_id, connection_name, database, sql_text, file_name, file_size, success, error, duration_ms, created_at)
@@ -75,23 +81,14 @@ func (r *ExecutionHistoryRepo) RecordWithPurge(ctx context.Context, record domai
 		record.DurationMs,
 		createdAt.Format(sqliteDateTimeLayout),
 	)
-	if err != nil {
-		return err
-	}
+	return err
+}
 
-	_, err = tx.ExecContext(
-		ctx,
-		`DELETE FROM execution_history
-		 WHERE user_id = ? AND kind = ?
-		   AND id NOT IN (
-			   SELECT id FROM execution_history WHERE user_id = ? AND kind = ? ORDER BY id DESC LIMIT ?
-		   )`,
-		record.UserID, string(record.Kind), record.UserID, string(record.Kind), maxHistoryPerUserAndKind,
-	)
-	if err != nil {
-		return err
+func (r *ExecutionHistoryRepo) RecordWithPurge(ctx context.Context, record domain.ExecutionRecord, purgeBefore time.Time) error {
+	if !purgeBefore.IsZero() {
+		_ = r.DeleteOlderThan(ctx, purgeBefore)
 	}
-	return tx.Commit()
+	return r.Record(ctx, record)
 }
 
 func (r *ExecutionHistoryRepo) List(ctx context.Context, filter domain.ExecutionHistoryFilter) ([]domain.ExecutionRecord, error) {

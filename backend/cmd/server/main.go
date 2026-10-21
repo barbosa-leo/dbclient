@@ -144,7 +144,7 @@ func main() {
 		FrontendFiles: frontendFS,
 	})
 
-	go startCleanupLoop(ctx, files, sessionRepo, jobManager, cfg.DumpTTL)
+	go startCleanupLoop(ctx, files, sessionRepo, jobManager, settingsRepo, historyRepo, cfg.DumpTTL)
 
 	server := &http.Server{
 		Addr:              cfg.Addr,
@@ -173,9 +173,11 @@ func startCleanupLoop(
 	files *filestore.LocalFileStore,
 	sessions *sqlite.SessionRepo,
 	jobs *job.Manager,
+	settings *sqlite.SettingsRepo,
+	history *sqlite.ExecutionHistoryRepo,
 	ttl time.Duration,
 ) {
-	ticker := time.NewTicker(15 * time.Minute)
+	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 
 	for {
@@ -187,6 +189,16 @@ func startCleanupLoop(
 			_ = sessions.DeleteExpired(ctx, now)
 			if jobs != nil {
 				jobs.CleanupExpired(ttl)
+			}
+			if settings != nil && history != nil {
+				if s, err := settings.Get(ctx); err == nil && s.HistoryEnabled {
+					retentionDays := s.HistoryRetentionDays
+					if retentionDays <= 0 {
+						retentionDays = 7
+					}
+					purgeBefore := now.AddDate(0, 0, -retentionDays)
+					_ = history.DeleteOlderThan(ctx, purgeBefore)
+				}
 			}
 		}
 	}

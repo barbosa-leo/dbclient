@@ -68,7 +68,7 @@ func TestRecordExecution_Disabled(t *testing.T) {
 	}
 }
 
-func TestRecordExecution_EnabledWithPurge(t *testing.T) {
+func TestRecordExecution_Enabled(t *testing.T) {
 	settingsReader := &fakeSettingsReader{
 		settings: domain.Settings{
 			HistoryEnabled:       true,
@@ -79,7 +79,6 @@ func TestRecordExecution_EnabledWithPurge(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	uc := history.NewRecordExecution(settingsReader, historyRepo, logger)
-	now := time.Now().UTC()
 	err := uc.Record(context.Background(), domain.ExecutionRecord{
 		Kind: domain.ExecutionKindQuery,
 		SQL:  "SELECT 2",
@@ -89,10 +88,5 @@ func TestRecordExecution_EnabledWithPurge(t *testing.T) {
 	}
 	if len(historyRepo.records) != 1 {
 		t.Fatalf("expected 1 record, got %d", len(historyRepo.records))
-	}
-	expectedPurgeBefore := now.AddDate(0, 0, -10)
-	if historyRepo.purgedBefore.Before(expectedPurgeBefore.Add(-5*time.Second)) ||
-		historyRepo.purgedBefore.After(expectedPurgeBefore.Add(5*time.Second)) {
-		t.Fatalf("unexpected purgedBefore: %v (expected around %v)", historyRepo.purgedBefore, expectedPurgeBefore)
 	}
 }

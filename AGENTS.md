@@ -53,7 +53,7 @@ Este documento define as regras estritas de operação, estilo, arquitetura e li
 * **Jobs assíncronos:** operações longas rodam como job com status (`pending`, `running`, `done`, `failed`), progresso e cancelamento via `context`.
 * **Limpeza:** arquivos expirados (TTL configurável) são removidos periodicamente.
 * **Auditoria:** toda execução de query, script ou dump é registrada em log estruturado no stdout (usuário, conexão, ação, status, duração).
-* **Histórico de execuções:** persistido na tabela `execution_history` do SQLite (consultas com texto completo, scripts com metadados). Habilitação (padrão true) e tempo máximo de retenção (padrão 7 dias) são configuráveis em `settings`. Registros vencidos são expurgados antes de cada gravação, sem uso de cron.
+* **Histórico de execuções:** persistido na tabela `execution_history` do SQLite (consultas com texto completo, scripts com metadados). Habilitação (padrão true) e tempo máximo de retenção (padrão 7 dias) são configuráveis em `settings`. Registros vencidos são expurgados assincronamente a cada 5 minutos pelo worker de limpeza em background, desacoplando o expurgo do fluxo de salvamento do usuário.
 
 ### Frontend (Next.js)
 * **Arquitetura de Componentes:** componentes focados e de responsabilidade única.

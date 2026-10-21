@@ -27,7 +27,7 @@ Aplicação web para gerenciamento e exploração de bancos de dados PostgreSQL,
 - **Streaming:** dumps e scripts processados sem carregar o arquivo inteiro em memória.
 - **Limite de arquivos:** configurável na página de configurações do sistema (padrão 50 MB), persistido no SQLite.
 - **Resiliência:** conexões com timeout; consultas encerram o cursor do PostgreSQL imediatamente ao atingir o limite; operações longas canceláveis.
-- **Limpeza Periódica:** rotina em background que expira arquivos temporários, sessões e jobs encerrados em memória com base em `DBCLIENT_DUMP_TTL`.
+- **Limpeza Periódica:** rotina em background a cada 5 minutos que expira arquivos temporários, sessões, jobs encerrados em memória e histórico de execuções com base nas políticas de retenção configuradas.
 - **Logs:** apenas no terminal (stdout), incluindo o registro estruturado de execuções.
 - **Health check:** endpoint público `GET /healthz`.
 

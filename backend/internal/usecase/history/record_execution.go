@@ -3,7 +3,6 @@ package history
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"dbclient/backend/internal/domain"
 )
@@ -37,11 +36,5 @@ func (uc *RecordExecution) Record(ctx context.Context, record domain.ExecutionRe
 		return nil
 	}
 
-	retentionDays := currentSettings.HistoryRetentionDays
-	if retentionDays <= 0 {
-		retentionDays = 7
-	}
-
-	purgeBefore := time.Now().UTC().AddDate(0, 0, -retentionDays)
-	return uc.history.RecordWithPurge(ctx, record, purgeBefore)
+	return uc.history.Record(ctx, record)
 }

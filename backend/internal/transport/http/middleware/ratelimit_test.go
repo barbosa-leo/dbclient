@@ -280,4 +280,3 @@ func TestRateLimiter_UntrustedProxyIgnoresForwardedHeaders(t *testing.T) {
 		t.Fatalf("expected 429 because untrusted proxy uses RemoteAddr, got %d", rec2.Code)
 	}
 }
-

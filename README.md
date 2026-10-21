@@ -148,10 +148,17 @@ Copie a saída gerada e defina-a na variável `DBCLIENT_ENCRYPTION_KEY` do seu a
 | Variável | Obrigatória | Padrão | Descrição |
 |---|---|---|---|
 | `DBCLIENT_ENCRYPTION_KEY` | **Sim** | — | Chave AES-256 (32 bytes em Base64) para cifrar credenciais em repouso |
+| `DBCLIENT_PORT_APP` | Não | `8080` | Porta local exposta no host via Docker Compose (vinculada a `127.0.0.1`) |
+| `DBCLIENT_INITIAL_ADMIN_PASSWORD` | Não | `admin` | Senha inicial do administrador no primeiro boot do sistema |
+| `DBCLIENT_TRUSTED_PROXIES` | Não | — | IPs ou CIDRs de proxies confiáveis (ou `*`) para aceitar `X-Forwarded-For` no rate limiter |
+| `DBCLIENT_RATE_LIMIT_ENABLED` | Não | `true` | Ativa o rate limiter integrado da API |
+| `DBCLIENT_RATE_LIMIT_QUERY` | Não | `60` | Máximo de execuções de queries por minuto por IP |
+| `DBCLIENT_RATE_LIMIT_API` | Não | `120` | Máximo de requisições gerais na API por minuto por IP |
+| `DBCLIENT_RATE_LIMIT_AUTH` | Não | `10` | Máximo de tentativas de login por minuto por IP (proteção contra força bruta) |
 | `DBCLIENT_ADDR` | Não | `:8080` | Endereço e porta em que o servidor HTTP responderá |
 | `DBCLIENT_DATA_DIR` | Não | `/data` | Diretório onde o banco de dados interno SQLite é armazenado |
 | `DBCLIENT_DUMP_DIR` | Não | `/tmp/dbclient` | Diretório temporário para processamento de dumps e scripts |
-| `DBCLIENT_DUMP_TTL` | Não | `24h` | Tempo de vida (TTL) até a exclusão automática de arquivos temporários |
+| `DBCLIENT_DUMP_TTL` | Não | `24h` | Tempo de vida (TTL) até a exclusão automática de arquivos temporários e jobs |
 | `DBCLIENT_SESSION_TTL` | Não | `12h` | Duração do cookie de sessão autenticada |
 
 ---
@@ -186,12 +193,13 @@ services:
     container_name: dbclient
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:${DBCLIENT_PORT_APP:-8080}:8080"
     extra_hosts:
       # Permite conectar a bancos PostgreSQL rodando na máquina host
       - "host.docker.internal:host-gateway"
     environment:
       DBCLIENT_ENCRYPTION_KEY: ${DBCLIENT_ENCRYPTION_KEY:?Defina DBCLIENT_ENCRYPTION_KEY no arquivo .env}
+      DBCLIENT_INITIAL_ADMIN_PASSWORD: ${DBCLIENT_INITIAL_ADMIN_PASSWORD:-admin}
       DBCLIENT_DUMP_TTL: ${DBCLIENT_DUMP_TTL:-24h}
       DBCLIENT_SESSION_TTL: ${DBCLIENT_SESSION_TTL:-12h}
     volumes:
@@ -305,8 +313,8 @@ O frontend Next.js iniciará em `http://localhost:3000` consumindo os endpoints 
 
 Ao iniciar a aplicação pela primeira vez em um volume novo, as migrations internas do SQLite criam o usuário administrador padrão:
 
-- **Usuário:** `admin`
-- **Senha temporária:** `admin`
+- **E-mail:** `admin@dbclient.local` (ou login simplificado com usuário `admin`)
+- **Senha inicial:** `admin` (configurável via variável de ambiente `DBCLIENT_INITIAL_ADMIN_PASSWORD`)
 
 > [!IMPORTANT]
 > **Troca Obrigatória de Senha:**

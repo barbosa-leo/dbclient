@@ -18,8 +18,10 @@ type Config struct {
 	SessionTTL       time.Duration
 	RateLimitEnabled bool
 	RateLimitAPI     int
-	RateLimitAuth    int
-	RateLimitQuery   int
+	RateLimitAuth        int
+	RateLimitQuery       int
+	InitialAdminPassword string
+	TrustedProxies       string
 }
 
 func Load() (Config, error) {
@@ -55,8 +57,10 @@ func Load() (Config, error) {
 		SessionTTL:       sessionTTL,
 		RateLimitEnabled: boolEnv("DBCLIENT_RATE_LIMIT_ENABLED", true),
 		RateLimitAPI:     intEnv("DBCLIENT_RATE_LIMIT_API", 120),
-		RateLimitAuth:    intEnv("DBCLIENT_RATE_LIMIT_AUTH", 10),
-		RateLimitQuery:   intEnv("DBCLIENT_RATE_LIMIT_QUERY", 60),
+		RateLimitAuth:        intEnv("DBCLIENT_RATE_LIMIT_AUTH", 10),
+		RateLimitQuery:       intEnv("DBCLIENT_RATE_LIMIT_QUERY", 60),
+		InitialAdminPassword: stringEnv("DBCLIENT_INITIAL_ADMIN_PASSWORD", "admin"),
+		TrustedProxies:       stringEnv("DBCLIENT_TRUSTED_PROXIES", ""),
 	}, nil
 }
 

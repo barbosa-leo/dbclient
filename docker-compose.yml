@@ -4,11 +4,12 @@ services:
     image: dbclient:latest
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:${DBCLIENT_PORT_APP:-8080}:8080"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
       DBCLIENT_ENCRYPTION_KEY: ${DBCLIENT_ENCRYPTION_KEY:?defina DBCLIENT_ENCRYPTION_KEY no .env (openssl rand -base64 32)}
+      DBCLIENT_INITIAL_ADMIN_PASSWORD: ${DBCLIENT_INITIAL_ADMIN_PASSWORD:-admin}
       DBCLIENT_DUMP_TTL: ${DBCLIENT_DUMP_TTL:-24h}
       DBCLIENT_SESSION_TTL: ${DBCLIENT_SESSION_TTL:-12h}
     volumes:

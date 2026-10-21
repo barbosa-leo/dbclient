@@ -215,9 +215,10 @@ func TestRateLimiter_QuerySpecificLimit(t *testing.T) {
 
 func TestRateLimiter_IPExtractionHeaders(t *testing.T) {
 	limiter := middleware.NewRateLimiter(middleware.RateLimiterConfig{
-		Enabled:  true,
-		APIRate:  1,
-		AuthRate: 1,
+		Enabled:        true,
+		APIRate:        1,
+		AuthRate:       1,
+		TrustedProxies: "127.0.0.1",
 	})
 	defer limiter.Stop()
 
@@ -243,6 +244,40 @@ func TestRateLimiter_IPExtractionHeaders(t *testing.T) {
 
 	if rec2.Code != http.StatusOK {
 		t.Fatalf("expected 200 for IP 2, got %d", rec2.Code)
+	}
+}
+
+func TestRateLimiter_UntrustedProxyIgnoresForwardedHeaders(t *testing.T) {
+	limiter := middleware.NewRateLimiter(middleware.RateLimiterConfig{
+		Enabled:        true,
+		APIRate:        1,
+		AuthRate:       1,
+		TrustedProxies: "",
+	})
+	defer limiter.Stop()
+
+	handler := limiter.Middleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req1 := httptest.NewRequest(http.MethodGet, "/api/environments", nil)
+	req1.Header.Set("X-Forwarded-For", "203.0.113.195")
+	req1.RemoteAddr = "10.0.0.1:8080"
+	rec1 := httptest.NewRecorder()
+	handler.ServeHTTP(rec1, req1)
+
+	if rec1.Code != http.StatusOK {
+		t.Fatalf("expected 200 for first request, got %d", rec1.Code)
+	}
+
+	req2 := httptest.NewRequest(http.MethodGet, "/api/environments", nil)
+	req2.Header.Set("X-Forwarded-For", "198.51.100.17")
+	req2.RemoteAddr = "10.0.0.1:8080"
+	rec2 := httptest.NewRecorder()
+	handler.ServeHTTP(rec2, req2)
+
+	if rec2.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 because untrusted proxy uses RemoteAddr, got %d", rec2.Code)
 	}
 }
 

@@ -73,7 +73,7 @@ func (uc *ImportDump) Execute(ctx context.Context, input ImportDumpInput) (domai
 		domain.JobKindDumpImport,
 		fileName,
 		savedPath,
-		0,
+		input.Actor.ID,
 		conn.ID,
 		conn.Name,
 		creds.Database,

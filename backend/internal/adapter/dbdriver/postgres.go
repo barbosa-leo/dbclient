@@ -119,23 +119,24 @@ func (d *PostgresDriver) ListSchemas(ctx context.Context, creds domain.Connectio
 
 	routineRows, err := conn.Query(
 		ctx,
-		`SELECT n.nspname, p.proname, p.prokind
+		`SELECT n.nspname, p.proname, p.prokind, pg_catalog.pg_get_function_identity_arguments(p.oid)
 		 FROM pg_proc p
 		 JOIN pg_namespace n ON n.oid = p.pronamespace
 		 WHERE p.prokind IN ('f', 'p')
 		   AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
-		 ORDER BY n.nspname ASC, p.proname ASC`,
+		 ORDER BY n.nspname ASC, p.proname ASC, p.oid ASC`,
 	)
 	if err == nil {
 		for routineRows.Next() {
-			var schemaName, routineName string
+			var schemaName, routineName, routineArgs string
 			var prokind byte
-			if scanErr := routineRows.Scan(&schemaName, &routineName, &prokind); scanErr == nil {
+			if scanErr := routineRows.Scan(&schemaName, &routineName, &prokind, &routineArgs); scanErr == nil {
+				displayName := fmt.Sprintf("%s(%s)", routineName, routineArgs)
 				if idx, ok := indexByName[schemaName]; ok {
 					if prokind == 'p' {
-						schemas[idx].Procedures = append(schemas[idx].Procedures, routineName)
+						schemas[idx].Procedures = append(schemas[idx].Procedures, displayName)
 					} else {
-						schemas[idx].Functions = append(schemas[idx].Functions, routineName)
+						schemas[idx].Functions = append(schemas[idx].Functions, displayName)
 					}
 				}
 			}
@@ -145,20 +146,21 @@ func (d *PostgresDriver) ListSchemas(ctx context.Context, creds domain.Connectio
 
 	trigRows, err := conn.Query(
 		ctx,
-		`SELECT n.nspname, t.tgname
+		`SELECT n.nspname, t.tgname, c.relname
 		 FROM pg_trigger t
 		 JOIN pg_class c ON c.oid = t.tgrelid
 		 JOIN pg_namespace n ON n.oid = c.relnamespace
 		 WHERE NOT t.tgisinternal
 		   AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
-		 ORDER BY n.nspname ASC, t.tgname ASC`,
+		 ORDER BY n.nspname ASC, t.tgname ASC, c.relname ASC`,
 	)
 	if err == nil {
 		for trigRows.Next() {
-			var schemaName, trigName string
-			if scanErr := trigRows.Scan(&schemaName, &trigName); scanErr == nil {
+			var schemaName, trigName, tableName string
+			if scanErr := trigRows.Scan(&schemaName, &trigName, &tableName); scanErr == nil {
+				displayName := fmt.Sprintf("%s on %s", trigName, tableName)
 				if idx, ok := indexByName[schemaName]; ok {
-					schemas[idx].Triggers = append(schemas[idx].Triggers, trigName)
+					schemas[idx].Triggers = append(schemas[idx].Triggers, displayName)
 				}
 			}
 		}
@@ -366,21 +368,31 @@ func (d *PostgresDriver) GetObjectDefinition(ctx context.Context, creds domain.C
 		if category == "procedures" {
 			prokind = "p"
 		}
+		funcName, funcArgs, hasArgs := parseRoutineIdentity(name)
+		var query string
+		var queryArgs []any
+		if hasArgs {
+			query = `SELECT pg_catalog.pg_get_functiondef(p.oid)
+				 FROM pg_proc p
+				 JOIN pg_namespace n ON n.oid = p.pronamespace
+				 WHERE n.nspname = $1
+				   AND p.proname = $2
+				   AND p.prokind = $3
+				   AND pg_catalog.pg_get_function_identity_arguments(p.oid) = $4`
+			queryArgs = []any{schema, funcName, prokind, funcArgs}
+		} else {
+			query = `SELECT pg_catalog.pg_get_functiondef(p.oid)
+				 FROM pg_proc p
+				 JOIN pg_namespace n ON n.oid = p.pronamespace
+				 WHERE n.nspname = $1
+				   AND p.proname = $2
+				   AND p.prokind = $3
+				 ORDER BY p.oid ASC
+				 LIMIT 1`
+			queryArgs = []any{schema, funcName, prokind}
+		}
 		var funcDef string
-		err := conn.QueryRow(
-			ctx,
-			`SELECT pg_catalog.pg_get_functiondef(p.oid)
-			 FROM pg_proc p
-			 JOIN pg_namespace n ON n.oid = p.pronamespace
-			 WHERE n.nspname = $1
-			   AND p.proname = $2
-			   AND p.prokind = $3
-			 ORDER BY p.oid ASC
-			 LIMIT 1`,
-			schema,
-			name,
-			prokind,
-		).Scan(&funcDef)
+		err := conn.QueryRow(ctx, query, queryArgs...).Scan(&funcDef)
 		if err != nil {
 			if err == pgx.ErrNoRows {
 				return "", domain.ErrNotFound
@@ -394,21 +406,33 @@ func (d *PostgresDriver) GetObjectDefinition(ctx context.Context, creds domain.C
 		return trimmed, nil
 
 	case "triggers":
+		trigName, tableName, hasTable := parseTriggerIdentity(name)
+		var query string
+		var queryArgs []any
+		if hasTable {
+			query = `SELECT pg_catalog.pg_get_triggerdef(t.oid, true)
+				 FROM pg_trigger t
+				 JOIN pg_class c ON c.oid = t.tgrelid
+				 JOIN pg_namespace n ON n.oid = c.relnamespace
+				 WHERE NOT t.tgisinternal
+				   AND n.nspname = $1
+				   AND t.tgname = $2
+				   AND c.relname = $3`
+			queryArgs = []any{schema, trigName, tableName}
+		} else {
+			query = `SELECT pg_catalog.pg_get_triggerdef(t.oid, true)
+				 FROM pg_trigger t
+				 JOIN pg_class c ON c.oid = t.tgrelid
+				 JOIN pg_namespace n ON n.oid = c.relnamespace
+				 WHERE NOT t.tgisinternal
+				   AND n.nspname = $1
+				   AND t.tgname = $2
+				 ORDER BY t.oid ASC
+				 LIMIT 1`
+			queryArgs = []any{schema, trigName}
+		}
 		var trigDef string
-		err := conn.QueryRow(
-			ctx,
-			`SELECT pg_catalog.pg_get_triggerdef(t.oid, true)
-			 FROM pg_trigger t
-			 JOIN pg_class c ON c.oid = t.tgrelid
-			 JOIN pg_namespace n ON n.oid = c.relnamespace
-			 WHERE NOT t.tgisinternal
-			   AND n.nspname = $1
-			   AND t.tgname = $2
-			 ORDER BY t.oid ASC
-			 LIMIT 1`,
-			schema,
-			name,
-		).Scan(&trigDef)
+		err := conn.QueryRow(ctx, query, queryArgs...).Scan(&trigDef)
 		if err != nil {
 			if err == pgx.ErrNoRows {
 				return "", domain.ErrNotFound
@@ -481,6 +505,12 @@ func (d *PostgresDriver) DropObject(ctx context.Context, creds domain.Connection
 			prokind = "p"
 			keyword = "PROCEDURE"
 		}
+		funcName, funcArgs, hasArgs := parseRoutineIdentity(name)
+		qualifiedFunc := fmt.Sprintf("%s.%s", quotePGIdentifier(schema), quotePGIdentifier(funcName))
+		if hasArgs {
+			_, err = conn.Exec(ctx, fmt.Sprintf("DROP %s %s(%s)", keyword, qualifiedFunc, funcArgs))
+			return err
+		}
 		var args string
 		err := conn.QueryRow(
 			ctx,
@@ -493,7 +523,7 @@ func (d *PostgresDriver) DropObject(ctx context.Context, creds domain.Connection
 			 ORDER BY p.oid ASC
 			 LIMIT 1`,
 			schema,
-			name,
+			funcName,
 			prokind,
 		).Scan(&args)
 		if err != nil {
@@ -502,11 +532,17 @@ func (d *PostgresDriver) DropObject(ctx context.Context, creds domain.Connection
 			}
 			return err
 		}
-		_, err = conn.Exec(ctx, fmt.Sprintf("DROP %s %s(%s)", keyword, qualified, args))
+		_, err = conn.Exec(ctx, fmt.Sprintf("DROP %s %s(%s)", keyword, qualifiedFunc, args))
 		return err
 
 	case "triggers":
-		var tableName string
+		trigName, tableName, hasTable := parseTriggerIdentity(name)
+		if hasTable {
+			qualifiedTable := fmt.Sprintf("%s.%s", quotePGIdentifier(schema), quotePGIdentifier(tableName))
+			_, err = conn.Exec(ctx, fmt.Sprintf("DROP TRIGGER %s ON %s", quotePGIdentifier(trigName), qualifiedTable))
+			return err
+		}
+		var resolvedTable string
 		err := conn.QueryRow(
 			ctx,
 			`SELECT c.relname
@@ -519,16 +555,16 @@ func (d *PostgresDriver) DropObject(ctx context.Context, creds domain.Connection
 			 ORDER BY t.oid ASC
 			 LIMIT 1`,
 			schema,
-			name,
-		).Scan(&tableName)
+			trigName,
+		).Scan(&resolvedTable)
 		if err != nil {
 			if err == pgx.ErrNoRows {
 				return domain.ErrNotFound
 			}
 			return err
 		}
-		qualifiedTable := fmt.Sprintf("%s.%s", quotePGIdentifier(schema), quotePGIdentifier(tableName))
-		_, err = conn.Exec(ctx, fmt.Sprintf("DROP TRIGGER %s ON %s", quotePGIdentifier(name), qualifiedTable))
+		qualifiedTable := fmt.Sprintf("%s.%s", quotePGIdentifier(schema), quotePGIdentifier(resolvedTable))
+		_, err = conn.Exec(ctx, fmt.Sprintf("DROP TRIGGER %s ON %s", quotePGIdentifier(trigName), qualifiedTable))
 		return err
 
 	default:
@@ -573,7 +609,7 @@ func (d *PostgresDriver) ExecuteQuery(ctx context.Context, creds domain.Connecti
 	resultRows := make([][]any, 0)
 	for rows.Next() {
 		if len(resultRows) >= limit {
-			continue
+			break
 		}
 		values, err := rows.Values()
 		if err != nil {
@@ -665,4 +701,23 @@ func normalizeValue(v any) any {
 	default:
 		return val
 	}
+}
+
+func parseRoutineIdentity(raw string) (string, string, bool) {
+	idx := strings.Index(raw, "(")
+	if idx > 0 && strings.HasSuffix(raw, ")") {
+		name := raw[:idx]
+		args := raw[idx+1 : len(raw)-1]
+		return name, args, true
+	}
+	return raw, "", false
+}
+
+func parseTriggerIdentity(raw string) (string, string, bool) {
+	if idx := strings.Index(strings.ToLower(raw), " on "); idx > 0 {
+		trigName := raw[:idx]
+		tableName := raw[idx+4:]
+		return strings.TrimSpace(trigName), strings.TrimSpace(tableName), true
+	}
+	return raw, "", false
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 
 	"dbclient/backend/internal/domain"
 )
@@ -66,7 +67,11 @@ CREATE INDEX IF NOT EXISTS idx_connections_environment_id ON connections(environ
 				return err
 			}
 			if count == 0 {
-				hash, err := hasher.Hash("admin")
+				initialPassword := os.Getenv("DBCLIENT_INITIAL_ADMIN_PASSWORD")
+				if initialPassword == "" {
+					initialPassword = "admin"
+				}
+				hash, err := hasher.Hash(initialPassword)
 				if err != nil {
 					return err
 				}

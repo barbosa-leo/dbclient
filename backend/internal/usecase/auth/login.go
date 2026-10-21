@@ -38,6 +38,9 @@ func (uc *Login) Execute(ctx context.Context, email, password string) (domain.Us
 	}
 
 	user, err := uc.users.FindByEmail(ctx, trimmed)
+	if err != nil && !strings.Contains(trimmed, "@") {
+		user, err = uc.users.FindByEmail(ctx, trimmed+"@dbclient.local")
+	}
 	if err != nil {
 		return domain.User{}, domain.Session{}, domain.ErrUnauthorized
 	}

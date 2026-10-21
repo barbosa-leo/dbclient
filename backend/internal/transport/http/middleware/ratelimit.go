@@ -12,10 +12,11 @@ import (
 )
 
 type RateLimiterConfig struct {
-	Enabled   bool
-	APIRate   int
-	AuthRate  int
-	QueryRate int
+	Enabled        bool
+	APIRate        int
+	AuthRate       int
+	QueryRate      int
+	TrustedProxies string
 }
 
 type clientBucket struct {
@@ -33,6 +34,8 @@ type RateLimiter struct {
 	authBurst     float64
 	queryRate     float64
 	queryBurst    float64
+	trustedNets   []*net.IPNet
+	trustAll      bool
 	buckets       map[string]*clientBucket
 	cleanupTicker *time.Ticker
 	done          chan struct{}
@@ -57,6 +60,32 @@ func NewRateLimiter(cfg RateLimiterConfig) *RateLimiter {
 	}
 	queryRate := queryBurst / 60.0
 
+	var trustedNets []*net.IPNet
+	trustAll := false
+	if cfg.TrustedProxies != "" {
+		for _, part := range strings.Split(cfg.TrustedProxies, ",") {
+			trimmed := strings.TrimSpace(part)
+			if trimmed == "*" || strings.EqualFold(trimmed, "true") {
+				trustAll = true
+				break
+			}
+			if strings.Contains(trimmed, "/") {
+				_, ipNet, err := net.ParseCIDR(trimmed)
+				if err == nil {
+					trustedNets = append(trustedNets, ipNet)
+				}
+			} else if ip := net.ParseIP(trimmed); ip != nil {
+				var mask net.IPMask
+				if ip.To4() != nil {
+					mask = net.CIDRMask(32, 32)
+				} else {
+					mask = net.CIDRMask(128, 128)
+				}
+				trustedNets = append(trustedNets, &net.IPNet{IP: ip, Mask: mask})
+			}
+		}
+	}
+
 	ticker := time.NewTicker(5 * time.Minute)
 	rl := &RateLimiter{
 		enabled:       cfg.Enabled,
@@ -66,6 +95,8 @@ func NewRateLimiter(cfg RateLimiterConfig) *RateLimiter {
 		authBurst:     authBurst,
 		queryRate:     queryRate,
 		queryBurst:    queryBurst,
+		trustedNets:   trustedNets,
+		trustAll:      trustAll,
 		buckets:       make(map[string]*clientBucket),
 		cleanupTicker: ticker,
 		done:          make(chan struct{}),
@@ -136,6 +167,50 @@ func (rl *RateLimiter) allow(key string, rate, burst float64, now time.Time) (bo
 	return false, retryAfter
 }
 
+func (rl *RateLimiter) isTrusted(host string) bool {
+	if rl.trustAll {
+		return true
+	}
+	if len(rl.trustedNets) == 0 {
+		return false
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	for _, n := range rl.trustedNets {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func (rl *RateLimiter) extractClientIP(r *http.Request) string {
+	remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil || remoteHost == "" {
+		remoteHost = r.RemoteAddr
+	}
+
+	if !rl.isTrusted(remoteHost) {
+		return remoteHost
+	}
+
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if idx := strings.Index(xff, ","); idx != -1 {
+			if ip := strings.TrimSpace(xff[:idx]); ip != "" {
+				return ip
+			}
+		} else if ip := strings.TrimSpace(xff); ip != "" {
+			return ip
+		}
+	}
+	if xrip := strings.TrimSpace(r.Header.Get("X-Real-IP")); xrip != "" {
+		return xrip
+	}
+	return remoteHost
+}
+
 func (rl *RateLimiter) Middleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -149,7 +224,7 @@ func (rl *RateLimiter) Middleware() func(http.Handler) http.Handler {
 				return
 			}
 
-			ip := ExtractClientIP(r)
+			ip := rl.extractClientIP(r)
 			now := time.Now()
 
 			if r.Method == http.MethodPost && (r.URL.Path == "/api/auth/login" || r.URL.Path == "/api/auth/login/") {
@@ -205,18 +280,6 @@ func writeRateLimitResponse(w http.ResponseWriter, retryAfter int, message strin
 }
 
 func ExtractClientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if idx := strings.Index(xff, ","); idx != -1 {
-			if ip := strings.TrimSpace(xff[:idx]); ip != "" {
-				return ip
-			}
-		} else if ip := strings.TrimSpace(xff); ip != "" {
-			return ip
-		}
-	}
-	if xrip := strings.TrimSpace(r.Header.Get("X-Real-IP")); xrip != "" {
-		return xrip
-	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err == nil && host != "" {
 		return host

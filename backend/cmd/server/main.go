@@ -118,10 +118,11 @@ func main() {
 	frontendFS, _ := web.DistFS()
 
 	rateLimiter := middleware.NewRateLimiter(middleware.RateLimiterConfig{
-		Enabled:   cfg.RateLimitEnabled,
-		APIRate:   cfg.RateLimitAPI,
-		AuthRate:  cfg.RateLimitAuth,
-		QueryRate: cfg.RateLimitQuery,
+		Enabled:        cfg.RateLimitEnabled,
+		APIRate:        cfg.RateLimitAPI,
+		AuthRate:       cfg.RateLimitAuth,
+		QueryRate:      cfg.RateLimitQuery,
+		TrustedProxies: cfg.TrustedProxies,
 	})
 	defer rateLimiter.Stop()
 
@@ -143,7 +144,7 @@ func main() {
 		FrontendFiles: frontendFS,
 	})
 
-	go startCleanupLoop(ctx, files, sessionRepo, cfg.DumpTTL)
+	go startCleanupLoop(ctx, files, sessionRepo, jobManager, cfg.DumpTTL)
 
 	server := &http.Server{
 		Addr:              cfg.Addr,
@@ -171,6 +172,7 @@ func startCleanupLoop(
 	ctx context.Context,
 	files *filestore.LocalFileStore,
 	sessions *sqlite.SessionRepo,
+	jobs *job.Manager,
 	ttl time.Duration,
 ) {
 	ticker := time.NewTicker(15 * time.Minute)
@@ -183,6 +185,9 @@ func startCleanupLoop(
 		case now := <-ticker.C:
 			_ = files.CleanupExpired(ttl)
 			_ = sessions.DeleteExpired(ctx, now)
+			if jobs != nil {
+				jobs.CleanupExpired(ttl)
+			}
 		}
 	}
 }

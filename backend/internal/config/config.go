@@ -10,16 +10,18 @@ import (
 )
 
 type Config struct {
-	EncryptionKey    []byte
-	Addr             string
-	DataDir          string
-	DumpDir          string
-	DumpTTL          time.Duration
-	SessionTTL       time.Duration
-	RateLimitEnabled bool
-	RateLimitAPI     int
-	RateLimitAuth    int
-	RateLimitQuery   int
+	EncryptionKey        []byte
+	Addr                 string
+	DataDir              string
+	DumpDir              string
+	DumpTTL              time.Duration
+	SessionTTL           time.Duration
+	RateLimitEnabled     bool
+	RateLimitAPI         int
+	RateLimitAuth        int
+	RateLimitQuery       int
+	InitialAdminPassword string
+	TrustedProxies       string
 }
 
 func Load() (Config, error) {
@@ -47,16 +49,18 @@ func Load() (Config, error) {
 	}
 
 	return Config{
-		EncryptionKey:    key,
-		Addr:             stringEnv("DBCLIENT_ADDR", ":8080"),
-		DataDir:          stringEnv("DBCLIENT_DATA_DIR", "/data"),
-		DumpDir:          stringEnv("DBCLIENT_DUMP_DIR", "/tmp/dbclient"),
-		DumpTTL:          dumpTTL,
-		SessionTTL:       sessionTTL,
-		RateLimitEnabled: boolEnv("DBCLIENT_RATE_LIMIT_ENABLED", true),
-		RateLimitAPI:     intEnv("DBCLIENT_RATE_LIMIT_API", 120),
-		RateLimitAuth:    intEnv("DBCLIENT_RATE_LIMIT_AUTH", 10),
-		RateLimitQuery:   intEnv("DBCLIENT_RATE_LIMIT_QUERY", 60),
+		EncryptionKey:        key,
+		Addr:                 stringEnv("DBCLIENT_ADDR", ":8080"),
+		DataDir:              stringEnv("DBCLIENT_DATA_DIR", "/data"),
+		DumpDir:              stringEnv("DBCLIENT_DUMP_DIR", "/tmp/dbclient"),
+		DumpTTL:              dumpTTL,
+		SessionTTL:           sessionTTL,
+		RateLimitEnabled:     boolEnv("DBCLIENT_RATE_LIMIT_ENABLED", true),
+		RateLimitAPI:         intEnv("DBCLIENT_RATE_LIMIT_API", 120),
+		RateLimitAuth:        intEnv("DBCLIENT_RATE_LIMIT_AUTH", 10),
+		RateLimitQuery:       intEnv("DBCLIENT_RATE_LIMIT_QUERY", 60),
+		InitialAdminPassword: stringEnv("DBCLIENT_INITIAL_ADMIN_PASSWORD", "admin"),
+		TrustedProxies:       stringEnv("DBCLIENT_TRUSTED_PROXIES", ""),
 	}, nil
 }
 

@@ -68,7 +68,16 @@ export function MobileNavDrawer({
         }`}
       >
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-line px-4">
-          <span className="text-sm font-semibold tracking-tight text-ink">DBClient</span>
+          <div className="flex items-center gap-2">
+            <img
+              src="/logo.png"
+              alt="DBClient logo"
+              width={24}
+              height={24}
+              className="h-6 w-6 shrink-0 rounded-md object-contain"
+            />
+            <span className="text-sm font-semibold tracking-tight text-ink">DBClient</span>
+          </div>
           <button
             type="button"
             aria-label="Fechar menu"

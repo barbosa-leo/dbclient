@@ -27,9 +27,13 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
             <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
           </svg>
         </button>
-        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-cta font-mono text-[11px] font-bold text-cta-fg">
-          DB
-        </span>
+        <img
+          src="/logo.png"
+          alt="DBClient logo"
+          width={24}
+          height={24}
+          className="h-6 w-6 shrink-0 rounded-md object-contain"
+        />
         <span className="text-sm font-semibold tracking-tight text-ink">DBClient</span>
       </div>
 

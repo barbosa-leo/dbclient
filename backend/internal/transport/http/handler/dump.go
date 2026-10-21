@@ -56,7 +56,7 @@ func (h *DumpHandler) ListUserDumps(w http.ResponseWriter, r *http.Request) {
 func (h *DumpHandler) DeleteDump(w http.ResponseWriter, r *http.Request) {
 	user, _ := middleware.UserFromContext(r.Context())
 	id := r.PathValue("id")
-	if err := h.jobs.DeleteDump(id, user.ID); err != nil {
+	if err := h.jobs.DeleteDump(id, user); err != nil {
 		writeDomainError(w, err)
 		return
 	}
@@ -100,7 +100,8 @@ func (h *DumpHandler) Import(w http.ResponseWriter, r *http.Request) {
 
 func (h *DumpHandler) GetJob(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	found, err := h.jobs.Get(id)
+	actor, _ := middleware.UserFromContext(r.Context())
+	found, err := h.jobs.Get(id, actor)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -110,7 +111,8 @@ func (h *DumpHandler) GetJob(w http.ResponseWriter, r *http.Request) {
 
 func (h *DumpHandler) CancelJob(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	canceled, err := h.jobs.Cancel(id)
+	actor, _ := middleware.UserFromContext(r.Context())
+	canceled, err := h.jobs.Cancel(id, actor)
 	if err != nil {
 		writeDomainError(w, err)
 		return
@@ -120,7 +122,8 @@ func (h *DumpHandler) CancelJob(w http.ResponseWriter, r *http.Request) {
 
 func (h *DumpHandler) DownloadJob(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	found, reader, err := h.jobs.OpenDownload(id)
+	actor, _ := middleware.UserFromContext(r.Context())
+	found, reader, err := h.jobs.OpenDownload(id, actor)
 	if err != nil {
 		writeDomainError(w, err)
 		return

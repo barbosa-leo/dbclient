@@ -128,7 +128,7 @@ func (m *Manager) ListUserDumps(userID int64) []domain.Job {
 	return result
 }
 
-func (m *Manager) DeleteDump(id string, userID int64) error {
+func (m *Manager) DeleteDump(id string, actor domain.User) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -137,7 +137,7 @@ func (m *Manager) DeleteDump(id string, userID int64) error {
 		return domain.ErrNotFound
 	}
 
-	if e.job.UserID != userID {
+	if actor.Role != domain.RoleAdmin && e.job.UserID != actor.ID {
 		return domain.NewForbiddenError("Sem permissão para remover este dump")
 	}
 
@@ -153,7 +153,7 @@ func (m *Manager) DeleteDump(id string, userID int64) error {
 	return nil
 }
 
-func (m *Manager) Get(id string) (domain.Job, error) {
+func (m *Manager) Get(id string, actor domain.User) (domain.Job, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -161,13 +161,20 @@ func (m *Manager) Get(id string) (domain.Job, error) {
 	if !ok {
 		return domain.Job{}, domain.ErrNotFound
 	}
+	if actor.Role != domain.RoleAdmin && e.job.UserID != actor.ID {
+		return domain.Job{}, domain.ErrNotFound
+	}
 	return e.job, nil
 }
 
-func (m *Manager) Cancel(id string) (domain.Job, error) {
+func (m *Manager) Cancel(id string, actor domain.User) (domain.Job, error) {
 	m.mu.Lock()
 	e, ok := m.jobs[id]
 	if !ok {
+		m.mu.Unlock()
+		return domain.Job{}, domain.ErrNotFound
+	}
+	if actor.Role != domain.RoleAdmin && e.job.UserID != actor.ID {
 		m.mu.Unlock()
 		return domain.Job{}, domain.ErrNotFound
 	}
@@ -186,8 +193,8 @@ func (m *Manager) Cancel(id string) (domain.Job, error) {
 	return snapshot, nil
 }
 
-func (m *Manager) OpenDownload(id string) (domain.Job, io.ReadCloser, error) {
-	job, err := m.Get(id)
+func (m *Manager) OpenDownload(id string, actor domain.User) (domain.Job, io.ReadCloser, error) {
+	job, err := m.Get(id, actor)
 	if err != nil {
 		return domain.Job{}, nil, err
 	}
@@ -200,6 +207,19 @@ func (m *Manager) OpenDownload(id string) (domain.Job, io.ReadCloser, error) {
 		return domain.Job{}, nil, domain.ErrNotFound
 	}
 	return job, reader, nil
+}
+
+func (m *Manager) CleanupExpired(ttl time.Duration) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := time.Now()
+	for id, e := range m.jobs {
+		if e.job.Status == domain.JobStatusDone || e.job.Status == domain.JobStatusFailed {
+			if now.Sub(e.job.CreatedAt) > ttl {
+				delete(m.jobs, id)
+			}
+		}
+	}
 }
 
 func (m *Manager) update(id string, fn func(*domain.Job)) {

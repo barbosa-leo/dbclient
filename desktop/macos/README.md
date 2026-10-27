@@ -31,6 +31,7 @@ NOTARY_PROFILE=dbclient-notary \
 
 | Item | Valor |
 |---|---|
+| Acesso | Modo local (`-tags desktop`, `DBCLIENT_AUTH_MODE=local`): sem login, usuários ou logout; o app entra como o `admin` inicial via `/api/auth/local` com um token novo a cada execução |
 | Dados (SQLite) | `~/Library/Application Support/DBClient` |
 | Dumps temporários | `~/Library/Caches/DBClient/dumps` |
 | Logs do servidor | `~/Library/Logs/DBClient/server.log` (rotação em 10 MB) |

@@ -1,9 +1,11 @@
 import Darwin
 import Foundation
+import Security
 
 enum ServerError: LocalizedError {
     case binaryNotFound(URL)
     case noFreePort
+    case tokenGeneration(OSStatus)
     case exitedEarly(Int32)
     case healthTimeout
 
@@ -13,6 +15,8 @@ enum ServerError: LocalizedError {
             return "Binário do servidor não encontrado em \(url.path)."
         case .noFreePort:
             return "Nenhuma porta local disponível para o servidor."
+        case .tokenGeneration(let status):
+            return "Falha ao gerar o token de acesso local (status \(status))."
         case .exitedEarly(let status):
             return "O servidor encerrou durante a inicialização (código \(status))."
         case .healthTimeout:
@@ -37,8 +41,11 @@ final class ServerProcess {
 
     private static let shutdownGrace: TimeInterval = 10
     private static let maxLogBytes = 10 * 1024 * 1024
+    // Each launch signs in again with a fresh token, so the session only has to outlive one app run.
+    private static let sessionTTL = "720h"
 
     let baseURL: URL
+    let signInURL: URL
     var onUnexpectedExit: ((Int32) -> Void)?
 
     private let process = Process()
@@ -53,12 +60,17 @@ final class ServerProcess {
             throw ServerError.binaryNotFound(executable)
         }
 
+        let localToken = try Self.generateToken()
         baseURL = URL(string: "http://127.0.0.1:\(port)")!
+        signInURL = URL(string: "http://127.0.0.1:\(port)/api/auth/local?token=\(localToken)")!
         pidFile = paths.pidFile
 
         var environment = ProcessInfo.processInfo.environment
         environment["PATH"] = Self.searchPath
         environment["DBCLIENT_ENCRYPTION_KEY"] = encryptionKey
+        environment["DBCLIENT_AUTH_MODE"] = "local"
+        environment["DBCLIENT_LOCAL_TOKEN"] = localToken
+        environment["DBCLIENT_SESSION_TTL"] = Self.sessionTTL
         environment["DBCLIENT_ADDR"] = "127.0.0.1:\(port)"
         environment["DBCLIENT_DATA_DIR"] = paths.dataDir.path
         environment["DBCLIENT_DUMP_DIR"] = paths.dumpDir.path
@@ -125,6 +137,15 @@ final class ServerProcess {
             return
         }
         onUnexpectedExit?(status)
+    }
+
+    private static func generateToken() throws -> String {
+        var bytes = [UInt8](repeating: 0, count: 32)
+        let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        guard status == errSecSuccess else {
+            throw ServerError.tokenGeneration(status)
+        }
+        return bytes.map { String(format: "%02x", $0) }.joined()
     }
 
     private static func openLog(at url: URL) throws -> FileHandle {

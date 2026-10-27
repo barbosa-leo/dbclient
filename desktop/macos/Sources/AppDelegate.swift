@@ -60,7 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try server.start()
             try await server.waitUntilHealthy()
 
-            windowController?.load(server.baseURL)
+            windowController?.load(server.signInURL)
         } catch {
             presentFatal(title: "Não foi possível iniciar o DBClient", error: error)
         }
@@ -117,8 +117,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowController?.resetZoom()
     }
 
+    // The browser has no session cookie of its own, so it goes through the local sign-in as well.
     @objc func openInBrowser(_ sender: Any?) {
-        guard let url = windowController?.currentURL ?? server?.baseURL, url.scheme?.hasPrefix("http") == true else { return }
+        guard let url = server?.signInURL else { return }
         NSWorkspace.shared.open(url)
     }
 

@@ -42,13 +42,13 @@ log "Frontend (export estático)"
 rsync -a --exclude node_modules --exclude .next --exclude out "$REPO_ROOT/frontend/" "$STAGING/frontend/"
 (cd "$STAGING/frontend" && npm ci --no-audit --no-fund && npm run build)
 
-log "Servidor Go (universal, CGO_ENABLED=0)"
+log "Servidor Go (universal, CGO_ENABLED=0, -tags desktop)"
 rsync -a --exclude 'web/dist/*' "$REPO_ROOT/backend/" "$STAGING/backend/"
 mkdir -p "$STAGING/backend/web/dist"
 cp -R "$STAGING/frontend/out/." "$STAGING/backend/web/dist/"
 for arch in arm64 amd64; do
   (cd "$STAGING/backend" && CGO_ENABLED=0 GOOS=darwin GOARCH="$arch" \
-    go build -trimpath -ldflags="-s -w" -o "$STAGING/dbclient-server-$arch" ./cmd/server)
+    go build -tags desktop -trimpath -ldflags="-s -w" -o "$STAGING/dbclient-server-$arch" ./cmd/server)
 done
 lipo -create -output "$STAGING/dbclient-server" "$STAGING/dbclient-server-arm64" "$STAGING/dbclient-server-amd64"
 

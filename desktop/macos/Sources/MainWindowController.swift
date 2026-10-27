@@ -5,8 +5,6 @@ final class MainWindowController: NSWindowController, WKNavigationDelegate, WKUI
     private let webView: WKWebView
     private var origin: URL?
 
-    var currentURL: URL? { webView.url }
-
     init() {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()

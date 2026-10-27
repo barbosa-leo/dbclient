@@ -43,8 +43,8 @@ export function ExecutionHistory({
   collapsible = true,
   maxHeight,
 }: ExecutionHistoryProps) {
-  const { user } = useAuth();
-  const showUser = user?.role === 'admin';
+  const { user, isLocal } = useAuth();
+  const showUser = user?.role === 'admin' && !isLocal;
   const [open, setOpen] = useState(!collapsible);
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);

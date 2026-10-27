@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
+import { LocalSessionEnded } from '@/components/auth/LocalSessionEnded';
 import { ConnectionsProvider, useConnections } from '@/components/connections/ConnectionsProvider';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
@@ -12,20 +13,20 @@ import { Topbar } from '@/components/layout/Topbar';
 function AppWorkspace({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, isLocal } = useAuth();
   const { environments, loading, contextRevision } = useConnections();
 
   useEffect(() => {
     if (loading) return;
 
     if (environments.length === 0) {
-      const isAdmin = user?.role === 'admin';
-      const isAllowed = pathname.startsWith('/connections') || (isAdmin && pathname.startsWith('/users'));
+      const canManageUsers = user?.role === 'admin' && !isLocal;
+      const isAllowed = pathname.startsWith('/connections') || (canManageUsers && pathname.startsWith('/users'));
       if (!isAllowed) {
         router.replace('/connections');
       }
     }
-  }, [loading, environments.length, pathname, router, user?.role]);
+  }, [loading, environments.length, pathname, router, user?.role, isLocal]);
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
@@ -47,13 +48,14 @@ function AppWorkspace({ children }: { children: ReactNode }) {
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, isLocal } = useAuth();
 
   useEffect(() => {
-    if (!loading && !user) router.replace('/login');
-  }, [loading, user, router]);
+    if (!loading && !user && !isLocal) router.replace('/login');
+  }, [loading, user, isLocal, router]);
 
-  if (loading || !user) return null;
+  if (loading) return null;
+  if (!user) return isLocal ? <LocalSessionEnded /> : null;
   if (user.mustChangePassword) return <ChangePasswordForm />;
 
   return (

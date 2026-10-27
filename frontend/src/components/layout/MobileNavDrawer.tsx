@@ -12,7 +12,7 @@ interface MobileNavDrawerProps {
   sections: NavSection[];
   pathname: string;
   onClose: () => void;
-  onSignOut: () => void;
+  onSignOut?: () => void;
 }
 
 export function MobileNavDrawer({
@@ -131,22 +131,24 @@ export function MobileNavDrawer({
           )}
         </div>
 
-        <div className="shrink-0 border-t border-line p-3">
-          <button
-            type="button"
-            onClick={onSignOut}
-            className="flex h-11 w-full cursor-pointer items-center gap-3 rounded-lg px-3 text-sm font-medium text-ink-secondary transition-colors hover:bg-danger/10 hover:text-danger"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-[18px] w-[18px] shrink-0">
-              <path
-                d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            Sair
-          </button>
-        </div>
+        {onSignOut && (
+          <div className="shrink-0 border-t border-line p-3">
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="flex h-11 w-full cursor-pointer items-center gap-3 rounded-lg px-3 text-sm font-medium text-ink-secondary transition-colors hover:bg-danger/10 hover:text-danger"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-[18px] w-[18px] shrink-0">
+                <path
+                  d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Sair
+            </button>
+          </div>
+        )}
       </aside>
     </div>
   );

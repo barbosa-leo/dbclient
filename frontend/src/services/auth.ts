@@ -1,6 +1,8 @@
-import { apiRequest } from '@/services/api';
+import { ApiError, apiRequest } from '@/services/api';
 
 export type Role = 'admin' | 'operator' | 'viewer';
+
+export type AuthMode = 'session' | 'local';
 
 export interface User {
   id: number;
@@ -24,6 +26,17 @@ export function logout() {
 
 export function fetchCurrentUser() {
   return apiRequest<User>('/auth/me');
+}
+
+// Only desktop builds expose /app-config; the web server answers 404 and keeps the session flow.
+export async function fetchAuthMode(): Promise<AuthMode> {
+  try {
+    const config = await apiRequest<{ authMode: AuthMode }>('/app-config');
+    return config.authMode === 'local' ? 'local' : 'session';
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return 'session';
+    throw err;
+  }
 }
 
 export function changePassword(currentPassword: string, newPassword: string) {

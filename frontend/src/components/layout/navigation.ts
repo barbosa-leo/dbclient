@@ -14,6 +14,7 @@ export interface NavItem {
   label: string;
   icon: NavIconName;
   roles?: Role[];
+  hiddenInLocalMode?: boolean;
   kind?: 'link' | 'explorer';
 }
 
@@ -41,7 +42,7 @@ export const navSections: NavSection[] = [
     title: 'Gestão',
     items: [
       { href: '/connections', label: 'Conexões', icon: 'connections' },
-      { href: '/users', label: 'Usuários', icon: 'users', roles: ['admin'] },
+      { href: '/users', label: 'Usuários', icon: 'users', roles: ['admin'], hiddenInLocalMode: true },
       { href: '/settings', label: 'Configurações', icon: 'settings', roles: ['admin'] },
     ],
   },

@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -13,8 +14,9 @@ import { deleteUser, listUsers } from '@/services/users';
 type Editing = User | 'new' | null;
 
 export default function UsersPage() {
-  const { user: currentUser } = useAuth();
-  const isAdmin = currentUser?.role === 'admin';
+  const router = useRouter();
+  const { user: currentUser, isLocal } = useAuth();
+  const isAdmin = currentUser?.role === 'admin' && !isLocal;
   const [users, setUsers] = useState<User[]>([]);
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +39,10 @@ export default function UsersPage() {
   useEffect(() => {
     if (isAdmin) void reload();
   }, [isAdmin, reload]);
+
+  useEffect(() => {
+    if (isLocal) router.replace('/');
+  }, [isLocal, router]);
 
   async function handleSaved() {
     setEditing(null);

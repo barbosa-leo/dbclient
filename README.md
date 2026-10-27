@@ -91,7 +91,7 @@ docker compose up -d
 
 Acesse **`http://localhost:8080`** com as credenciais iniciais:
 
-- **Usuário:** `admin` (ou `admin@dbclient.local`)
+- **E-mail:** `admin@dbclient.local`
 - **Senha:** `admin` *(ou o valor definido em `DBCLIENT_INITIAL_ADMIN_PASSWORD`)*
 
 No primeiro login, o sistema exigirá a definição de uma nova senha forte antes de liberar o acesso.

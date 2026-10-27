@@ -32,7 +32,7 @@ Aplicação web para gerenciamento e exploração de bancos de dados PostgreSQL,
 - **Health check:** endpoint público `GET /healthz`.
 
 ## 4. Requisitos Funcionais
-- **Autenticação:** login (por e-mail ou username `admin`), logout e sessão gerenciados pelo backend.
+- **Autenticação:** login por e-mail, logout e sessão gerenciados pelo backend.
 - **Usuário inicial:** criado por migration (`admin@dbclient.local`), com troca de senha obrigatória no primeiro login.
 - **Papéis da plataforma:**
   - `admin`: gerencia usuários, ambientes, configurações e conexões; tem permissão de testar novas conexões livres; gerencia todos os jobs e execuções.

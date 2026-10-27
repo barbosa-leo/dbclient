@@ -27,7 +27,7 @@ Este documento define as regras estritas de operação, estilo, arquitetura e li
   * **O:** novos SGBDs (ex.: MySQL) entram como novo adapter de `DatabaseDriver`/`Dumper`, sem alterar use cases (sem `switch` por tipo de banco fora da factory).
   * **L:** todo adapter deve ser substituível sem quebrar o contrato da interface.
   * **I:** interfaces pequenas, definidas no lado do consumidor.
-  * **D:** injeção de dependências via construtores; a composição (wiring) ocorre exclusivamente em `cmd/server/main.go`.
+  * **D:** injeção de dependências via construtores; a composição (wiring) ocorre exclusivamente em `cmd/server/main.go` e em seus arquivos irmãos com build tag (`*_desktop.go` / `*_default.go`).
 * **Padrão Go Idiomático:** tratamento explícito de erros logo após chamadas com falha potencial (`if err != nil { return ... }`). Não utilize `panic` para fluxo de controle. Propague `context.Context` em toda operação de I/O.
 * **Persistência interna:** SQLite via driver puro Go (`modernc.org/sqlite`, sem CGO), modo WAL, migrations versionadas.
 * **Logs:** apenas no terminal (stdout), estruturados com `log/slog`. Sem integração com serviços externos e sem persistência de logs no banco.
@@ -39,6 +39,7 @@ Este documento define as regras estritas de operação, estilo, arquitetura e li
 * Papéis fixos da plataforma: `admin` (gerencia usuários e conexões) e `operator` (usa conexões: explorar, consultar, executar scripts e dumps). O que é permitido dentro do banco depende apenas dos privilégios do usuário da conexão; a plataforma não filtra SQL.
 * Formulário de conexão: validação obrigatória no backend e no frontend; dados incompletos não são salvos.
 * Autorização aplicada em middleware, nunca dentro dos handlers.
+* **Modo local (app desktop):** existe apenas em builds com `-tags desktop`; todo código do modo fica em arquivos `//go:build desktop`, de modo que o binário web/Docker não o contenha. Ativado por `DBCLIENT_AUTH_MODE=local`, exige `DBCLIENT_LOCAL_TOKEN` (≥ 32 bytes) e endereço de loopback. Não remove a autenticação: `GET /api/auth/local?token=` cria uma sessão comum para o `admin` inicial, e as rotas de login, logout, troca de senha e usuários não são registradas. O frontend detecta o modo em runtime via `GET /api/app-config` (404 = modo `session`), mantendo um único build.
 
 ### Credenciais
 * Senhas das conexões encriptadas em repouso com AES-256-GCM usando a chave da variável `DBCLIENT_ENCRYPTION_KEY` (32 bytes em base64). A aplicação não inicia sem ela.
@@ -72,6 +73,8 @@ Este documento define as regras estritas de operação, estilo, arquitetura e li
 | `DBCLIENT_DUMP_DIR` | não | `/tmp/dbclient` | Diretório temporário de dumps e scripts |
 | `DBCLIENT_DUMP_TTL` | não | `24h` | Tempo até remoção de arquivos temporários |
 | `DBCLIENT_SESSION_TTL` | não | `12h` | Duração da sessão |
+| `DBCLIENT_AUTH_MODE` | não | `session` | `local` apenas em builds `-tags desktop` (definido pelo shell desktop) |
+| `DBCLIENT_LOCAL_TOKEN` | no modo `local` | — | Token aleatório por execução para a autenticação transparente (definido pelo shell desktop) |
 
 ---
 
@@ -113,6 +116,8 @@ Este documento define as regras estritas de operação, estilo, arquitetura e li
 │   ├── package.json
 │   ├── package-lock.json
 │   └── next.config.js            # output: 'export'
+├── desktop/
+│   └── macos/                    # Shell nativo (Swift) + build.sh do .app/.dmg; não altera backend/frontend
 ├── docs/
 │   └── project.md
 ├── AGENTS.md

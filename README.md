@@ -17,6 +17,30 @@ Distribuído como um binário único em Go que embute a interface web estática 
 
 ---
 
+## App Desktop (macOS e Windows)
+
+Para uso individual, o DBClient também está disponível como aplicativo nativo: o mesmo servidor roda localmente (apenas em `127.0.0.1`) e a interface abre em uma janela própria, **sem login, gerenciamento de usuários ou logout**. Você atua como administrador: ambientes, conexões, consultas, scripts, dumps e configurações funcionam como na versão web.
+
+| Sistema | Download | Requisitos |
+|---|---|---|
+| macOS | [**DBClient-macOS.dmg**](https://github.com/barbosa-leo/dbclient/releases/latest/download/DBClient-macOS.dmg) | macOS 13 ou superior (Apple Silicon e Intel) |
+| Windows | [**DBClient-Windows-Setup.exe**](https://github.com/barbosa-leo/dbclient/releases/latest/download/DBClient-Windows-Setup.exe) | Windows 10/11 64 bits com [WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703) (já incluso no Windows 11) |
+
+Versões anteriores e notas de cada versão ficam na página de [Releases](https://github.com/barbosa-leo/dbclient/releases).
+
+> [!IMPORTANT]
+> Os instaladores ainda não são assinados digitalmente, então o sistema exibe um aviso na primeira execução:
+> - **macOS:** ao abrir o app pela primeira vez, ele será bloqueado. Vá em **Ajustes do Sistema › Privacidade e Segurança** e clique em **Abrir Mesmo Assim**. Na primeira execução, o macOS também pede a senha do Mac para guardar a chave de criptografia no Keychain: escolha **Sempre Permitir**.
+> - **Windows:** na tela "O Windows protegeu o computador", clique em **Mais informações › Executar assim mesmo**. O instalador não pede permissão de administrador.
+
+**Scripts e dumps** dependem das ferramentas de linha de comando do PostgreSQL (`psql` e `pg_dump`), na mesma versão do servidor ou mais nova. Conexões, explorador e editor SQL funcionam sem elas.
+- **macOS:** `brew install libpq` ou [Postgres.app](https://postgresapp.com).
+- **Windows:** [instalador oficial do PostgreSQL](https://www.postgresql.org/download/windows/), marcando apenas "Command Line Tools".
+
+Para gerar os instaladores localmente, veja [desktop/macos](desktop/macos/README.md) e [desktop/windows](desktop/windows/README.md).
+
+---
+
 ## Quick Start (Docker Compose)
 
 A maneira mais rápida de subir o DBClient em produção ou localmente usando a imagem oficial do Docker Hub.
@@ -67,7 +91,7 @@ docker compose up -d
 
 Acesse **`http://localhost:8080`** com as credenciais iniciais:
 
-- **Usuário:** `admin` (ou `admin@dbclient.local`)
+- **E-mail:** `admin@dbclient.local`
 - **Senha:** `admin` *(ou o valor definido em `DBCLIENT_INITIAL_ADMIN_PASSWORD`)*
 
 No primeiro login, o sistema exigirá a definição de uma nova senha forte antes de liberar o acesso.

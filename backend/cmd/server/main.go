@@ -141,6 +141,7 @@ func main() {
 		Query:         handler.NewQueryHandler(executeQueryUC),
 		Script:        handler.NewScriptHandler(runScriptUC, getSettingsUC),
 		Dump:          handler.NewDumpHandler(exportDumpUC, importDumpUC, jobManager, getSettingsUC),
+		LocalAuth:     newLocalAuth(cfg, userRepo, sessionRepo, hasher),
 		FrontendFiles: frontendFS,
 	})
 

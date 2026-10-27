@@ -9,7 +9,7 @@ interface TopbarProps {
 }
 
 export function Topbar({ onOpenMenu }: TopbarProps) {
-  const { user } = useAuth();
+  const { user, isLocal } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   const initial = user?.name?.slice(0, 1).toUpperCase() ?? 'U';
@@ -75,7 +75,7 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
           <span className="h-2 w-2 rounded-full bg-online" />
           <span className="text-xs font-medium text-ink">{user?.name}</span>
           <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-ink-secondary uppercase">
-            {user?.role}
+            {isLocal ? 'local' : user?.role}
           </span>
         </div>
 

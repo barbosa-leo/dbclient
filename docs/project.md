@@ -32,7 +32,7 @@ Aplicação web para gerenciamento e exploração de bancos de dados PostgreSQL,
 - **Health check:** endpoint público `GET /healthz`.
 
 ## 4. Requisitos Funcionais
-- **Autenticação:** login (por e-mail ou username `admin`), logout e sessão gerenciados pelo backend.
+- **Autenticação:** login por e-mail, logout e sessão gerenciados pelo backend.
 - **Usuário inicial:** criado por migration (`admin@dbclient.local`), com troca de senha obrigatória no primeiro login.
 - **Papéis da plataforma:**
   - `admin`: gerencia usuários, ambientes, configurações e conexões; tem permissão de testar novas conexões livres; gerencia todos os jobs e execuções.
@@ -46,3 +46,11 @@ Aplicação web para gerenciamento e exploração de bancos de dados PostgreSQL,
 - **Dumps (apenas `.sql`, formato SQL puro):**
   - **Exportação:** executada via `pg_dump` como job assíncrono isolado pelo usuário solicitante.
   - **Importação:** upload e restauração via `psql` como job assíncrono associado ao usuário solicitante.
+
+## 5. App Desktop (modo local)
+Distribuição nativa para uso individual (macOS e Windows), em [desktop/](../desktop/). Um shell nativo executa o mesmo servidor como processo filho e exibe a interface em uma janela própria.
+- **Modo local:** o servidor do app desktop é compilado com a build tag `desktop` e iniciado com `DBCLIENT_AUTH_MODE=local`. A build web/Docker não contém esse modo e recusa iniciar se ele for solicitado.
+- **Acesso:** sem tela de login, sem gerenciamento de usuários e sem logout. O usuário atua como o `admin` inicial; ambientes, conexões, configurações, consultas, scripts e dumps seguem as mesmas regras do papel `admin`.
+- **Autenticação transparente:** a cada execução, o shell gera um token aleatório (`DBCLIENT_LOCAL_TOKEN`) e abre `GET /api/auth/local?token=…`, que cria uma sessão comum (cookie `HttpOnly`/`SameSite=Strict`). Middleware, autorização e auditoria permanecem os mesmos da web.
+- **Isolamento:** o modo local só aceita endereço de loopback (`127.0.0.1`); rotas de login, troca de senha e usuários não são registradas.
+- **Credenciais do admin:** no primeiro acesso local, a troca de senha obrigatória é dispensada e a senha padrão é substituída por uma aleatória, para que o banco copiado para uma instalação web não carregue a senha `admin`.

@@ -12,6 +12,11 @@ import (
 	"dbclient/backend/internal/usecase/auth"
 )
 
+type LocalAuthRoutes interface {
+	SignIn(w http.ResponseWriter, r *http.Request)
+	AppConfig(w http.ResponseWriter, r *http.Request)
+}
+
 type RouterDeps struct {
 	Logger        *slog.Logger
 	AuthSession   *auth.AuthenticateSession
@@ -27,6 +32,7 @@ type RouterDeps struct {
 	Query         *handler.QueryHandler
 	Script        *handler.ScriptHandler
 	Dump          *handler.DumpHandler
+	LocalAuth     LocalAuthRoutes
 	FrontendFiles fs.FS
 }
 
@@ -47,15 +53,21 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 	mux.HandleFunc("GET /healthz", deps.Health.Check)
 
-	mux.HandleFunc("POST /api/auth/login", deps.Auth.Login)
-	mux.Handle("POST /api/auth/logout", requireAuthAllowPasswordChange(http.HandlerFunc(deps.Auth.Logout)))
 	mux.Handle("GET /api/auth/me", requireAuthAllowPasswordChange(http.HandlerFunc(deps.Auth.Me)))
-	mux.Handle("POST /api/auth/password", requireAuthAllowPasswordChange(http.HandlerFunc(deps.Auth.ChangePassword)))
 
-	mux.Handle("GET /api/users", requireAdmin(deps.Users.List))
-	mux.Handle("POST /api/users", requireAdmin(deps.Users.Create))
-	mux.Handle("PUT /api/users/{id}", requireAdmin(deps.Users.Update))
-	mux.Handle("DELETE /api/users/{id}", requireAdmin(deps.Users.Delete))
+	if deps.LocalAuth != nil {
+		mux.HandleFunc("GET /api/auth/local", deps.LocalAuth.SignIn)
+		mux.HandleFunc("GET /api/app-config", deps.LocalAuth.AppConfig)
+	} else {
+		mux.HandleFunc("POST /api/auth/login", deps.Auth.Login)
+		mux.Handle("POST /api/auth/logout", requireAuthAllowPasswordChange(http.HandlerFunc(deps.Auth.Logout)))
+		mux.Handle("POST /api/auth/password", requireAuthAllowPasswordChange(http.HandlerFunc(deps.Auth.ChangePassword)))
+
+		mux.Handle("GET /api/users", requireAdmin(deps.Users.List))
+		mux.Handle("POST /api/users", requireAdmin(deps.Users.Create))
+		mux.Handle("PUT /api/users/{id}", requireAdmin(deps.Users.Update))
+		mux.Handle("DELETE /api/users/{id}", requireAdmin(deps.Users.Delete))
+	}
 
 	mux.Handle("GET /api/settings", requireAdmin(deps.Settings.Get))
 	mux.Handle("PUT /api/settings", requireAdmin(deps.Settings.Update))

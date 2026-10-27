@@ -7,3 +7,4 @@ backend/web/dist
 .git
 .env*
 docs
+desktop

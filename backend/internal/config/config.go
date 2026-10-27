@@ -4,10 +4,20 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"time"
 )
+
+type AuthMode string
+
+const (
+	AuthModeSession AuthMode = "session"
+	AuthModeLocal   AuthMode = "local"
+)
+
+const minLocalTokenLength = 32
 
 type Config struct {
 	EncryptionKey        []byte
@@ -22,6 +32,8 @@ type Config struct {
 	RateLimitQuery       int
 	InitialAdminPassword string
 	TrustedProxies       string
+	AuthMode             AuthMode
+	LocalToken           string
 }
 
 func Load() (Config, error) {
@@ -48,9 +60,16 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	addr := stringEnv("DBCLIENT_ADDR", ":8080")
+	authMode := AuthMode(stringEnv("DBCLIENT_AUTH_MODE", string(AuthModeSession)))
+	localToken := os.Getenv("DBCLIENT_LOCAL_TOKEN")
+	if err := validateAuthMode(authMode, addr, localToken); err != nil {
+		return Config{}, err
+	}
+
 	return Config{
 		EncryptionKey:        key,
-		Addr:                 stringEnv("DBCLIENT_ADDR", ":8080"),
+		Addr:                 addr,
 		DataDir:              stringEnv("DBCLIENT_DATA_DIR", "/data"),
 		DumpDir:              stringEnv("DBCLIENT_DUMP_DIR", "/tmp/dbclient"),
 		DumpTTL:              dumpTTL,
@@ -61,7 +80,42 @@ func Load() (Config, error) {
 		RateLimitQuery:       intEnv("DBCLIENT_RATE_LIMIT_QUERY", 60),
 		InitialAdminPassword: stringEnv("DBCLIENT_INITIAL_ADMIN_PASSWORD", "admin"),
 		TrustedProxies:       stringEnv("DBCLIENT_TRUSTED_PROXIES", ""),
+		AuthMode:             authMode,
+		LocalToken:           localToken,
 	}, nil
+}
+
+func validateAuthMode(mode AuthMode, addr, localToken string) error {
+	switch mode {
+	case AuthModeSession:
+		return nil
+	case AuthModeLocal:
+	default:
+		return fmt.Errorf("DBCLIENT_AUTH_MODE must be %q or %q", AuthModeSession, AuthModeLocal)
+	}
+
+	if !localModeSupported {
+		return errors.New("DBCLIENT_AUTH_MODE=local requires a desktop build (-tags desktop)")
+	}
+	if len(localToken) < minLocalTokenLength {
+		return fmt.Errorf("DBCLIENT_LOCAL_TOKEN must have at least %d characters in local mode", minLocalTokenLength)
+	}
+	if !isLoopbackAddr(addr) {
+		return errors.New("DBCLIENT_ADDR must be a loopback address (e.g. 127.0.0.1:8080) in local mode")
+	}
+	return nil
+}
+
+func isLoopbackAddr(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false
+	}
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func stringEnv(name, fallback string) string {

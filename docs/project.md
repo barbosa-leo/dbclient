@@ -48,7 +48,7 @@ Aplicação web para gerenciamento e exploração de bancos de dados PostgreSQL,
   - **Importação:** upload e restauração via `psql` como job assíncrono associado ao usuário solicitante.
 
 ## 5. App Desktop (modo local)
-Distribuição nativa para uso individual (macOS; Windows planejado), em [desktop/](../desktop/). Um shell nativo executa o mesmo servidor como processo filho e exibe a interface em uma janela própria.
+Distribuição nativa para uso individual (macOS e Windows), em [desktop/](../desktop/). Um shell nativo executa o mesmo servidor como processo filho e exibe a interface em uma janela própria.
 - **Modo local:** o servidor do app desktop é compilado com a build tag `desktop` e iniciado com `DBCLIENT_AUTH_MODE=local`. A build web/Docker não contém esse modo e recusa iniciar se ele for solicitado.
 - **Acesso:** sem tela de login, sem gerenciamento de usuários e sem logout. O usuário atua como o `admin` inicial; ambientes, conexões, configurações, consultas, scripts e dumps seguem as mesmas regras do papel `admin`.
 - **Autenticação transparente:** a cada execução, o shell gera um token aleatório (`DBCLIENT_LOCAL_TOKEN`) e abre `GET /api/auth/local?token=…`, que cria uma sessão comum (cookie `HttpOnly`/`SameSite=Strict`). Middleware, autorização e auditoria permanecem os mesmos da web.

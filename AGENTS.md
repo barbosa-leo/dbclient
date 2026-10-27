@@ -117,7 +117,8 @@ Este documento define as regras estritas de operação, estilo, arquitetura e li
 │   ├── package-lock.json
 │   └── next.config.js            # output: 'export'
 ├── desktop/
-│   └── macos/                    # Shell nativo (Swift) + build.sh do .app/.dmg; não altera backend/frontend
+│   ├── macos/                    # Shell nativo (Swift) + build.sh do .app/.dmg; não altera backend/frontend
+│   └── windows/                  # Shell nativo (Go + WebView2) + build.sh/installer.nsi do instalador NSIS
 ├── docs/
 │   └── project.md
 ├── AGENTS.md

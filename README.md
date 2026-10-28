@@ -35,6 +35,8 @@ Versões anteriores e notas de cada versão ficam na página de [Releases](https
 
 Os apps já incluem o `pg_dump` e o `psql` do PostgreSQL 18, usados em scripts e dumps de servidores até a versão 18; não é preciso instalar nada.
 
+**Atualizações:** quando sai uma versão nova, ela aparece em destaque na página **Novidades** do app, com o botão **Atualizar**. No Windows, o app baixa a versão nova, se reinstala e reabre sozinho. No macOS, o app baixa e abre o DMG: feche o DBClient (⌘Q) e arraste o app para a pasta Aplicativos, substituindo a versão anterior. Seus dados e conexões são mantidos.
+
 Para gerar os instaladores localmente, veja [desktop/macos](desktop/macos/README.md) e [desktop/windows](desktop/windows/README.md).
 
 ---

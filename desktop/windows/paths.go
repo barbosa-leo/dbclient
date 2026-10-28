@@ -13,6 +13,7 @@ type appPaths struct {
 	dumpDir    string
 	logsDir    string
 	webViewDir string
+	updatesDir string
 }
 
 func (p appPaths) serverLog() string { return filepath.Join(p.logsDir, "server.log") }
@@ -38,8 +39,9 @@ func resolvePaths() (appPaths, error) {
 		dumpDir:    filepath.Join(base, "dumps"),
 		logsDir:    filepath.Join(base, "logs"),
 		webViewDir: filepath.Join(base, "WebView2"),
+		updatesDir: filepath.Join(base, "updates"),
 	}
-	for _, dir := range []string{paths.dataDir, paths.dumpDir, paths.logsDir, paths.webViewDir} {
+	for _, dir := range []string{paths.dataDir, paths.dumpDir, paths.logsDir, paths.webViewDir, paths.updatesDir} {
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return appPaths{}, err
 		}

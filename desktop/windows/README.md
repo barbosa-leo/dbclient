@@ -40,6 +40,7 @@ O ícone fica versionado em `assets/DBClient.ico` (16 a 256 px, gerado a partir 
 | Chave de criptografia | `%LOCALAPPDATA%\DBClient\encryption.key`, protegida com DPAPI (só o mesmo usuário do Windows consegue ler) |
 | Endereço | `127.0.0.1` em porta fixa por instalação (preserva o `localStorage`) |
 | `pg_dump`/`psql` | embutidos em `postgres\` (PostgreSQL 18); a versão mais recente em `C:\Program Files\PostgreSQL\<versão>\bin` e o `PATH` ficam como alternativa |
+| Atualização | botão na página Novidades: baixa o instalador do GitHub Release para `%LOCALAPPDATA%\DBClient\updates`, confere o `SHA256SUMS`, fecha o app e roda o instalador com `/S /RELAUNCH`, que reabre o app na versão nova |
 | Encerramento | O servidor roda num Job Object: fechar a janela, ou o shell travar, encerra o servidor e qualquer `pg_dump`/`psql` em andamento (a transação do `psql` é revertida) |
 | Instância única | Abrir o app de novo só traz a janela existente para frente |
 

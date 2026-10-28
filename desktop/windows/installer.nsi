@@ -106,6 +106,14 @@ Section "Install"
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoRepair" 1
 
   Call WarnIfWebView2Missing
+
+  ; In-app updates run the installer silently with /RELAUNCH, so the app reopens on the new version.
+  ${GetParameters} $0
+  ClearErrors
+  ${GetOptions} $0 "/RELAUNCH" $1
+  ${IfNot} ${Errors}
+    Exec '"$INSTDIR\${APP_EXE}"'
+  ${EndIf}
 SectionEnd
 
 Section "Uninstall"

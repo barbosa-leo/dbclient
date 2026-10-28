@@ -42,6 +42,7 @@ NOTARY_PROFILE=dbclient-notary \
 | Chave de criptografia | Keychain, serviço `com.dbclient.desktop`, gerada no primeiro uso |
 | Endereço | `127.0.0.1` em porta fixa por instalação (reaproveitada entre execuções para preservar o `localStorage`) |
 | `pg_dump`/`psql` | embutidos em `Contents/Helpers/postgres` (PostgreSQL 18); Homebrew (`libpq`), `/usr/local` e Postgres.app ficam como alternativa |
+| Atualização | botão na página Novidades: baixa o DMG do GitHub Release para `~/Library/Caches/DBClient/updates`, confere o `SHA256SUMS` e abre o DMG para o usuário arrastar o app (a troca automática do bundle depende de assinatura com Developer ID) |
 
 Se a chave sumir do Keychain mas o banco existir, o app não inicia em vez de gerar uma chave nova, porque as senhas das conexões salvas ficariam ilegíveis.
 

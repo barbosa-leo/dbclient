@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { DesktopUpdateNotice } from '@/components/updates/DesktopUpdateNotice';
 import { ImageUpdateNotice } from '@/components/updates/ImageUpdateNotice';
 import { ReleaseNotes } from '@/components/updates/ReleaseNotes';
 import { appVersion } from '@/components/updates/releases';
@@ -29,7 +30,12 @@ export default function UpdatesPage() {
         badge=""
       />
 
-      {!isLocal && latestAvailable && <ImageUpdateNotice latestVersion={latestAvailable.version} />}
+      {latestAvailable &&
+        (isLocal ? (
+          <DesktopUpdateNotice latestVersion={latestAvailable.version} />
+        ) : (
+          <ImageUpdateNotice latestVersion={latestAvailable.version} />
+        ))}
 
       <div className="flex max-w-3xl flex-col gap-3">
         {releases.map((release) => (

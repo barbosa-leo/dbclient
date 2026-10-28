@@ -3,11 +3,13 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"time"
 
 	webview2 "github.com/jchv/go-webview2"
@@ -19,6 +21,7 @@ const (
 	iconFile         = "DBClient.ico"
 	webView2Download = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
 	healthTimeout    = 30 * time.Second
+	updateTimeout    = 10 * time.Minute
 )
 
 var errWebView2Missing = errors.New("Microsoft Edge WebView2 Runtime não encontrado")
@@ -116,6 +119,41 @@ func run() error {
 			view.Destroy()
 		})
 	}
+
+	var updating atomic.Bool
+	notifyUpdate := func(state, message string) {
+		view.Dispatch(func() { view.Eval(updateStatusScript(state, message)) })
+	}
+	// Bound functions run on the UI thread, so the download goes to a goroutine and reports back through events.
+	err = view.Bind("dbclientInstallUpdate", func(version string) {
+		if !updating.CompareAndSwap(false, true) {
+			return
+		}
+		go func() {
+			notifyUpdate("downloading", "")
+			ctx, cancel := context.WithTimeout(context.Background(), updateTimeout)
+			defer cancel()
+			installer, err := downloadInstaller(ctx, paths.updatesDir, version)
+			if err != nil {
+				updating.Store(false)
+				notifyUpdate("failed", err.Error())
+				return
+			}
+			view.Dispatch(func() {
+				if err := startInstaller(installer); err != nil {
+					updating.Store(false)
+					view.Eval(updateStatusScript("failed", err.Error()))
+					return
+				}
+				view.Eval(updateStatusScript("installing", ""))
+				view.Terminate()
+			})
+		}()
+	})
+	if err != nil {
+		return err
+	}
+	view.Init(desktopBridgeScript)
 
 	srv.OnUnexpectedExit(func(code int) {
 		fail(fmt.Sprintf("O servidor do DBClient foi encerrado inesperadamente (código %d).", code))

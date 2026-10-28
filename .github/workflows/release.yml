@@ -9,9 +9,48 @@ permissions:
   contents: write
 
 jobs:
+  notes:
+    name: Release notes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          package_version="$(jq -r .version frontend/package.json)"
+          if [[ "$package_version" != "${TAG#v}" ]]; then
+            echo "::error::frontend/package.json está na versão $package_version, mas a tag é $TAG"
+            exit 1
+          fi
+
+      # The app parses this Markdown back into categories (frontend/src/services/githubReleases.ts).
+      - name: Render notes from releases.json
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          jq -r --arg version "${TAG#v}" '
+            (map(select(.version == $version)) | first // error("releases.json não tem a versão \($version)")) as $release
+            | [["new", "Novo"], ["improved", "Melhorias"], ["fixed", "Correções"]]
+            | map(select(($release.changes[.[0]] // []) | length > 0)
+                | "### \(.[1])\n\n" + ($release.changes[.[0]] | map("- " + .) | join("\n")))
+            | join("\n\n")
+          ' frontend/src/components/updates/releases.json > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
+
+      - name: Upload notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: notes
+          path: RELEASE_NOTES.md
+          if-no-files-found: error
+
   macos:
     name: macOS (.dmg)
     runs-on: macos-latest
+    needs: notes
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -49,6 +88,7 @@ jobs:
   windows:
     name: Windows (installer)
     runs-on: ubuntu-latest
+    needs: notes
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -89,7 +129,7 @@ jobs:
   release:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
-    needs: [macos, windows]
+    needs: [notes, macos, windows]
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -103,5 +143,5 @@ jobs:
           gh release create "${{ github.ref_name }}" \
             --repo "${{ github.repository }}" \
             --title "${{ github.ref_name }}" \
-            --generate-notes \
+            --notes-file RELEASE_NOTES.md \
             DBClient-macOS.dmg DBClient-Windows-Setup.exe

@@ -1,0 +1,34 @@
+[
+  {
+    "version": "0.2.0",
+    "date": "2026-10-28",
+    "changes": {
+      "new": [
+        "Página de novidades, com destaque para versões ainda não vistas e para versões mais novas disponíveis.",
+        "pg_dump e psql embutidos nos apps desktop: scripts e dumps funcionam sem instalar o PostgreSQL."
+      ]
+    }
+  },
+  {
+    "version": "0.1.0",
+    "date": "2026-10-27",
+    "changes": {
+      "new": [
+        "Apps nativos para macOS e Windows, sem tela de login e com os dados guardados no próprio computador.",
+        "Editor SQL com destaque de sintaxe, autocomplete contextual e execução em transação com rollback em caso de erro.",
+        "Explorador de schemas com edição de estrutura de tabelas, chaves estrangeiras, índices e definições de objetos.",
+        "Navegação direta entre tabelas pelas chaves estrangeiras.",
+        "Tabela de resultados com ordenação, filtros, edição de células, colunas redimensionáveis e cópia em vários formatos.",
+        "Execução de scripts SQL e exportação/importação de dumps em segundo plano, com progresso e cancelamento.",
+        "Histórico de execuções com retenção configurável.",
+        "Ambientes de conexão com visibilidade por usuário e teste de conexão antes de salvar.",
+        "Papéis de administrador, operador e somente leitura, com login por e-mail.",
+        "Página de configurações para limites de arquivos e histórico."
+      ],
+      "improved": [
+        "Interface responsiva, com navegação em gaveta e ações de toque no celular.",
+        "Temas claro e escuro."
+      ]
+    }
+  }
+]

@@ -49,7 +49,7 @@ mkdir -p "$PAYLOAD"
 
 log "Frontend (export estático)"
 rsync -a --exclude node_modules --exclude .next --exclude out "$REPO_ROOT/frontend/" "$STAGING/frontend/"
-(cd "$STAGING/frontend" && npm ci --no-audit --no-fund && npm run build)
+(cd "$STAGING/frontend" && npm ci --no-audit --no-fund && APP_VERSION="$VERSION" npm run build)
 
 log "Servidor Go (windows/amd64, CGO_ENABLED=0, -tags desktop)"
 rsync -a --exclude 'web/dist/*' "$REPO_ROOT/backend/" "$STAGING/backend/"

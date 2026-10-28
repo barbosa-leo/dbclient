@@ -9,6 +9,7 @@ import { LocalSessionEnded } from '@/components/auth/LocalSessionEnded';
 import { ConnectionsProvider, useConnections } from '@/components/connections/ConnectionsProvider';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
+import { UpdatesProvider } from '@/components/updates/UpdatesProvider';
 
 function AppWorkspace({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -21,7 +22,10 @@ function AppWorkspace({ children }: { children: ReactNode }) {
 
     if (environments.length === 0) {
       const canManageUsers = user?.role === 'admin' && !isLocal;
-      const isAllowed = pathname.startsWith('/connections') || (canManageUsers && pathname.startsWith('/users'));
+      const isAllowed =
+        pathname.startsWith('/connections') ||
+        pathname.startsWith('/updates') ||
+        (canManageUsers && pathname.startsWith('/users'));
       if (!isAllowed) {
         router.replace('/connections');
       }
@@ -60,7 +64,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <ConnectionsProvider>
-      <AppWorkspace>{children}</AppWorkspace>
+      <UpdatesProvider>
+        <AppWorkspace>{children}</AppWorkspace>
+      </UpdatesProvider>
     </ConnectionsProvider>
   );
 }

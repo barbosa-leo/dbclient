@@ -3,6 +3,8 @@
 import { useAuth } from '@/components/auth/AuthProvider';
 import { ConnectionSelector } from '@/components/connections/ConnectionSelector';
 import { useTheme } from '@/components/layout/ThemeProvider';
+import { UnreadDot } from '@/components/updates/UnreadDot';
+import { useUpdates } from '@/components/updates/UpdatesProvider';
 
 interface TopbarProps {
   onOpenMenu: () => void;
@@ -11,6 +13,7 @@ interface TopbarProps {
 export function Topbar({ onOpenMenu }: TopbarProps) {
   const { user, isLocal } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { unreadVersions } = useUpdates();
 
   const initial = user?.name?.slice(0, 1).toUpperCase() ?? 'U';
 
@@ -21,11 +24,12 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
           type="button"
           onClick={onOpenMenu}
           aria-label="Abrir menu"
-          className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-ink-secondary transition-colors hover:bg-muted hover:text-ink lg:hidden"
+          className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-ink-secondary transition-colors hover:bg-muted hover:text-ink lg:hidden"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true" className="h-5 w-5">
             <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
           </svg>
+          {unreadVersions.length > 0 && <UnreadDot className="absolute top-2 right-2" />}
         </button>
         <img
           src="/logo.png"

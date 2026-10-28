@@ -7,7 +7,8 @@ export type NavIconName =
   | 'dumps'
   | 'connections'
   | 'users'
-  | 'settings';
+  | 'settings'
+  | 'updates';
 
 export interface NavItem {
   href: string;
@@ -15,6 +16,7 @@ export interface NavItem {
   icon: NavIconName;
   roles?: Role[];
   hiddenInLocalMode?: boolean;
+  indicator?: 'unreadUpdates';
   kind?: 'link' | 'explorer';
 }
 
@@ -44,6 +46,7 @@ export const navSections: NavSection[] = [
       { href: '/connections', label: 'Conexões', icon: 'connections' },
       { href: '/users', label: 'Usuários', icon: 'users', roles: ['admin'], hiddenInLocalMode: true },
       { href: '/settings', label: 'Configurações', icon: 'settings', roles: ['admin'] },
+      { href: '/updates', label: 'Novidades', icon: 'updates', indicator: 'unreadUpdates' },
     ],
   },
 ];

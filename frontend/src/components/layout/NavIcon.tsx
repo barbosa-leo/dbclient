@@ -61,5 +61,12 @@ export function NavIcon({ name }: { name: NavIconName }) {
           <circle cx="9" cy="17" r="2" />
         </svg>
       );
+    case 'updates':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" className="h-[18px] w-[18px] shrink-0">
+          <path d="M12 3v3M12 18v3M3 12h3M18 12h3" strokeLinecap="round" />
+          <path d="m12 8 1.2 2.8L16 12l-2.8 1.2L12 16l-1.2-2.8L8 12l2.8-1.2L12 8Z" strokeLinejoin="round" />
+        </svg>
+      );
   }
 }

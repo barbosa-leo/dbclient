@@ -27,6 +27,7 @@ import (
 	"dbclient/backend/internal/usecase/query"
 	"dbclient/backend/internal/usecase/script"
 	"dbclient/backend/internal/usecase/settings"
+	"dbclient/backend/internal/usecase/updates"
 	"dbclient/backend/internal/usecase/user"
 )
 
@@ -120,6 +121,7 @@ func TestEndToEndFlow(t *testing.T) {
 	connRepo := sqlite.NewConnectionRepository(db)
 	settingsRepo := sqlite.NewSettingsRepository(db)
 	historyRepo := sqlite.NewExecutionHistoryRepository(db)
+	updateViewRepo := sqlite.NewUpdateViewRepository(db)
 
 	drv := &fakeDriver{}
 	dmp := &fakeDumper{}
@@ -161,6 +163,7 @@ func TestEndToEndFlow(t *testing.T) {
 		Users:        handler.NewUserHandler(listUsersUC, createUserUC, updateUserUC, deleteUserUC),
 		Settings:     handler.NewSettingsHandler(getSettingsUC, updateSettingsUC),
 		History:      handler.NewHistoryHandler(listHistoryUC),
+		Updates:      handler.NewUpdatesHandler(updates.NewListSeenUpdates(updateViewRepo), updates.NewMarkUpdatesSeen(updateViewRepo)),
 		Environments: handler.NewEnvironmentHandler(listEnvsUC, createEnvUC, deleteEnvUC),
 		Connections:  handler.NewConnectionHandler(listConnsUC, createConnUC, updateConnUC, deleteConnUC, testConnUC),
 		Explorer: handler.NewExplorerHandler(
@@ -226,6 +229,36 @@ func TestEndToEndFlow(t *testing.T) {
 	})
 	if passRes.StatusCode != http.StatusNoContent {
 		t.Fatalf("expected 204 on password change, got %d", passRes.StatusCode)
+	}
+
+	readSeenUpdates := func() []string {
+		res := doReq(http.MethodGet, "/api/updates/seen", nil)
+		if res.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 listing seen updates, got %d", res.StatusCode)
+		}
+		var body struct {
+			Versions []string `json:"versions"`
+		}
+		if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		return body.Versions
+	}
+	if seen := readSeenUpdates(); len(seen) != 0 {
+		t.Fatalf("expected no seen updates for a new user, got %v", seen)
+	}
+	for range 2 {
+		markRes := doReq(http.MethodPost, "/api/updates/seen", map[string]any{"versions": []string{"0.1.0"}})
+		if markRes.StatusCode != http.StatusNoContent {
+			t.Fatalf("expected 204 marking update as seen, got %d", markRes.StatusCode)
+		}
+	}
+	if seen := readSeenUpdates(); len(seen) != 1 || seen[0] != "0.1.0" {
+		t.Fatalf("expected [0.1.0] after marking twice, got %v", seen)
+	}
+	invalidMarkRes := doReq(http.MethodPost, "/api/updates/seen", map[string]any{"versions": []string{"latest"}})
+	if invalidMarkRes.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid version, got %d", invalidMarkRes.StatusCode)
 	}
 
 	envRes := doReq(http.MethodPost, "/api/environments", map[string]string{"name": "Production"})

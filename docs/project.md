@@ -46,6 +46,7 @@ Aplicação web para gerenciamento e exploração de bancos de dados PostgreSQL,
 - **Dumps (apenas `.sql`, formato SQL puro):**
   - **Exportação:** executada via `pg_dump` como job assíncrono isolado pelo usuário solicitante.
   - **Importação:** upload e restauração via `psql` como job assíncrono associado ao usuário solicitante.
+- **Novidades:** página com as mudanças de cada versão, agrupadas por versão e por categoria (novo, melhorias, correções). O conteúdo é versionado no frontend; as versões já vistas por cada usuário ficam na tabela `update_views` do SQLite, e o menu exibe um indicador enquanto houver versão não lida.
 
 ## 5. App Desktop (modo local)
 Distribuição nativa para uso individual (macOS e Windows), em [desktop/](../desktop/). Um shell nativo executa o mesmo servidor como processo filho e exibe a interface em uma janela própria.

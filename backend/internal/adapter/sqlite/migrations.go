@@ -249,6 +249,21 @@ SELECT u.id, e.id FROM users u CROSS JOIN environments e WHERE u.role != 'admin'
 			return err
 		},
 	},
+	{
+		version: 8,
+		apply: func(ctx context.Context, tx *sql.Tx, hasher domain.PasswordHasher) error {
+			const schema = `
+CREATE TABLE IF NOT EXISTS update_views (
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	version TEXT NOT NULL,
+	seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (user_id, version)
+);
+`
+			_, err := tx.ExecContext(ctx, schema)
+			return err
+		},
+	},
 }
 
 func runMigrations(ctx context.Context, db *sql.DB, hasher domain.PasswordHasher) error {

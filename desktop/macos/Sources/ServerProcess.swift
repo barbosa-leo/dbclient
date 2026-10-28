@@ -26,8 +26,10 @@ enum ServerError: LocalizedError {
 }
 
 final class ServerProcess {
-    // Finder launches apps with a minimal PATH, so pg_dump/psql from Homebrew or Postgres.app would not be found.
+    // The bundled pg_dump/psql come first; Finder launches apps with a minimal PATH, so the
+    // Homebrew and Postgres.app locations are listed explicitly as a fallback.
     private static let searchPath = [
+        Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/postgres/bin").path,
         "/opt/homebrew/opt/libpq/bin",
         "/opt/homebrew/bin",
         "/usr/local/opt/libpq/bin",

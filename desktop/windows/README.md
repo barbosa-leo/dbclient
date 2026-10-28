@@ -7,12 +7,15 @@ Shell nativo em Go (WebView2, sem CGO) que executa o servidor existente como pro
 ├── DBClient.exe          # shell: janela WebView2, ciclo de vida, chave DPAPI
 ├── dbclient-server.exe   # servidor (-tags desktop, CGO_ENABLED=0)
 ├── DBClient.ico
+├── postgres\           # pg_dump.exe, psql.exe e DLLs (PostgreSQL 18)
 └── Uninstall.exe
 ```
 
 ## Build
 
 Requisitos: Go, Node e `makensis` (`brew install makensis`).
+
+O `pg_dump` e o `psql` vêm dos binários do PostgreSQL publicados pela EDB: o script baixa o zip da versão fixada em `POSTGRES_VERSION` (guardado em `cache/`), confere o SHA-256 e copia só as duas ferramentas e as DLLs que elas usam (incluindo a `vcruntime140.dll`) para `postgres\`.
 
 O ícone fica versionado em `assets/DBClient.ico` (16 a 256 px, gerado a partir de `frontend/public/logo.png`); se o logo mudar, ele precisa ser regenerado.
 
@@ -36,7 +39,7 @@ O ícone fica versionado em `assets/DBClient.ico` (16 a 256 px, gerado a partir 
 | Logs do servidor | `%LOCALAPPDATA%\DBClient\logs\server.log` (rotação em 10 MB) |
 | Chave de criptografia | `%LOCALAPPDATA%\DBClient\encryption.key`, protegida com DPAPI (só o mesmo usuário do Windows consegue ler) |
 | Endereço | `127.0.0.1` em porta fixa por instalação (preserva o `localStorage`) |
-| `pg_dump`/`psql` | `PATH` ou a versão mais recente em `C:\Program Files\PostgreSQL\<versão>\bin` |
+| `pg_dump`/`psql` | embutidos em `postgres\` (PostgreSQL 18); a versão mais recente em `C:\Program Files\PostgreSQL\<versão>\bin` e o `PATH` ficam como alternativa |
 | Encerramento | O servidor roda num Job Object: fechar a janela, ou o shell travar, encerra o servidor e qualquer `pg_dump`/`psql` em andamento (a transação do `psql` é revertida) |
 | Instância única | Abrir o app de novo só traz a janela existente para frente |
 

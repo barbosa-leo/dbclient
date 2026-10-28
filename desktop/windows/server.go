@@ -26,6 +26,8 @@ const (
 	// Each launch signs in again with a fresh token, so the session only has to outlive one app run.
 	sessionTTL  = "720h"
 	maxLogBytes = 10 * 1024 * 1024
+
+	bundledPostgresDir = "postgres"
 )
 
 type serverConfig struct {
@@ -71,7 +73,7 @@ func startServer(cfg serverConfig) (*server, error) {
 
 	addr := fmt.Sprintf("127.0.0.1:%d", cfg.port)
 	env := os.Environ()
-	env = setEnv(env, "PATH", withPostgresPath(os.Getenv("PATH")))
+	env = setEnv(env, "PATH", withPostgresPath(filepath.Join(filepath.Dir(cfg.executable), bundledPostgresDir), os.Getenv("PATH")))
 	env = setEnv(env, "DBCLIENT_ENCRYPTION_KEY", cfg.encryptionKey)
 	env = setEnv(env, "DBCLIENT_AUTH_MODE", "local")
 	env = setEnv(env, "DBCLIENT_LOCAL_TOKEN", token)
@@ -203,21 +205,19 @@ func assignToJob(job windows.Handle, pid int) error {
 	return windows.AssignProcessToJobObject(job, process)
 }
 
-// The PostgreSQL installer does not add its bin directory to PATH, so pg_dump/psql would not be found.
-func withPostgresPath(current string) string {
+// The bundled pg_dump/psql come first; the PostgreSQL installer does not add its bin directory to PATH,
+// so installed versions are appended as a fallback.
+func withPostgresPath(bundledDir, current string) string {
 	dirs, _ := filepath.Glob(filepath.Join(os.Getenv("ProgramFiles"), "PostgreSQL", "*", "bin"))
 	sort.Slice(dirs, func(i, j int) bool {
 		return majorVersion(dirs[i]) > majorVersion(dirs[j])
 	})
 
-	var found []string
+	found := []string{bundledDir}
 	for _, dir := range dirs {
 		if _, err := os.Stat(filepath.Join(dir, "pg_dump.exe")); err == nil {
 			found = append(found, dir)
 		}
-	}
-	if len(found) == 0 {
-		return current
 	}
 	return strings.Join(found, string(os.PathListSeparator)) + string(os.PathListSeparator) + current
 }

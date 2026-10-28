@@ -33,9 +33,7 @@ Versões anteriores e notas de cada versão ficam na página de [Releases](https
 > - **macOS:** ao abrir o app pela primeira vez, ele será bloqueado. Vá em **Ajustes do Sistema › Privacidade e Segurança** e clique em **Abrir Mesmo Assim**. Na primeira execução, o macOS também pede a senha do Mac para guardar a chave de criptografia no Keychain: escolha **Sempre Permitir**.
 > - **Windows:** na tela "O Windows protegeu o computador", clique em **Mais informações › Executar assim mesmo**. O instalador não pede permissão de administrador.
 
-**Scripts e dumps** dependem das ferramentas de linha de comando do PostgreSQL (`psql` e `pg_dump`), na mesma versão do servidor ou mais nova. Conexões, explorador e editor SQL funcionam sem elas.
-- **macOS:** `brew install libpq` ou [Postgres.app](https://postgresapp.com).
-- **Windows:** [instalador oficial do PostgreSQL](https://www.postgresql.org/download/windows/), marcando apenas "Command Line Tools".
+Os apps já incluem o `pg_dump` e o `psql` do PostgreSQL 18, usados em scripts e dumps de servidores até a versão 18; não é preciso instalar nada.
 
 Para gerar os instaladores localmente, veja [desktop/macos](desktop/macos/README.md) e [desktop/windows](desktop/windows/README.md).
 

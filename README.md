@@ -187,3 +187,8 @@ go run ./cmd/server
 cd frontend
 npm install && npm run dev
 ```
+---
+
+## Licença
+
+Distribuído sob a [licença MIT](LICENSE).

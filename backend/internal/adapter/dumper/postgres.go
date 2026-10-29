@@ -16,6 +16,19 @@ import (
 
 type PostgresDumper struct{}
 
+type recordingWriter struct {
+	dst io.Writer
+	err error
+}
+
+func (w *recordingWriter) Write(p []byte) (int, error) {
+	n, err := w.dst.Write(p)
+	if err != nil && w.err == nil {
+		w.err = err
+	}
+	return n, err
+}
+
 func NewPostgresDumper() *PostgresDumper {
 	return &PostgresDumper{}
 }
@@ -55,14 +68,20 @@ func (d *PostgresDumper) Export(ctx context.Context, creds domain.ConnectionCred
 		"--dbname", creds.Database,
 	}
 
+	out := &recordingWriter{dst: dst}
 	cmd := exec.CommandContext(ctx, binPath, args...)
 	cmd.Env = buildPostgresEnv(creds)
-	cmd.Stdout = dst
+	cmd.Stdout = out
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
+		// A failing dst closes pg_dump's stdout, so pg_dump exits with a generic write error
+		// ("Invalid argument" on Windows, "Broken pipe" elsewhere) and exec drops dst's error.
+		if out.err != nil {
+			return out.err
+		}
 		msg := strings.TrimSpace(stderr.String())
 		if msg != "" {
 			return fmt.Errorf("%s: %w", msg, err)

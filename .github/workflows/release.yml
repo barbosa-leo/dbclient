@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check version
         env:
@@ -41,7 +41,7 @@ jobs:
           cat RELEASE_NOTES.md
 
       - name: Upload notes
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: notes
           path: RELEASE_NOTES.md
@@ -53,20 +53,20 @@ jobs:
     needs: notes
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -79,7 +79,7 @@ jobs:
         run: mv desktop/macos/build/DBClient-*.dmg DBClient-macOS.dmg
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos
           path: DBClient-macOS.dmg
@@ -91,10 +91,10 @@ jobs:
     needs: notes
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: desktop/windows/go.mod
           cache-dependency-path: |
@@ -102,9 +102,9 @@ jobs:
             desktop/windows/go.sum
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -120,7 +120,7 @@ jobs:
         run: mv desktop/windows/build/DBClient-Setup-*.exe DBClient-Windows-Setup.exe
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows
           path: DBClient-Windows-Setup.exe
@@ -132,7 +132,7 @@ jobs:
     needs: [notes, macos, windows]
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           merge-multiple: true
 

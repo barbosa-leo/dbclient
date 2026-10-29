@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.2.1",
+    "date": "2026-10-29",
+    "changes": {
+      "fixed": [
+        "Ctrl + Enter no editor SQL volta a executar a consulta no Windows, em vez de inserir uma linha; no macOS, Cmd + Enter também passa a funcionar.",
+        "Dumps que excedem o limite de tamanho mostram a mensagem de limite excedido, em vez de um erro genérico de gravação do pg_dump."
+      ]
+    }
+  },
+  {
     "version": "0.2.0",
     "date": "2026-10-29",
     "changes": {

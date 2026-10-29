@@ -1,11 +1,19 @@
 [
   {
     "version": "0.2.0",
-    "date": "2026-10-28",
+    "date": "2026-10-29",
     "changes": {
       "new": [
         "Página de novidades, com destaque para versões ainda não vistas e para versões mais novas disponíveis.",
-        "pg_dump e psql embutidos nos apps desktop: scripts e dumps funcionam sem instalar o PostgreSQL."
+        "Atualização pelo próprio app desktop, a partir da página de novidades.",
+        "pg_dump e psql embutidos nos apps desktop: scripts e dumps funcionam sem instalar o PostgreSQL.",
+        "Ctrl + Enter no editor SQL executa apenas o statement sob o cursor, ou o trecho selecionado."
+      ],
+      "improved": [
+        "Barra superior dos apps desktop com botões de voltar, avançar e recarregar no lugar dos dados do perfil."
+      ],
+      "fixed": [
+        "O editor SQL não perde mais o foco ao executar uma consulta."
       ]
     }
   },

@@ -10,7 +10,7 @@ Distribuído como um binário único em Go que embute a interface web estática 
 
 - **Binário Único Zero-Dependency:** Frontend compilado estaticamente (`go:embed`) e servido diretamente pelo Go, sem necessidade de runtime Node.js em produção.
 - **Explorador Visual Completo:** Navegação em árvore por Schemas, Tabelas, Views, Functions, Procedures e Triggers, incluindo inspeção de índices e chaves estrangeiras.
-- **Editor SQL Avançado:** Destaque de sintaxe, formatação automática, histórico de consultas, paginação adaptativa e execução do statement sob o cursor ou do trecho selecionado com `Ctrl/⌘ + Enter`.
+- **Editor SQL Avançado:** Destaque de sintaxe, formatação automática, histórico de consultas, paginação adaptativa e execução do statement sob o cursor ou do trecho selecionado com `Ctrl + Enter`.
 - **Execução Transacional de Scripts:** Upload e execução de arquivos `.sql` com rollback automático em caso de falha (`ON_ERROR_STOP=1`).
 - **Dumps em Streaming:** Exportação (`pg_dump`) e restauração (`psql`) diretas via stream sem sobrecarregar a memória RAM, com progresso em tempo real e cancelamento assíncrono.
 - **Segurança Integrada:** Credenciais de bancos cifradas em repouso com **AES-256-GCM**, controle de acesso baseado em papéis (`admin`, `operator`, `viewer`) e rate limiting por IP.

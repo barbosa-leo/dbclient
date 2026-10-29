@@ -41,7 +41,7 @@ Aplicação web para gerenciamento e exploração de bancos de dados PostgreSQL,
 - **Gerenciamento de Ambientes e Usuários:** CRUD de ambientes e usuários com associação granular de ambientes liberados por usuário.
 - **Gerenciamento de Conexões:** cadastro com Nome, Ambiente, Host, Porta, Database, Usuário, Senha (encriptada) e modo SSL. O formulário só permite salvar com todos os campos obrigatórios válidos. Teste de novas conexões livre restrito a administradores.
 - **Explorador de Banco de Dados:** navegação em árvore por schemas, tabelas, views, procedures, functions e triggers. Identificação inequívoca de funções sobrecarregadas (com assinatura de argumentos) e triggers (com tabela associada).
-- **Editor de SQL:** digitação e execução de consultas com autocomplete contextual, histórico de execuções e paginação inteligente. `Ctrl/⌘ + Enter` executa o texto selecionado ou, sem seleção, apenas o statement sob o cursor (delimitado por `;`, ignorando os que aparecem em strings, comentários e blocos `$$`); o botão Executar envia o editor inteiro. O editor permanece editável durante a execução.
+- **Editor de SQL:** digitação e execução de consultas com autocomplete contextual, histórico de execuções e paginação inteligente. `Ctrl + Enter` executa o texto selecionado ou, sem seleção, apenas o statement sob o cursor (delimitado por `;`, ignorando os que aparecem em strings, comentários e blocos `$$`); o botão Executar envia o editor inteiro. O editor permanece editável durante a execução.
 - **Scripts SQL:** upload de arquivos `.sql` executados em uma única transação (`ON_ERROR_STOP=1`).
 - **Dumps (apenas `.sql`, formato SQL puro):**
   - **Exportação:** executada via `pg_dump` como job assíncrono isolado pelo usuário solicitante.

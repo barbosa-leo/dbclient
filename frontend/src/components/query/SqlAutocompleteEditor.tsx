@@ -2,7 +2,7 @@
 
 import { acceptCompletion, autocompletion } from '@codemirror/autocomplete';
 import { PostgreSQL, sql } from '@codemirror/lang-sql';
-import { Compartment, EditorState } from '@codemirror/state';
+import { Compartment, EditorState, Prec } from '@codemirror/state';
 import { EditorView, keymap, placeholder } from '@codemirror/view';
 import { minimalSetup } from 'codemirror';
 import { useEffect, useRef } from 'react';
@@ -95,19 +95,21 @@ export function SqlAutocompleteEditor({
           EditorView.updateListener.of((update) => {
             if (update.docChanged) onChangeRef.current(update.state.doc.toString());
           }),
-          keymap.of([
-            { key: 'Mod-Enter', run: runStatement },
-            { key: 'Ctrl-Enter', run: runStatement },
-            {
-              key: 'Tab',
-              run: (editor) => {
-                if (acceptCompletion(editor)) return true;
-                if (!editor.state.selection.main.empty) return false;
-                editor.dispatch(editor.state.replaceSelection('  '));
-                return true;
+          Prec.highest(
+            keymap.of([
+              { key: 'Mod-Enter', run: runStatement },
+              { key: 'Ctrl-Enter', run: runStatement },
+              {
+                key: 'Tab',
+                run: (editor) => {
+                  if (acceptCompletion(editor)) return true;
+                  if (!editor.state.selection.main.empty) return false;
+                  editor.dispatch(editor.state.replaceSelection('  '));
+                  return true;
+                },
               },
-            },
-          ]),
+            ]),
+          ),
           EditorView.theme({
             '&': {
               height: '100%',

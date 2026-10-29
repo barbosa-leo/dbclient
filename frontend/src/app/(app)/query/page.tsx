@@ -95,7 +95,7 @@ export default function QueryPage() {
         databaseName={active?.database ?? null}
         connectionId={active?.id ?? null}
         metadataRevision={metadataRevision}
-        onRun={() => run(sql, limit, true)}
+        onRun={(statement) => run(statement, limit, true)}
         running={running}
         disabled={!active}
         collapsed={editorCollapsed}

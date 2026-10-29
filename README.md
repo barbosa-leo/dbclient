@@ -39,6 +39,8 @@ Os apps já incluem o `pg_dump` e o `psql` do PostgreSQL 18, usados em scripts e
 
 Para gerar os instaladores localmente, veja [desktop/macos](desktop/macos/README.md) e [desktop/windows](desktop/windows/README.md).
 
+**Privacidade:** o DBClient não coleta dados; tudo fica na sua instalação, e a única conexão externa automática é a consulta de versões no GitHub. Veja a [Política de Privacidade](PRIVACY.md).
+
 ---
 
 ## Quick Start (Docker Compose)

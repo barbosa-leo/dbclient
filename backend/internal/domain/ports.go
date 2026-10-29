@@ -43,6 +43,11 @@ type ConnectionRepository interface {
 	CountByEnvironmentID(ctx context.Context, environmentID int64) (int, error)
 }
 
+type UpdateViewRepository interface {
+	ListSeenVersions(ctx context.Context, userID int64) ([]string, error)
+	MarkSeen(ctx context.Context, userID int64, versions []string) error
+}
+
 type ExecutionRecorder interface {
 	Record(ctx context.Context, record ExecutionRecord) error
 }

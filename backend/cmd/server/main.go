@@ -29,6 +29,7 @@ import (
 	"dbclient/backend/internal/usecase/query"
 	"dbclient/backend/internal/usecase/script"
 	"dbclient/backend/internal/usecase/settings"
+	"dbclient/backend/internal/usecase/updates"
 	"dbclient/backend/internal/usecase/user"
 	"dbclient/backend/web"
 )
@@ -72,6 +73,7 @@ func main() {
 	connectionRepo := sqlite.NewConnectionRepository(db)
 	settingsRepo := sqlite.NewSettingsRepository(db)
 	historyRepo := sqlite.NewExecutionHistoryRepository(db)
+	updateViewRepo := sqlite.NewUpdateViewRepository(db)
 
 	pgDriver := dbdriver.NewPostgresDriver()
 	pgDumper := dumper.NewPostgresDumper()
@@ -92,6 +94,8 @@ func main() {
 
 	recordExecutionUC := history.NewRecordExecution(settingsRepo, historyRepo, logger)
 	listHistoryUC := history.NewListHistory(historyRepo, settingsRepo)
+	listSeenUpdatesUC := updates.NewListSeenUpdates(updateViewRepo)
+	markUpdatesSeenUC := updates.NewMarkUpdatesSeen(updateViewRepo)
 
 	listEnvironmentsUC := environment.NewListEnvironments(environmentRepo)
 	createEnvironmentUC := environment.NewCreateEnvironment(environmentRepo)
@@ -135,6 +139,7 @@ func main() {
 		Users:         handler.NewUserHandler(listUsersUC, createUserUC, updateUserUC, deleteUserUC),
 		Settings:      handler.NewSettingsHandler(getSettingsUC, updateSettingsUC),
 		History:       handler.NewHistoryHandler(listHistoryUC),
+		Updates:       handler.NewUpdatesHandler(listSeenUpdatesUC, markUpdatesSeenUC),
 		Environments:  handler.NewEnvironmentHandler(listEnvironmentsUC, createEnvironmentUC, deleteEnvironmentUC),
 		Connections:   handler.NewConnectionHandler(listConnectionsUC, createConnectionUC, updateConnectionUC, deleteConnectionUC, testConnectionUC),
 		Explorer:      handler.NewExplorerHandler(listSchemasUC, listColumnsUC, describeTableUC, getObjectDefUC, dropObjectUC),

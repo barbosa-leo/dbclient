@@ -9,7 +9,7 @@ interface SqlEditorProps {
   databaseName: string | null;
   connectionId: number | null;
   metadataRevision: number;
-  onRun: () => void;
+  onRun: (statement: string) => void;
   running: boolean;
   disabled: boolean;
   collapsed?: boolean;
@@ -83,7 +83,7 @@ export function SqlEditor({
 
           <Button
             size="sm"
-            onClick={onRun}
+            onClick={() => onRun(value)}
             disabled={disabled || running || !value.trim()}
           >
             {running ? 'Executando...' : 'Executar'}
@@ -95,10 +95,12 @@ export function SqlEditor({
         <SqlAutocompleteEditor
           value={value}
           onChange={onChange}
-          onRun={onRun}
+          onRun={(statement) => {
+            if (!running) onRun(statement);
+          }}
           connectionId={connectionId}
           metadataRevision={metadataRevision}
-          disabled={disabled || running}
+          disabled={disabled}
           height={editorHeight}
         />
       )}

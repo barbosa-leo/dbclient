@@ -1,13 +1,29 @@
 import AppKit
 import WebKit
 
-final class MainWindowController: NSWindowController, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate {
+final class MainWindowController: NSWindowController, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate,
+    WKScriptMessageHandler
+{
+    private static let bridgeName = "dbclientDesktop"
+    private static let bridgeScript = """
+        window.dbclientDesktop = {
+          platform: 'macos',
+          installUpdate: function (version) {
+            window.webkit.messageHandlers.dbclientDesktop.postMessage({ action: 'installUpdate', version: version });
+          },
+        };
+        """
+
     private let webView: WKWebView
     private var origin: URL?
+    var onInstallUpdate: ((String) -> Void)?
 
     init() {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
+        configuration.userContentController.addUserScript(
+            WKUserScript(source: Self.bridgeScript, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        )
         webView = WKWebView(frame: .zero, configuration: configuration)
 
         let window = NSWindow(
@@ -27,6 +43,7 @@ final class MainWindowController: NSWindowController, WKNavigationDelegate, WKUI
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = false
+        configuration.userContentController.add(self, name: Self.bridgeName)
     }
 
     required init?(coder: NSCoder) {
@@ -52,6 +69,17 @@ final class MainWindowController: NSWindowController, WKNavigationDelegate, WKUI
 
     func resetZoom() {
         webView.pageZoom = 1
+    }
+
+    func notifyUpdate(state: String, message: String? = nil) {
+        var detail = ["state": state]
+        detail["message"] = message
+        guard let json = try? JSONSerialization.data(withJSONObject: detail),
+              let detailJSON = String(data: json, encoding: .utf8)
+        else { return }
+        webView.evaluateJavaScript(
+            "window.dispatchEvent(new CustomEvent('dbclient-desktop-update', { detail: \(detailJSON) }));"
+        )
     }
 
     private func isInternal(_ url: URL) -> Bool {
@@ -114,6 +142,18 @@ final class MainWindowController: NSWindowController, WKNavigationDelegate, WKUI
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         webView.reload()
+    }
+
+    // MARK: - WKScriptMessageHandler
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.frameInfo.isMainFrame,
+              let url = message.frameInfo.request.url, isInternal(url),
+              let body = message.body as? [String: Any],
+              body["action"] as? String == "installUpdate",
+              let version = body["version"] as? String
+        else { return }
+        onInstallUpdate?(version)
     }
 
     // MARK: - WKDownloadDelegate

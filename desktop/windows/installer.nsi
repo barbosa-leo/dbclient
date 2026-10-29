@@ -85,6 +85,8 @@ Section "Install"
   File "${PAYLOAD}\${APP_EXE}"
   File "${PAYLOAD}\${SERVER_EXE}"
   File "${PAYLOAD}\DBClient.ico"
+  RMDir /r "$INSTDIR\postgres"
+  File /r "${PAYLOAD}\postgres"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
   CreateShortCut "$SMPROGRAMS\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}" "" "$INSTDIR\DBClient.ico"
@@ -104,6 +106,14 @@ Section "Install"
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoRepair" 1
 
   Call WarnIfWebView2Missing
+
+  ; In-app updates run the installer silently with /RELAUNCH, so the app reopens on the new version.
+  ${GetParameters} $0
+  ClearErrors
+  ${GetOptions} $0 "/RELAUNCH" $1
+  ${IfNot} ${Errors}
+    Exec '"$INSTDIR\${APP_EXE}"'
+  ${EndIf}
 SectionEnd
 
 Section "Uninstall"
@@ -112,6 +122,7 @@ Section "Uninstall"
   Delete "$INSTDIR\${APP_EXE}"
   Delete "$INSTDIR\${SERVER_EXE}"
   Delete "$INSTDIR\DBClient.ico"
+  RMDir /r "$INSTDIR\postgres"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"
 

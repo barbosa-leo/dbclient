@@ -10,7 +10,7 @@ Distribuído como um binário único em Go que embute a interface web estática 
 
 - **Binário Único Zero-Dependency:** Frontend compilado estaticamente (`go:embed`) e servido diretamente pelo Go, sem necessidade de runtime Node.js em produção.
 - **Explorador Visual Completo:** Navegação em árvore por Schemas, Tabelas, Views, Functions, Procedures e Triggers, incluindo inspeção de índices e chaves estrangeiras.
-- **Editor SQL Avançado:** Destaque de sintaxe, formatação automática, histórico de consultas, paginação adaptativa e atalhos de produtividade (`Ctrl/⌘ + Enter`).
+- **Editor SQL Avançado:** Destaque de sintaxe, formatação automática, histórico de consultas, paginação adaptativa e execução do statement sob o cursor ou do trecho selecionado com `Ctrl + Enter`.
 - **Execução Transacional de Scripts:** Upload e execução de arquivos `.sql` com rollback automático em caso de falha (`ON_ERROR_STOP=1`).
 - **Dumps em Streaming:** Exportação (`pg_dump`) e restauração (`psql`) diretas via stream sem sobrecarregar a memória RAM, com progresso em tempo real e cancelamento assíncrono.
 - **Segurança Integrada:** Credenciais de bancos cifradas em repouso com **AES-256-GCM**, controle de acesso baseado em papéis (`admin`, `operator`, `viewer`) e rate limiting por IP.
@@ -33,9 +33,9 @@ Versões anteriores e notas de cada versão ficam na página de [Releases](https
 > - **macOS:** ao abrir o app pela primeira vez, ele será bloqueado. Vá em **Ajustes do Sistema › Privacidade e Segurança** e clique em **Abrir Mesmo Assim**. Na primeira execução, o macOS também pede a senha do Mac para guardar a chave de criptografia no Keychain: escolha **Sempre Permitir**.
 > - **Windows:** na tela "O Windows protegeu o computador", clique em **Mais informações › Executar assim mesmo**. O instalador não pede permissão de administrador.
 
-**Scripts e dumps** dependem das ferramentas de linha de comando do PostgreSQL (`psql` e `pg_dump`), na mesma versão do servidor ou mais nova. Conexões, explorador e editor SQL funcionam sem elas.
-- **macOS:** `brew install libpq` ou [Postgres.app](https://postgresapp.com).
-- **Windows:** [instalador oficial do PostgreSQL](https://www.postgresql.org/download/windows/), marcando apenas "Command Line Tools".
+Os apps já incluem o `pg_dump` e o `psql` do PostgreSQL 18, usados em scripts e dumps de servidores até a versão 18; não é preciso instalar nada.
+
+**Atualizações:** quando sai uma versão nova, ela aparece em destaque na página **Novidades** do app, com o botão **Atualizar**. No Windows, o app baixa a versão nova, se reinstala e reabre sozinho. No macOS, o app baixa e abre o DMG: feche o DBClient (⌘Q) e arraste o app para a pasta Aplicativos, substituindo a versão anterior. Seus dados e conexões são mantidos.
 
 Para gerar os instaladores localmente, veja [desktop/macos](desktop/macos/README.md) e [desktop/windows](desktop/windows/README.md).
 

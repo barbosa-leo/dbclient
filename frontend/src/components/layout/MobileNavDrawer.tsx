@@ -6,6 +6,8 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import { NavIcon } from '@/components/layout/NavIcon';
 import { SidebarExplorer } from '@/components/layout/SidebarExplorer';
 import type { NavSection } from '@/components/layout/navigation';
+import { UnreadDot } from '@/components/updates/UnreadDot';
+import { useUpdates } from '@/components/updates/UpdatesProvider';
 
 interface MobileNavDrawerProps {
   open: boolean;
@@ -22,6 +24,8 @@ export function MobileNavDrawer({
   onClose,
   onSignOut,
 }: MobileNavDrawerProps) {
+  const { unreadVersions } = useUpdates();
+
   useEffect(() => {
     if (!open) return;
 
@@ -112,6 +116,9 @@ export function MobileNavDrawer({
                     >
                       <NavIcon name={item.icon} />
                       {item.label}
+                      {item.indicator === 'unreadUpdates' && unreadVersions.length > 0 && (
+                        <UnreadDot className="ml-auto" />
+                      )}
                     </Link>
                   );
                 })}

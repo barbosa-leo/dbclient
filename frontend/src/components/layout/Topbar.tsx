@@ -2,7 +2,10 @@
 
 import { useAuth } from '@/components/auth/AuthProvider';
 import { ConnectionSelector } from '@/components/connections/ConnectionSelector';
+import { HistoryControls } from '@/components/layout/HistoryControls';
 import { useTheme } from '@/components/layout/ThemeProvider';
+import { UnreadDot } from '@/components/updates/UnreadDot';
+import { useUpdates } from '@/components/updates/UpdatesProvider';
 
 interface TopbarProps {
   onOpenMenu: () => void;
@@ -11,6 +14,7 @@ interface TopbarProps {
 export function Topbar({ onOpenMenu }: TopbarProps) {
   const { user, isLocal } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { unreadVersions } = useUpdates();
 
   const initial = user?.name?.slice(0, 1).toUpperCase() ?? 'U';
 
@@ -21,11 +25,12 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
           type="button"
           onClick={onOpenMenu}
           aria-label="Abrir menu"
-          className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-ink-secondary transition-colors hover:bg-muted hover:text-ink lg:hidden"
+          className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-ink-secondary transition-colors hover:bg-muted hover:text-ink lg:hidden"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true" className="h-5 w-5">
             <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
           </svg>
+          {unreadVersions.length > 0 && <UnreadDot className="absolute top-2 right-2" />}
         </button>
         <img
           src="/logo.png"
@@ -42,6 +47,8 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
       </div>
 
       <div className="flex h-12 items-center gap-2.5 px-3 lg:h-full lg:px-5">
+        {isLocal && <HistoryControls />}
+
         <button
           type="button"
           onClick={toggleTheme}
@@ -68,23 +75,27 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
           </svg>
         </button>
 
-        <div
-          title={user?.email}
-          className="hidden items-center gap-2 rounded-lg border border-line bg-subtle px-2.5 py-1 lg:flex"
-        >
-          <span className="h-2 w-2 rounded-full bg-online" />
-          <span className="text-xs font-medium text-ink">{user?.name}</span>
-          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-ink-secondary uppercase">
-            {isLocal ? 'local' : user?.role}
-          </span>
-        </div>
+        {!isLocal && (
+          <>
+            <div
+              title={user?.email}
+              className="hidden items-center gap-2 rounded-lg border border-line bg-subtle px-2.5 py-1 lg:flex"
+            >
+              <span className="h-2 w-2 rounded-full bg-online" />
+              <span className="text-xs font-medium text-ink">{user?.name}</span>
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-ink-secondary uppercase">
+                {user?.role}
+              </span>
+            </div>
 
-        <span
-          aria-hidden="true"
-          className="flex h-7 w-7 items-center justify-center rounded-full bg-cta text-[11px] font-semibold text-cta-fg"
-        >
-          {initial}
-        </span>
+            <span
+              aria-hidden="true"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-cta text-[11px] font-semibold text-cta-fg"
+            >
+              {initial}
+            </span>
+          </>
+        )}
       </div>
     </header>
   );

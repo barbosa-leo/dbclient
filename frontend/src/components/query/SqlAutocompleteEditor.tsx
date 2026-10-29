@@ -9,15 +9,24 @@ import { useEffect, useRef } from 'react';
 import { onExplorerRefresh } from '@/services/explorer';
 import { MAX_SQL_LENGTH } from '@/services/query';
 import { SqlMetadata, sqlKeywordCompletions, sqlMetadataCompletions } from './sqlCompletion';
+import { statementAt } from './sqlStatements';
 
 interface SqlAutocompleteEditorProps {
   value: string;
   onChange: (value: string) => void;
-  onRun: () => void;
+  onRun: (statement: string) => void;
   connectionId: number | null;
   disabled: boolean;
   height: string;
   metadataRevision: number;
+}
+
+function statementUnderCursor(state: EditorState): string {
+  const { main } = state.selection;
+  if (!main.empty) return state.sliceDoc(main.from, main.to).trim();
+  const doc = state.doc.toString();
+  const range = statementAt(doc, main.head);
+  return range ? doc.slice(range.from, range.to) : '';
 }
 
 export function SqlAutocompleteEditor({
@@ -53,6 +62,14 @@ export function SqlAutocompleteEditor({
 
   useEffect(() => {
     if (!hostRef.current) return;
+
+    function runStatement(editor: EditorView): boolean {
+      if (disabledRef.current) return true;
+      const statement = statementUnderCursor(editor.state);
+      if (statement) onRunRef.current(statement);
+      return true;
+    }
+
     const view = new EditorView({
       parent: hostRef.current,
       state: EditorState.create({
@@ -79,13 +96,8 @@ export function SqlAutocompleteEditor({
             if (update.docChanged) onChangeRef.current(update.state.doc.toString());
           }),
           keymap.of([
-            {
-              key: 'Mod-Enter',
-              run: () => {
-                if (!disabledRef.current) onRunRef.current();
-                return true;
-              },
-            },
+            { key: 'Mod-Enter', run: runStatement },
+            { key: 'Ctrl-Enter', run: runStatement },
             {
               key: 'Tab',
               run: (editor) => {

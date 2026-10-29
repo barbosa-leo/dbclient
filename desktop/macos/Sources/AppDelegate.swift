@@ -6,11 +6,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowController: MainWindowController?
     private var server: ServerProcess?
     private var paths: AppPaths?
+    private var updating = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.mainMenu = MainMenu.build()
 
         let controller = MainWindowController()
+        controller.onInstallUpdate = { [weak self] version in
+            Task { @MainActor in await self?.downloadUpdate(version: version) }
+        }
         windowController = controller
         controller.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -63,6 +67,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             windowController?.load(server.signInURL)
         } catch {
             presentFatal(title: "Não foi possível iniciar o DBClient", error: error)
+        }
+    }
+
+    // Replacing the bundle in /Applications needs App Management consent on unsigned builds, so the
+    // downloaded DMG is opened for the user to drag the app instead.
+    @MainActor
+    private func downloadUpdate(version: String) async {
+        guard !updating, let paths else { return }
+        updating = true
+        defer { updating = false }
+
+        windowController?.notifyUpdate(state: "downloading")
+        do {
+            let dmg = try await UpdateDownloader(directory: paths.updatesDir).download(version: version)
+            NSWorkspace.shared.open(dmg)
+            windowController?.notifyUpdate(state: "ready")
+        } catch {
+            windowController?.notifyUpdate(state: "failed", message: error.localizedDescription)
         }
     }
 

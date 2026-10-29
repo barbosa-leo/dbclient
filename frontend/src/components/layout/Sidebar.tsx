@@ -10,6 +10,8 @@ import { SidebarExplorer } from '@/components/layout/SidebarExplorer';
 import { navSections } from '@/components/layout/navigation';
 import { NavIcon } from '@/components/layout/NavIcon';
 import { useIsDesktop } from '@/components/layout/useIsDesktop';
+import { UnreadDot } from '@/components/updates/UnreadDot';
+import { useUpdates } from '@/components/updates/UpdatesProvider';
 
 const MIN_EXPLORER_WIDTH_PCT = 20;
 const MAX_EXPLORER_WIDTH_PCT = 35;
@@ -46,6 +48,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isLocal, signOut } = useAuth();
+  const { unreadVersions } = useUpdates();
   const [explorerDrawerOpen, setExplorerDrawerOpen] = useState(true);
   const [explorerWidthPct, setExplorerWidthPct] = useState(MIN_EXPLORER_WIDTH_PCT);
   const [resizing, setResizing] = useState(false);
@@ -173,6 +176,9 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                       }`}
                     >
                       <NavIcon name={item.icon} />
+                      {item.indicator === 'unreadUpdates' && unreadVersions.length > 0 && (
+                        <UnreadDot className="absolute top-1 right-1" />
+                      )}
                       <TooltipBadge label={item.label} category={section.title} />
                     </Link>
                   );

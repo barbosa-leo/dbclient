@@ -1,5 +1,25 @@
 [
   {
+    "version": "0.3.0",
+    "date": "2026-11-10",
+    "changes": {
+      "new": [
+        "Permissões por ambiente: cada usuário recebe leitura ou leitura e escrita em cada ambiente, por exemplo leitura em produção e escrita em desenvolvimento.",
+        "Credenciais somente leitura opcionais nas conexões, usadas por quem tem permissão de leitura para que o próprio PostgreSQL bloqueie escritas.",
+        "Exclusão das linhas selecionadas na aba de dados do explorador, com confirmação, para quem tem permissão de escrita."
+      ],
+      "improved": [
+        "Os papéis operator e viewer foram convertidos automaticamente: operadores recebem escrita e leitores recebem leitura nos ambientes que já tinham. Exportar dumps passa a exigir apenas permissão de leitura.",
+        "O editor SQL guarda o texto de cada conexão e o restaura ao recarregar a página ou voltar à conexão, até ser limpo.",
+        "A altura do editor SQL é ajustada arrastando a borda inferior, sem esconder a tabela de resultados.",
+        "Com permissão de leitura, é possível executar EXPLAIN, SHOW e outras consultas, não apenas SELECT, um comando por vez."
+      ],
+      "fixed": [
+        "Usuários somente leitura não conseguem mais alterar dados encadeando comandos como COMMIT em uma mesma execução."
+      ]
+    }
+  },
+  {
     "version": "0.2.1",
     "date": "2026-10-29",
     "changes": {

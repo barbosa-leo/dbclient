@@ -48,15 +48,32 @@ func (uc *UpdateConnection) Execute(ctx context.Context, id int64, input Connect
 		}
 	}
 
+	readOnlyUsername := normalized.ReadOnlyUsername
+	encryptedReadOnly := ""
+	switch {
+	case readOnlyUsername == "":
+	case strings.TrimSpace(normalized.ReadOnlyPassword) != "":
+		encryptedReadOnly, err = uc.cipher.Encrypt(normalized.ReadOnlyPassword)
+		if err != nil {
+			return domain.Connection{}, err
+		}
+	case existing.HasReadOnlyCredentials():
+		encryptedReadOnly = existing.EncryptedReadOnlyPassword
+	default:
+		return domain.Connection{}, domain.NewValidationError("Senha do usuário somente leitura é obrigatória")
+	}
+
 	return uc.connections.Update(ctx, domain.Connection{
-		ID:                id,
-		EnvironmentID:     normalized.EnvironmentID,
-		Name:              normalized.Name,
-		Host:              normalized.Host,
-		Port:              normalized.Port,
-		Database:          normalized.Database,
-		Username:          normalized.Username,
-		EncryptedPassword: encryptedPassword,
-		SSLMode:           normalized.SSLMode,
+		ID:                        id,
+		EnvironmentID:             normalized.EnvironmentID,
+		Name:                      normalized.Name,
+		Host:                      normalized.Host,
+		Port:                      normalized.Port,
+		Database:                  normalized.Database,
+		Username:                  normalized.Username,
+		EncryptedPassword:         encryptedPassword,
+		ReadOnlyUsername:          readOnlyUsername,
+		EncryptedReadOnlyPassword: encryptedReadOnly,
+		SSLMode:                   normalized.SSLMode,
 	})
 }

@@ -34,9 +34,8 @@ func (h *QueryHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res, err := h.executeQuery.Execute(r.Context(), query.ExecuteQueryInput{
-		ActorID:       user.ID,
+		Actor:         user,
 		ActorUsername: user.Email,
-		ActorRole:     user.Role,
 		ConnectionID:  connID,
 		SQL:           body.SQL,
 		Limit:         body.Limit,

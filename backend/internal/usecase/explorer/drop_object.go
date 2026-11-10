@@ -33,9 +33,9 @@ func (uc *DropObject) Execute(
 		return domain.NewValidationError("Schema, categoria e nome do objeto são obrigatórios")
 	}
 
-	_, creds, err := uc.resolver.Execute(ctx, actor, connectionID)
+	target, err := uc.resolver.Execute(ctx, actor, connectionID, domain.AccessWrite)
 	if err != nil {
 		return err
 	}
-	return uc.driver.DropObject(ctx, creds, schema, category, name)
+	return uc.driver.DropObject(ctx, target.Credentials, schema, category, name)
 }

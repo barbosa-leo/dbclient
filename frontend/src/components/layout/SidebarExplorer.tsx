@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useAuth } from '@/components/auth/AuthProvider';
+import { useActiveAccess } from '@/components/auth/useActiveAccess';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
 import {
   SCHEMA_CATEGORIES,
@@ -83,8 +83,7 @@ export function SidebarExplorer() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
-  const canEdit = user?.role === 'admin' || user?.role === 'operator';
+  const { canWrite: canEdit } = useActiveAccess();
   const { active, loading: connectionsLoading } = useConnections();
   const activeConnectionId = active?.id;
 

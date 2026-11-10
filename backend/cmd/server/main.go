@@ -105,7 +105,8 @@ func main() {
 	createConnectionUC := connection.NewCreateConnection(connectionRepo, environmentRepo, cipher)
 	updateConnectionUC := connection.NewUpdateConnection(connectionRepo, environmentRepo, cipher)
 	deleteConnectionUC := connection.NewDeleteConnection(connectionRepo)
-	resolveCredsUC := connection.NewResolveCredentials(connectionRepo, cipher)
+	authorizeAccessUC := connection.NewAuthorizeAccess(connectionRepo)
+	resolveCredsUC := connection.NewResolveCredentials(connectionRepo, authorizeAccessUC, cipher)
 	testConnectionUC := connection.NewTestConnection(resolveCredsUC, pgDriver)
 
 	listSchemasUC := explorer.NewListSchemas(resolveCredsUC, pgDriver)
@@ -133,6 +134,7 @@ func main() {
 	router := transporthttp.NewRouter(transporthttp.RouterDeps{
 		Logger:        logger,
 		AuthSession:   authSessionUC,
+		Authorizer:    authorizeAccessUC,
 		RateLimiter:   rateLimiter,
 		Health:        handler.NewHealthHandler(db),
 		Auth:          handler.NewAuthHandler(loginUC, logoutUC, changePasswordUC),

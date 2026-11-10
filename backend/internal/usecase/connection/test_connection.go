@@ -40,10 +40,11 @@ func (uc *TestConnection) Execute(ctx context.Context, input TestConnectionInput
 	}
 
 	if input.ConnectionID != nil && *input.ConnectionID > 0 {
-		_, resolved, err := uc.resolver.Execute(ctx, input.Actor, *input.ConnectionID)
+		target, err := uc.resolver.Execute(ctx, input.Actor, *input.ConnectionID, domain.AccessRead)
 		if err != nil {
 			return err
 		}
+		resolved := target.Credentials
 		if creds.Host == "" {
 			creds.Host = resolved.Host
 		}

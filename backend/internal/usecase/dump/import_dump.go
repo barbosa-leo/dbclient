@@ -54,10 +54,11 @@ func (uc *ImportDump) Execute(ctx context.Context, input ImportDumpInput) (domai
 		return domain.Job{}, domain.NewValidationError("Apenas arquivos .sql são permitidos")
 	}
 
-	conn, creds, err := uc.resolver.Execute(ctx, input.Actor, input.ConnectionID)
+	target, err := uc.resolver.Execute(ctx, input.Actor, input.ConnectionID, domain.AccessWrite)
 	if err != nil {
 		return domain.Job{}, err
 	}
+	conn, creds := target.Connection, target.Credentials
 
 	current, err := uc.settings.Get(ctx)
 	if err != nil {

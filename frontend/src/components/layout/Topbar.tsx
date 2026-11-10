@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/components/auth/AuthProvider';
+import { roleLabels } from '@/components/auth/access';
 import { ConnectionSelector } from '@/components/connections/ConnectionSelector';
 import { HistoryControls } from '@/components/layout/HistoryControls';
 import { useTheme } from '@/components/layout/ThemeProvider';
@@ -84,7 +85,7 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
               <span className="h-2 w-2 rounded-full bg-online" />
               <span className="text-xs font-medium text-ink">{user?.name}</span>
               <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-ink-secondary uppercase">
-                {user?.role}
+                {user ? roleLabels[user.role] ?? user.role : null}
               </span>
             </div>
 

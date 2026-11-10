@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/Button';
-import type { User } from '@/services/auth';
+import { roleLabels } from '@/components/auth/access';
+import type { AccessLevel, User } from '@/services/auth';
 import type { Environment } from '@/services/connections';
 
 interface UserListProps {
@@ -31,46 +32,45 @@ function UserEnvironments({ user, environments }: { user: User; environments: En
     );
   }
 
-  const assigned = environments.filter((e) => user.environmentIds?.includes(e.id));
+  const assigned = environments.flatMap((env) => {
+    const level = user.environments?.find((access) => access.environmentId === env.id)?.level;
+    return level ? [{ ...env, level }] : [];
+  });
   if (assigned.length === 0) {
     return <span className="text-[11px] text-danger">Nenhum</span>;
   }
 
-  if (assigned.length <= 2) {
-    return (
-      <div className="flex flex-wrap gap-1">
-        {assigned.map((e) => (
-          <span
-            key={e.id}
-            className="rounded border border-line bg-subtle px-1.5 py-0.2 font-mono text-[10px] text-ink"
-          >
-            {e.name}
-          </span>
-        ))}
-      </div>
-    );
-  }
-
-  const firstTwo = assigned.slice(0, 2);
-  const remainingNames = assigned.slice(2).map((e) => e.name).join(', ');
+  const visible = assigned.slice(0, 2);
+  const remaining = assigned.slice(2);
 
   return (
-    <div className="flex items-center gap-1">
-      {firstTwo.map((e) => (
-        <span
-          key={e.id}
-          className="rounded border border-line bg-subtle px-1.5 py-0.2 font-mono text-[10px] text-ink"
-        >
-          {e.name}
-        </span>
+    <div className="flex flex-wrap items-center gap-1">
+      {visible.map((env) => (
+        <EnvironmentBadge key={env.id} name={env.name} level={env.level} />
       ))}
-      <span
-        title={remainingNames}
-        className="cursor-help rounded bg-muted px-1.5 py-0.2 font-mono text-[10px] font-medium text-ink-secondary"
-      >
-        +{assigned.length - 2}
-      </span>
+      {remaining.length > 0 && (
+        <span
+          title={remaining.map((env) => `${env.name} (${levelShortLabels[env.level]})`).join(', ')}
+          className="cursor-help rounded bg-muted px-1.5 py-0.2 font-mono text-[10px] font-medium text-ink-secondary"
+        >
+          +{remaining.length}
+        </span>
+      )}
     </div>
+  );
+}
+
+const levelShortLabels: Record<AccessLevel, string> = { read: 'L', write: 'L/E' };
+
+function EnvironmentBadge({ name, level }: { name: string; level: AccessLevel }) {
+  return (
+    <span
+      title={level === 'write' ? 'Leitura e escrita' : 'Somente leitura'}
+      className="inline-flex items-center gap-1 rounded border border-line bg-subtle px-1.5 py-0.2 font-mono text-[10px] text-ink"
+    >
+      {name}
+      <span className={level === 'write' ? 'text-cta' : 'text-ink-muted'}>{levelShortLabels[level]}</span>
+    </span>
   );
 }
 
@@ -83,7 +83,7 @@ export function UserList({ users, environments, currentUserId, onEdit, onDelete 
             <div className="flex flex-wrap items-center gap-2">
               <span className="min-w-0 text-sm font-semibold break-words text-ink">{user.name}</span>
               <span className="rounded bg-muted px-1.5 py-0.2 text-[10px] font-medium text-ink-secondary uppercase">
-                {user.role}
+                {roleLabels[user.role] ?? user.role}
               </span>
             </div>
             <p className="mt-1 font-mono text-[11px] break-all text-ink-secondary">{user.email}</p>
@@ -130,7 +130,7 @@ export function UserList({ users, environments, currentUserId, onEdit, onDelete 
                 <td className="px-4 py-1.5 font-mono text-ink-secondary">{user.email}</td>
                 <td className="px-4 py-1.5">
                   <span className="rounded bg-muted px-1.5 py-0.2 text-[10px] font-medium text-ink-secondary uppercase">
-                    {user.role}
+                    {roleLabels[user.role] ?? user.role}
                   </span>
                 </td>
                 <td className="px-4 py-1.5">

@@ -35,13 +35,16 @@ Aplicação web para gerenciamento e exploração de bancos de dados PostgreSQL,
 - **Autenticação:** login por e-mail, logout e sessão gerenciados pelo backend.
 - **Usuário inicial:** criado por migration (`admin@dbclient.local`), com troca de senha obrigatória no primeiro login.
 - **Papéis da plataforma:**
-  - `admin`: gerencia usuários, ambientes, configurações e conexões; tem permissão de testar novas conexões livres; gerencia todos os jobs e execuções.
-  - `operator`: explora schemas e tabelas das conexões liberadas, executa queries no editor SQL, roda scripts `.sql` e executa rotinas de dump (acessa apenas seus próprios jobs).
-  - `viewer`: visualiza ambientes e conexões liberadas, navega no explorador e executa consultas somente-leitura.
-- **Gerenciamento de Ambientes e Usuários:** CRUD de ambientes e usuários com associação granular de ambientes liberados por usuário.
-- **Gerenciamento de Conexões:** cadastro com Nome, Ambiente, Host, Porta, Database, Usuário, Senha (encriptada) e modo SSL. O formulário só permite salvar com todos os campos obrigatórios válidos. Teste de novas conexões livre restrito a administradores.
+  - `admin`: gerencia usuários, ambientes, configurações e conexões; tem permissão de testar novas conexões livres; gerencia todos os jobs e execuções; tem acesso de escrita a todos os ambientes.
+  - `member`: acessa apenas os ambientes liberados, com o nível definido para cada um, e só vê os próprios jobs e execuções.
+- **Permissões por ambiente:** cada ambiente liberado a um `member` tem um nível próprio (ex.: leitura em produção, leitura e escrita em desenvolvimento).
+  - `read`: explorar schemas e definições, testar a conexão, consultar no editor SQL em transação somente leitura (um comando por execução) e exportar dumps.
+  - `write`: tudo de `read`, mais consultas que alteram dados ou objetos, DROP e edição no explorador, scripts `.sql` e importação de dumps.
+  - Ambientes sem permissão não aparecem para o usuário, nem as conexões, dumps e ferramentas associadas.
+- **Gerenciamento de Ambientes e Usuários:** CRUD de ambientes e usuários, com o nível de acesso escolhido por ambiente no formulário do usuário.
+- **Gerenciamento de Conexões:** cadastro com Nome, Ambiente, Host, Porta, Database, Usuário, Senha (encriptada) e modo SSL, mais credenciais somente leitura opcionais (usuário e senha encriptada) usadas por quem tem nível `read` no ambiente, para que o próprio PostgreSQL bloqueie escritas. O formulário só permite salvar com todos os campos obrigatórios válidos. Teste de novas conexões livre restrito a administradores.
 - **Explorador de Banco de Dados:** navegação em árvore por schemas, tabelas, views, procedures, functions e triggers. Identificação inequívoca de funções sobrecarregadas (com assinatura de argumentos) e triggers (com tabela associada).
-- **Editor de SQL:** digitação e execução de consultas com autocomplete contextual, histórico de execuções e paginação inteligente. `Ctrl + Enter` executa o texto selecionado ou, sem seleção, apenas o statement sob o cursor (delimitado por `;`, ignorando os que aparecem em strings, comentários e blocos `$$`); o botão Executar envia o editor inteiro. O editor permanece editável durante a execução.
+- **Editor de SQL:** digitação e execução de consultas com autocomplete contextual, histórico de execuções e paginação inteligente. `Ctrl + Enter` executa o texto selecionado ou, sem seleção, apenas o statement sob o cursor (delimitado por `;`, ignorando os que aparecem em strings, comentários e blocos `$$`); o botão Executar envia o editor inteiro. O editor permanece editável durante a execução. O texto é salvo como rascunho por conexão no navegador e restaurado ao recarregar a página ou voltar à conexão, até o usuário limpar o editor (os rascunhos são apagados no logout). A altura do editor é ajustada arrastando sua borda inferior (ou pelo teclado) e fica salva; ela é limitada para que os resultados mantenham uma altura mínima, e arrastar além desse limite recolhe os resultados na barra de abas.
 - **Scripts SQL:** upload de arquivos `.sql` executados em uma única transação (`ON_ERROR_STOP=1`).
 - **Dumps (apenas `.sql`, formato SQL puro):**
   - **Exportação:** executada via `pg_dump` como job assíncrono isolado pelo usuário solicitante.

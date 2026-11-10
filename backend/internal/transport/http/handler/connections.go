@@ -42,6 +42,9 @@ type connectionPayload struct {
 	Username      string         `json:"username"`
 	Password      string         `json:"password"`
 	SSLMode       domain.SSLMode `json:"sslMode"`
+
+	ReadOnlyUsername string `json:"readOnlyUsername"`
+	ReadOnlyPassword string `json:"readOnlyPassword"`
 }
 
 func (h *ConnectionHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -77,6 +80,9 @@ func (h *ConnectionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Username:      body.Username,
 		Password:      body.Password,
 		SSLMode:       body.SSLMode,
+
+		ReadOnlyUsername: body.ReadOnlyUsername,
+		ReadOnlyPassword: body.ReadOnlyPassword,
 	})
 	if err != nil {
 		writeDomainError(w, err)
@@ -107,6 +113,9 @@ func (h *ConnectionHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Username:      body.Username,
 		Password:      body.Password,
 		SSLMode:       body.SSLMode,
+
+		ReadOnlyUsername: body.ReadOnlyUsername,
+		ReadOnlyPassword: body.ReadOnlyPassword,
 	})
 	if err != nil {
 		writeDomainError(w, err)

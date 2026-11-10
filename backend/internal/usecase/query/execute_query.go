@@ -18,9 +18,8 @@ const (
 )
 
 type ExecuteQueryInput struct {
-	ActorID       int64
+	Actor         domain.User
 	ActorUsername string
-	ActorRole     domain.Role
 	ConnectionID  int64
 	SQL           string
 	Limit         int
@@ -48,27 +47,6 @@ func NewExecuteQuery(
 	}
 }
 
-func isSelectQuery(sqlText string) bool {
-	cleaned := strings.TrimSpace(sqlText)
-	for strings.HasPrefix(cleaned, "--") || strings.HasPrefix(cleaned, "/*") {
-		if strings.HasPrefix(cleaned, "--") {
-			idx := strings.IndexByte(cleaned, '\n')
-			if idx < 0 {
-				return false
-			}
-			cleaned = strings.TrimSpace(cleaned[idx+1:])
-		} else {
-			idx := strings.Index(cleaned, "*/")
-			if idx < 0 {
-				return false
-			}
-			cleaned = strings.TrimSpace(cleaned[idx+2:])
-		}
-	}
-	upper := strings.ToUpper(cleaned)
-	return strings.HasPrefix(upper, "SELECT") || strings.HasPrefix(upper, "WITH")
-}
-
 func (uc *ExecuteQuery) Execute(ctx context.Context, input ExecuteQueryInput) (domain.QueryResult, error) {
 	trimmed := strings.TrimSpace(input.SQL)
 	if trimmed == "" {
@@ -78,11 +56,6 @@ func (uc *ExecuteQuery) Execute(ctx context.Context, input ExecuteQueryInput) (d
 		return domain.QueryResult{}, domain.NewValidationError("A consulta excede o limite de 5000 caracteres")
 	}
 
-	readOnly := input.ActorRole == domain.RoleViewer
-	if readOnly && !isSelectQuery(trimmed) {
-		return domain.QueryResult{}, domain.NewForbiddenError("Usuários com papel de leitura (viewer) podem executar apenas consultas SELECT")
-	}
-
 	limit := input.Limit
 	if limit < MinRowLimit {
 		limit = MinRowLimit
@@ -90,10 +63,12 @@ func (uc *ExecuteQuery) Execute(ctx context.Context, input ExecuteQueryInput) (d
 		limit = MaxRowLimit
 	}
 
-	conn, creds, err := uc.resolver.Execute(ctx, domain.User{ID: input.ActorID, Role: input.ActorRole}, input.ConnectionID)
+	target, err := uc.resolver.Execute(ctx, input.Actor, input.ConnectionID, domain.AccessRead)
 	if err != nil {
 		return domain.QueryResult{}, err
 	}
+	conn, creds := target.Connection, target.Credentials
+	readOnly := target.Level == domain.AccessRead
 
 	start := time.Now()
 	result, execErr := uc.driver.ExecuteQuery(ctx, creds, trimmed, limit, readOnly)
@@ -137,7 +112,7 @@ func (uc *ExecuteQuery) recordExecution(
 	durationMs int64,
 ) {
 	record := domain.ExecutionRecord{
-		UserID:         input.ActorID,
+		UserID:         input.Actor.ID,
 		Kind:           domain.ExecutionKindQuery,
 		ConnectionID:   conn.ID,
 		ConnectionName: conn.Name,

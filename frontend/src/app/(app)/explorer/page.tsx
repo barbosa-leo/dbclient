@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '@/components/auth/AuthProvider';
+import { useActiveAccess } from '@/components/auth/useActiveAccess';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
 import { testConnectionById } from '@/services/connections';
 import { ObjectDefinitionEditor } from '@/components/explorer/ObjectDefinitionEditor';
@@ -309,11 +309,10 @@ function ExplorerContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
   const { active, loading: connectionsLoading } = useConnections();
   const activeId = active?.id;
   const database = active?.database ?? null;
-  const canEdit = user?.role === 'admin' || user?.role === 'operator';
+  const { canWrite: canEdit } = useActiveAccess();
 
   const schema = searchParams.get('schema');
   const categoryRaw = searchParams.get('category');

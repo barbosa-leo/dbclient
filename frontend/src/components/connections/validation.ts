@@ -10,6 +10,8 @@ export interface ConnectionFormValues {
   username: string;
   password: string;
   sslMode: SslMode;
+  readOnlyUsername: string;
+  readOnlyPassword: string;
 }
 
 export type ConnectionFormErrors = Partial<Record<keyof ConnectionFormValues, string>>;
@@ -18,7 +20,7 @@ const REQUIRED = 'Campo obrigatório';
 
 export function validateConnection(
   values: ConnectionFormValues,
-  options: { passwordRequired: boolean },
+  options: { passwordRequired: boolean; readOnlyPasswordRequired: boolean },
 ): ConnectionFormErrors {
   const errors: ConnectionFormErrors = {};
 
@@ -38,6 +40,16 @@ export function validateConnection(
     errors.port = REQUIRED;
   } else if (!Number.isInteger(port) || port < 1 || port > 65535) {
     errors.port = 'Informe uma porta entre 1 e 65535';
+  }
+
+  const readOnlyUsername = values.readOnlyUsername.trim();
+  if (readOnlyUsername) {
+    if (readOnlyUsername === values.username.trim()) {
+      errors.readOnlyUsername = 'Deve ser diferente do usuário principal';
+    }
+    if (options.readOnlyPasswordRequired && !values.readOnlyPassword) {
+      errors.readOnlyPassword = REQUIRED;
+    }
   }
 
   if (!sslModes.includes(values.sslMode)) errors.sslMode = 'Modo SSL inválido';

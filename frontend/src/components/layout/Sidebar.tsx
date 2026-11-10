@@ -7,7 +7,7 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { MobileNavDrawer } from '@/components/layout/MobileNavDrawer';
 import { SidebarExplorer } from '@/components/layout/SidebarExplorer';
-import { navSections } from '@/components/layout/navigation';
+import { isNavItemAllowed, navSections } from '@/components/layout/navigation';
 import { NavIcon } from '@/components/layout/NavIcon';
 import { useIsDesktop } from '@/components/layout/useIsDesktop';
 import { UnreadDot } from '@/components/updates/UnreadDot';
@@ -99,7 +99,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       items: section.items.filter(
         (item) =>
           !(isLocal && item.hiddenInLocalMode) &&
-          (!item.roles || (user && item.roles.includes(user.role))),
+          isNavItemAllowed(item.requires, user),
       ),
     }))
     .filter((section) => section.items.length > 0);

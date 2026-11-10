@@ -32,9 +32,9 @@ func (uc *DescribeTable) Execute(
 		return domain.TableStructureInfo{}, domain.NewValidationError("Schema e tabela são obrigatórios")
 	}
 
-	_, creds, err := uc.resolver.Execute(ctx, actor, connectionID)
+	target, err := uc.resolver.Execute(ctx, actor, connectionID, domain.AccessRead)
 	if err != nil {
 		return domain.TableStructureInfo{}, err
 	}
-	return uc.driver.DescribeTable(ctx, creds, schema, table)
+	return uc.driver.DescribeTable(ctx, target.Credentials, schema, table)
 }

@@ -33,9 +33,9 @@ func (uc *GetObjectDefinition) Execute(
 		return "", domain.NewValidationError("Schema, categoria e nome do objeto são obrigatórios")
 	}
 
-	_, creds, err := uc.resolver.Execute(ctx, actor, connectionID)
+	target, err := uc.resolver.Execute(ctx, actor, connectionID, domain.AccessRead)
 	if err != nil {
 		return "", err
 	}
-	return uc.driver.GetObjectDefinition(ctx, creds, schema, category, name)
+	return uc.driver.GetObjectDefinition(ctx, target.Credentials, schema, category, name)
 }

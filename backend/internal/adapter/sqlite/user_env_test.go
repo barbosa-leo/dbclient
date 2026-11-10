@@ -3,6 +3,7 @@ package sqlite_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 
 	"dbclient/backend/internal/adapter/crypto"
@@ -67,26 +68,26 @@ func TestUserEnvironments(t *testing.T) {
 	}
 
 	operatorUser, err := userRepo.Create(ctx, domain.User{
-		Name:           "Operador 1",
-		Email:          "op1@dbclient.local",
-		PasswordHash:   "hash",
-		Role:           domain.RoleOperator,
-		EnvironmentIDs: []int64{env1.ID},
+		Name:         "Operador 1",
+		Email:        "op1@dbclient.local",
+		PasswordHash: "hash",
+		Role:         domain.RoleMember,
+		Environments: []domain.EnvironmentAccess{{EnvironmentID: env1.ID, Level: domain.AccessRead}},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(operatorUser.EnvironmentIDs) != 1 || operatorUser.EnvironmentIDs[0] != env1.ID {
-		t.Fatalf("expected env1 in created user, got %v", operatorUser.EnvironmentIDs)
+	if len(operatorUser.Environments) != 1 || operatorUser.Environments[0].EnvironmentID != env1.ID {
+		t.Fatalf("expected env1 in created user, got %v", operatorUser.Environments)
 	}
 
 	fetchedUser, err := userRepo.FindByID(ctx, operatorUser.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(fetchedUser.EnvironmentIDs) != 1 || fetchedUser.EnvironmentIDs[0] != env1.ID {
-		t.Fatalf("expected env1 in FindByID, got %v", fetchedUser.EnvironmentIDs)
+	if len(fetchedUser.Environments) != 1 || fetchedUser.Environments[0] != (domain.EnvironmentAccess{EnvironmentID: env1.ID, Level: domain.AccessRead}) {
+		t.Fatalf("expected env1 read in FindByID, got %v", fetchedUser.Environments)
 	}
 
 	allUsers, err := userRepo.List(ctx)
@@ -100,7 +101,7 @@ func TestUserEnvironments(t *testing.T) {
 			break
 		}
 	}
-	if foundOp == nil || len(foundOp.EnvironmentIDs) != 1 || foundOp.EnvironmentIDs[0] != env1.ID {
+	if foundOp == nil || len(foundOp.Environments) != 1 || foundOp.Environments[0].EnvironmentID != env1.ID {
 		t.Fatalf("expected env1 in List, got %+v", foundOp)
 	}
 
@@ -120,27 +121,33 @@ func TestUserEnvironments(t *testing.T) {
 		t.Fatalf("expected only conn1 in ListByUser, got %+v", conns)
 	}
 
-	hasAccess1, err := connRepo.HasUserAccess(ctx, operatorUser.ID, conn1.ID)
-	if err != nil || !hasAccess1 {
-		t.Fatalf("expected access to conn1, got %v, err=%v", hasAccess1, err)
+	level1, err := connRepo.UserAccessLevel(ctx, operatorUser.ID, conn1.ID)
+	if err != nil || level1 != domain.AccessRead {
+		t.Fatalf("expected read access to conn1, got %q, err=%v", level1, err)
 	}
 
-	hasAccess2, err := connRepo.HasUserAccess(ctx, operatorUser.ID, conn2.ID)
-	if err != nil || hasAccess2 {
-		t.Fatalf("expected NO access to conn2, got %v, err=%v", hasAccess2, err)
+	if _, err := connRepo.UserAccessLevel(ctx, operatorUser.ID, conn2.ID); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("expected NO access to conn2, got err=%v", err)
 	}
 
-	fetchedUser.EnvironmentIDs = []int64{env1.ID, env2.ID}
+	fetchedUser.Environments = []domain.EnvironmentAccess{
+		{EnvironmentID: env1.ID, Level: domain.AccessWrite},
+		{EnvironmentID: env2.ID, Level: domain.AccessRead},
+	}
 	updatedUser, err := userRepo.Update(ctx, fetchedUser)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(updatedUser.EnvironmentIDs) != 2 {
-		t.Fatalf("expected 2 envs after update, got %v", updatedUser.EnvironmentIDs)
+	if len(updatedUser.Environments) != 2 {
+		t.Fatalf("expected 2 envs after update, got %v", updatedUser.Environments)
 	}
 
-	hasAccess2After, err := connRepo.HasUserAccess(ctx, operatorUser.ID, conn2.ID)
-	if err != nil || !hasAccess2After {
-		t.Fatalf("expected access to conn2 after update, got %v", hasAccess2After)
+	level1After, err := connRepo.UserAccessLevel(ctx, operatorUser.ID, conn1.ID)
+	if err != nil || level1After != domain.AccessWrite {
+		t.Fatalf("expected write access to conn1 after update, got %q, err=%v", level1After, err)
+	}
+	level2After, err := connRepo.UserAccessLevel(ctx, operatorUser.ID, conn2.ID)
+	if err != nil || level2After != domain.AccessRead {
+		t.Fatalf("expected read access to conn2 after update, got %q, err=%v", level2After, err)
 	}
 }

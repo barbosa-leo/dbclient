@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react';
 import { fetchAuthMode, fetchCurrentUser, login, logout } from '@/services/auth';
 import type { User } from '@/services/auth';
+import { clearSqlDrafts } from '@/components/query/useSqlDraft';
 
 interface AuthContextValue {
   user: User | null;
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await logout();
+    clearSqlDrafts();
     setUser(null);
   }, []);
 

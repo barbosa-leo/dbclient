@@ -74,7 +74,7 @@ func TestLocalSignIn_RejectsInvalidToken(t *testing.T) {
 
 func TestLocalSignIn_CreatesSessionForOldestAdmin(t *testing.T) {
 	users := &fakeUserRepo{users: []domain.User{
-		{ID: 3, Role: domain.RoleOperator},
+		{ID: 3, Role: domain.RoleMember},
 		{ID: 5, Role: domain.RoleAdmin},
 		{ID: 2, Role: domain.RoleAdmin},
 	}}
@@ -123,7 +123,7 @@ func TestLocalSignIn_RetiresDefaultPassword(t *testing.T) {
 }
 
 func TestLocalSignIn_FailsWithoutAdmin(t *testing.T) {
-	users := &fakeUserRepo{users: []domain.User{{ID: 1, Role: domain.RoleOperator}}}
+	users := &fakeUserRepo{users: []domain.User{{ID: 1, Role: domain.RoleMember}}}
 	uc := auth.NewLocalSignIn(users, &fakeSessionRepo{}, fakeHasher{}, localToken, time.Hour)
 
 	if _, err := uc.Execute(context.Background(), localToken); !errors.Is(err, domain.ErrForbidden) {

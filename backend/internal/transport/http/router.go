@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 
+	"dbclient/backend/internal/domain"
 	"dbclient/backend/internal/transport/http/handler"
 	"dbclient/backend/internal/transport/http/middleware"
 	"dbclient/backend/internal/usecase/auth"
@@ -20,6 +21,7 @@ type LocalAuthRoutes interface {
 type RouterDeps struct {
 	Logger        *slog.Logger
 	AuthSession   *auth.AuthenticateSession
+	Authorizer    middleware.ConnectionAuthorizer
 	RateLimiter   *middleware.RateLimiter
 	Health        *handler.HealthHandler
 	Auth          *handler.AuthHandler
@@ -45,11 +47,14 @@ func NewRouter(deps RouterDeps) http.Handler {
 	requireAdmin := func(h http.HandlerFunc) http.Handler {
 		return requireAuth(middleware.RequireAdmin(h))
 	}
-	requireOperator := func(h http.HandlerFunc) http.Handler {
-		return requireAuth(middleware.RequireOperatorOrAdmin(h))
-	}
-	requireViewer := func(h http.HandlerFunc) http.Handler {
+	requireMember := func(h http.HandlerFunc) http.Handler {
 		return requireAuth(h)
+	}
+	requireRead := func(h http.HandlerFunc) http.Handler {
+		return requireAuth(middleware.RequireConnectionAccess(deps.Authorizer, domain.AccessRead)(h))
+	}
+	requireWrite := func(h http.HandlerFunc) http.Handler {
+		return requireAuth(middleware.RequireConnectionAccess(deps.Authorizer, domain.AccessWrite)(h))
 	}
 
 	mux.HandleFunc("GET /healthz", deps.Health.Check)
@@ -73,39 +78,39 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("GET /api/settings", requireAdmin(deps.Settings.Get))
 	mux.Handle("PUT /api/settings", requireAdmin(deps.Settings.Update))
 
-	mux.Handle("GET /api/environments", requireViewer(deps.Environments.List))
+	mux.Handle("GET /api/environments", requireMember(deps.Environments.List))
 	mux.Handle("POST /api/environments", requireAdmin(deps.Environments.Create))
 	mux.Handle("DELETE /api/environments/{id}", requireAdmin(deps.Environments.Delete))
 
-	mux.Handle("GET /api/connections", requireViewer(deps.Connections.List))
+	mux.Handle("GET /api/connections", requireMember(deps.Connections.List))
 	mux.Handle("POST /api/connections", requireAdmin(deps.Connections.Create))
 	mux.Handle("POST /api/connections/test", requireAdmin(deps.Connections.Test))
-	mux.Handle("POST /api/connections/{id}/test", requireViewer(deps.Connections.TestByID))
+	mux.Handle("POST /api/connections/{id}/test", requireRead(deps.Connections.TestByID))
 	mux.Handle("PUT /api/connections/{id}", requireAdmin(deps.Connections.Update))
 	mux.Handle("DELETE /api/connections/{id}", requireAdmin(deps.Connections.Delete))
 
-	mux.Handle("GET /api/connections/{id}/schemas", requireViewer(deps.Explorer.Schemas))
-	mux.Handle("GET /api/connections/{id}/schemas/{schema}/tables/{table}/columns", requireViewer(deps.Explorer.Columns))
-	mux.Handle("GET /api/connections/{id}/schemas/{schema}/tables/{table}/structure", requireViewer(deps.Explorer.Structure))
-	mux.Handle("GET /api/connections/{id}/schemas/{schema}/objects/{category}/{name}/definition", requireViewer(deps.Explorer.ObjectDefinition))
-	mux.Handle("DELETE /api/connections/{id}/schemas/{schema}/objects/{category}/{name}", requireOperator(deps.Explorer.DropObject))
+	mux.Handle("GET /api/connections/{id}/schemas", requireRead(deps.Explorer.Schemas))
+	mux.Handle("GET /api/connections/{id}/schemas/{schema}/tables/{table}/columns", requireRead(deps.Explorer.Columns))
+	mux.Handle("GET /api/connections/{id}/schemas/{schema}/tables/{table}/structure", requireRead(deps.Explorer.Structure))
+	mux.Handle("GET /api/connections/{id}/schemas/{schema}/objects/{category}/{name}/definition", requireRead(deps.Explorer.ObjectDefinition))
+	mux.Handle("DELETE /api/connections/{id}/schemas/{schema}/objects/{category}/{name}", requireWrite(deps.Explorer.DropObject))
 
-	mux.Handle("GET /api/history", requireViewer(deps.History.List))
+	mux.Handle("GET /api/history", requireMember(deps.History.List))
 
-	mux.Handle("GET /api/updates/seen", requireViewer(deps.Updates.ListSeen))
-	mux.Handle("POST /api/updates/seen", requireViewer(deps.Updates.MarkSeen))
+	mux.Handle("GET /api/updates/seen", requireMember(deps.Updates.ListSeen))
+	mux.Handle("POST /api/updates/seen", requireMember(deps.Updates.MarkSeen))
 
-	mux.Handle("POST /api/connections/{id}/query", requireViewer(deps.Query.Execute))
-	mux.Handle("POST /api/connections/{id}/scripts", requireOperator(deps.Script.Run))
+	mux.Handle("POST /api/connections/{id}/query", requireRead(deps.Query.Execute))
+	mux.Handle("POST /api/connections/{id}/scripts", requireWrite(deps.Script.Run))
 
-	mux.Handle("POST /api/connections/{id}/dumps/export", requireOperator(deps.Dump.Export))
-	mux.Handle("POST /api/connections/{id}/dumps/import", requireOperator(deps.Dump.Import))
-	mux.Handle("GET /api/dumps", requireOperator(deps.Dump.ListUserDumps))
-	mux.Handle("DELETE /api/dumps/{id}", requireOperator(deps.Dump.DeleteDump))
+	mux.Handle("POST /api/connections/{id}/dumps/export", requireRead(deps.Dump.Export))
+	mux.Handle("POST /api/connections/{id}/dumps/import", requireWrite(deps.Dump.Import))
+	mux.Handle("GET /api/dumps", requireMember(deps.Dump.ListUserDumps))
+	mux.Handle("DELETE /api/dumps/{id}", requireMember(deps.Dump.DeleteDump))
 
-	mux.Handle("GET /api/jobs/{id}", requireOperator(deps.Dump.GetJob))
-	mux.Handle("POST /api/jobs/{id}/cancel", requireOperator(deps.Dump.CancelJob))
-	mux.Handle("GET /api/jobs/{id}/download", requireOperator(deps.Dump.DownloadJob))
+	mux.Handle("GET /api/jobs/{id}", requireMember(deps.Dump.GetJob))
+	mux.Handle("POST /api/jobs/{id}/cancel", requireMember(deps.Dump.CancelJob))
+	mux.Handle("GET /api/jobs/{id}/download", requireMember(deps.Dump.DownloadJob))
 
 	mux.Handle("/", newSPAHandler(deps.FrontendFiles))
 

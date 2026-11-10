@@ -10,7 +10,7 @@ interface ExecutionHistoryProps {
   refreshKey?: string | number;
   onReuse?: (entry: HistoryEntry) => void;
   collapsible?: boolean;
-  maxHeight?: string;
+  fill?: boolean;
 }
 
 function formatBytes(bytes?: number): string {
@@ -41,7 +41,7 @@ export function ExecutionHistory({
   refreshKey,
   onReuse,
   collapsible = true,
-  maxHeight,
+  fill = false,
 }: ExecutionHistoryProps) {
   const { user, isLocal } = useAuth();
   const showUser = user?.role === 'admin' && !isLocal;
@@ -87,7 +87,9 @@ export function ExecutionHistory({
   const isVisible = !collapsible || open;
 
   return (
-    <section className="rounded-xl border border-line bg-panel shadow-card">
+    <section
+      className={`rounded-xl border border-line bg-panel shadow-card ${fill ? 'flex min-h-0 flex-col' : ''}`}
+    >
       {collapsible ? (
         <button
           type="button"
@@ -110,7 +112,9 @@ export function ExecutionHistory({
       )}
 
       {isVisible && (
-        <div className={collapsible ? 'border-t border-line' : ''}>
+        <div
+          className={`${collapsible ? 'border-t border-line' : ''} ${fill ? 'flex min-h-0 flex-col' : ''}`}
+        >
           {error && (
             <p role="alert" className="p-4 text-xs text-danger">
               {error}
@@ -124,8 +128,9 @@ export function ExecutionHistory({
           )}
           {entries.length > 0 && (
             <ul
-              style={maxHeight ? { maxHeight } : undefined}
-              className={`divide-y divide-line overflow-y-auto ${!maxHeight ? (collapsible ? 'max-h-80' : 'max-h-[500px]') : ''}`}
+              className={`divide-y divide-line overflow-y-auto ${
+                fill ? 'min-h-0' : collapsible ? 'max-h-80' : 'max-h-[500px]'
+              }`}
             >
               {entries.map((entry) => (
                 <li key={entry.id} className="flex flex-col gap-1.5 px-4 py-3">

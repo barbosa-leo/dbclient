@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useAuth } from '@/components/auth/AuthProvider';
+import { useActiveAccess } from '@/components/auth/useActiveAccess';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
 import { DumpList } from '@/components/jobs/DumpList';
 import { JobStatusCard } from '@/components/jobs/JobStatusCard';
@@ -21,9 +21,8 @@ function validateFile(file: File | null): string | null {
 }
 
 export default function DumpsPage() {
-  const { user } = useAuth();
-  const canUseTools = user?.role === 'admin' || user?.role === 'operator';
   const { active } = useConnections();
+  const { canWrite } = useActiveAccess();
   const [file, setFile] = useState<File | null>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +36,6 @@ export default function DumpsPage() {
   const [dumpToDelete, setDumpToDelete] = useState<Job | null>(null);
 
   const loadDumps = useCallback(async () => {
-    if (!canUseTools) return;
     setLoadingDumps(true);
     try {
       const data = await listUserDumps();
@@ -47,7 +45,7 @@ export default function DumpsPage() {
     } finally {
       setLoadingDumps(false);
     }
-  }, [canUseTools]);
+  }, []);
 
   useEffect(() => {
     loadDumps();
@@ -63,15 +61,6 @@ export default function DumpsPage() {
     [loadDumps],
   );
   useJobPolling(job, handleUpdate);
-
-  if (!canUseTools) {
-    return (
-      <PageHeader
-        title="Dumps"
-        description="Apenas operadores e administradores podem acessar as ferramentas de dumps."
-      />
-    );
-  }
 
   const running = job !== null && !isJobFinished(job);
 
@@ -159,7 +148,7 @@ export default function DumpsPage() {
         }
       />
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className={`grid gap-5 ${canWrite ? 'md:grid-cols-2' : ''}`}>
         <section className="flex flex-col justify-between gap-4 rounded-xl border border-line bg-panel p-5 shadow-card">
           <div className="flex flex-col gap-2">
             <h2 className="text-sm font-semibold tracking-tight text-ink">
@@ -181,6 +170,7 @@ export default function DumpsPage() {
           </div>
         </section>
 
+        {canWrite && (
         <form
           onSubmit={handleImport}
           className="flex flex-col justify-between gap-4 rounded-xl border border-line bg-panel p-5 shadow-card"
@@ -209,6 +199,7 @@ export default function DumpsPage() {
             </Button>
           </div>
         </form>
+        )}
       </div>
 
       {error && (

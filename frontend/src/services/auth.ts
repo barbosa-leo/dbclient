@@ -1,6 +1,13 @@
 import { ApiError, apiRequest } from '@/services/api';
 
-export type Role = 'admin' | 'operator' | 'viewer';
+export type Role = 'admin' | 'member';
+
+export type AccessLevel = 'read' | 'write';
+
+export interface EnvironmentAccess {
+  environmentId: number;
+  level: AccessLevel;
+}
 
 export type AuthMode = 'session' | 'local';
 
@@ -10,7 +17,7 @@ export interface User {
   email: string;
   role: Role;
   mustChangePassword: boolean;
-  environmentIds?: number[];
+  environments: EnvironmentAccess[] | null;
 }
 
 export function login(email: string, password: string) {

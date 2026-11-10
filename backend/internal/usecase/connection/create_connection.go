@@ -16,6 +16,9 @@ type ConnectionInput struct {
 	Username      string
 	Password      string
 	SSLMode       domain.SSLMode
+
+	ReadOnlyUsername string
+	ReadOnlyPassword string
 }
 
 type CreateConnection struct {
@@ -51,16 +54,33 @@ func (uc *CreateConnection) Execute(ctx context.Context, input ConnectionInput) 
 		return domain.Connection{}, err
 	}
 
+	if normalized.ReadOnlyUsername != "" && strings.TrimSpace(normalized.ReadOnlyPassword) == "" {
+		return domain.Connection{}, domain.NewValidationError("Senha do usuário somente leitura é obrigatória")
+	}
+	encryptedReadOnly, err := encryptOptional(uc.cipher, normalized.ReadOnlyPassword, normalized.ReadOnlyUsername)
+	if err != nil {
+		return domain.Connection{}, err
+	}
+
 	return uc.connections.Create(ctx, domain.Connection{
-		EnvironmentID:     normalized.EnvironmentID,
-		Name:              normalized.Name,
-		Host:              normalized.Host,
-		Port:              normalized.Port,
-		Database:          normalized.Database,
-		Username:          normalized.Username,
-		EncryptedPassword: encrypted,
-		SSLMode:           normalized.SSLMode,
+		EnvironmentID:             normalized.EnvironmentID,
+		Name:                      normalized.Name,
+		Host:                      normalized.Host,
+		Port:                      normalized.Port,
+		Database:                  normalized.Database,
+		Username:                  normalized.Username,
+		EncryptedPassword:         encrypted,
+		ReadOnlyUsername:          normalized.ReadOnlyUsername,
+		EncryptedReadOnlyPassword: encryptedReadOnly,
+		SSLMode:                   normalized.SSLMode,
 	})
+}
+
+func encryptOptional(cipher domain.Cipher, password, username string) (string, error) {
+	if username == "" {
+		return "", nil
+	}
+	return cipher.Encrypt(password)
 }
 
 func validateConnectionInput(input ConnectionInput, requirePassword bool) (ConnectionInput, error) {
@@ -68,6 +88,7 @@ func validateConnectionInput(input ConnectionInput, requirePassword bool) (Conne
 	input.Host = strings.TrimSpace(input.Host)
 	input.Database = strings.TrimSpace(input.Database)
 	input.Username = strings.TrimSpace(input.Username)
+	input.ReadOnlyUsername = strings.TrimSpace(input.ReadOnlyUsername)
 
 	if input.EnvironmentID <= 0 {
 		return ConnectionInput{}, domain.NewValidationError("Environment é obrigatório")
@@ -89,6 +110,9 @@ func validateConnectionInput(input ConnectionInput, requirePassword bool) (Conne
 	}
 	if requirePassword && strings.TrimSpace(input.Password) == "" {
 		return ConnectionInput{}, domain.NewValidationError("Senha é obrigatória")
+	}
+	if input.ReadOnlyUsername != "" && input.ReadOnlyUsername == input.Username {
+		return ConnectionInput{}, domain.NewValidationError("O usuário somente leitura deve ser diferente do usuário principal")
 	}
 	if !input.SSLMode.IsValid() {
 		return ConnectionInput{}, domain.NewValidationError("Modo SSL inválido")

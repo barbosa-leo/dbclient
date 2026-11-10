@@ -2,6 +2,7 @@ package dbdriver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"dbclient/backend/internal/domain"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const defaultConnectTimeout = 10 * time.Second
@@ -595,9 +597,15 @@ func (d *PostgresDriver) ExecuteQuery(ctx context.Context, creds domain.Connecti
 		_ = tx.Rollback(queryCtx)
 	}()
 
-	rows, err := tx.Query(queryCtx, sqlText, pgx.QueryExecModeSimpleProtocol)
+	// The simple protocol runs several statements per call, so "SELECT 1; COMMIT; DELETE ..." would end
+	// the read-only transaction and write in a new one. The extended protocol accepts a single statement.
+	execMode := pgx.QueryExecModeSimpleProtocol
+	if readOnly {
+		execMode = pgx.QueryExecModeExec
+	}
+	rows, err := tx.Query(queryCtx, sqlText, execMode)
 	if err != nil {
-		return domain.QueryResult{}, err
+		return domain.QueryResult{}, translateReadOnlyError(err, readOnly)
 	}
 
 	fields := rows.FieldDescriptions()
@@ -624,7 +632,7 @@ func (d *PostgresDriver) ExecuteQuery(ctx context.Context, creds domain.Connecti
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		return domain.QueryResult{}, err
+		return domain.QueryResult{}, translateReadOnlyError(err, readOnly)
 	}
 
 	if err := tx.Commit(queryCtx); err != nil {
@@ -646,6 +654,14 @@ func (d *PostgresDriver) ExecuteQuery(ctx context.Context, creds domain.Connecti
 		RowsAffected: rowsAffected,
 		DurationMs:   durationMs,
 	}, nil
+}
+
+func translateReadOnlyError(err error, readOnly bool) error {
+	var pgErr *pgconn.PgError
+	if readOnly && errors.As(err, &pgErr) && pgErr.Code == "42601" && strings.Contains(pgErr.Message, "multiple commands") {
+		return errors.New("Com permissão somente leitura, execute um comando por vez")
+	}
+	return err
 }
 
 func connect(ctx context.Context, creds domain.ConnectionCredentials, timeout time.Duration) (*pgx.Conn, context.CancelFunc, error) {

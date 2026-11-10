@@ -40,11 +40,11 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Name           string      `json:"name"`
-		Email          string      `json:"email"`
-		Password       string      `json:"password"`
-		Role           domain.Role `json:"role"`
-		EnvironmentIDs []int64     `json:"environmentIds"`
+		Name         string                     `json:"name"`
+		Email        string                     `json:"email"`
+		Password     string                     `json:"password"`
+		Role         domain.Role                `json:"role"`
+		Environments []domain.EnvironmentAccess `json:"environments"`
 	}
 	if err := decodeJSON(r, &body); err != nil {
 		writeError(w, http.StatusBadRequest, "Payload inválido")
@@ -52,11 +52,11 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	created, err := h.createUser.Execute(r.Context(), user.CreateUserInput{
-		Name:           body.Name,
-		Email:          body.Email,
-		Password:       body.Password,
-		Role:           body.Role,
-		EnvironmentIDs: body.EnvironmentIDs,
+		Name:         body.Name,
+		Email:        body.Email,
+		Password:     body.Password,
+		Role:         body.Role,
+		Environments: body.Environments,
 	})
 	if err != nil {
 		writeDomainError(w, err)
@@ -73,11 +73,11 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		Name           string      `json:"name"`
-		Email          string      `json:"email"`
-		Role           domain.Role `json:"role"`
-		Password       string      `json:"password"`
-		EnvironmentIDs *[]int64    `json:"environmentIds"`
+		Name         string                      `json:"name"`
+		Email        string                      `json:"email"`
+		Role         domain.Role                 `json:"role"`
+		Password     string                      `json:"password"`
+		Environments *[]domain.EnvironmentAccess `json:"environments"`
 	}
 	if err := decodeJSON(r, &body); err != nil {
 		writeError(w, http.StatusBadRequest, "Payload inválido")
@@ -85,12 +85,12 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	updated, err := h.updateUser.Execute(r.Context(), user.UpdateUserInput{
-		ID:             id,
-		Name:           body.Name,
-		Email:          body.Email,
-		Role:           body.Role,
-		Password:       body.Password,
-		EnvironmentIDs: body.EnvironmentIDs,
+		ID:           id,
+		Name:         body.Name,
+		Email:        body.Email,
+		Role:         body.Role,
+		Password:     body.Password,
+		Environments: body.Environments,
 	})
 	if err != nil {
 		writeDomainError(w, err)

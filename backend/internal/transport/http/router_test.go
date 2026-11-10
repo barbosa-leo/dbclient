@@ -31,7 +31,14 @@ import (
 	"dbclient/backend/internal/usecase/user"
 )
 
-type fakeDriver struct{}
+type queryCall struct {
+	Username string
+	ReadOnly bool
+}
+
+type fakeDriver struct {
+	queries []queryCall
+}
 
 func (f *fakeDriver) Ping(ctx context.Context, creds domain.ConnectionCredentials) error {
 	return nil
@@ -74,6 +81,7 @@ func (f *fakeDriver) DropObject(ctx context.Context, creds domain.ConnectionCred
 }
 
 func (f *fakeDriver) ExecuteQuery(ctx context.Context, creds domain.ConnectionCredentials, sql string, limit int, readOnly bool) (domain.QueryResult, error) {
+	f.queries = append(f.queries, queryCall{Username: creds.Username, ReadOnly: readOnly})
 	return domain.QueryResult{
 		Columns:    []string{"id"},
 		Rows:       [][]any{{1}},
@@ -96,7 +104,8 @@ func (f *fakeDumper) Run(ctx context.Context, creds domain.ConnectionCredentials
 	return nil
 }
 
-func TestEndToEndFlow(t *testing.T) {
+func newTestRouter(t *testing.T, drv *fakeDriver) http.Handler {
+	t.Helper()
 	ctx := context.Background()
 	hasher := crypto.NewBcryptHasher()
 	cipher, err := crypto.NewAESGCMCipher(bytes.Repeat([]byte{0x11}, 32))
@@ -108,7 +117,7 @@ func TestEndToEndFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	files, err := filestore.NewLocalFileStore(t.TempDir())
 	if err != nil {
@@ -123,7 +132,6 @@ func TestEndToEndFlow(t *testing.T) {
 	historyRepo := sqlite.NewExecutionHistoryRepository(db)
 	updateViewRepo := sqlite.NewUpdateViewRepository(db)
 
-	drv := &fakeDriver{}
 	dmp := &fakeDumper{}
 	jobs := job.NewManager(files)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -152,12 +160,14 @@ func TestEndToEndFlow(t *testing.T) {
 	createConnUC := connection.NewCreateConnection(connRepo, envRepo, cipher)
 	updateConnUC := connection.NewUpdateConnection(connRepo, envRepo, cipher)
 	deleteConnUC := connection.NewDeleteConnection(connRepo)
-	resolveUC := connection.NewResolveCredentials(connRepo, cipher)
+	authorizeUC := connection.NewAuthorizeAccess(connRepo)
+	resolveUC := connection.NewResolveCredentials(connRepo, authorizeUC, cipher)
 	testConnUC := connection.NewTestConnection(resolveUC, drv)
 
 	router := transporthttp.NewRouter(transporthttp.RouterDeps{
 		Logger:       logger,
 		AuthSession:  authSessionUC,
+		Authorizer:   authorizeUC,
 		Health:       handler.NewHealthHandler(db),
 		Auth:         handler.NewAuthHandler(loginUC, logoutUC, changePassUC),
 		Users:        handler.NewUserHandler(listUsersUC, createUserUC, updateUserUC, deleteUserUC),
@@ -183,6 +193,11 @@ func TestEndToEndFlow(t *testing.T) {
 		),
 	})
 
+	return router
+}
+
+func TestEndToEndFlow(t *testing.T) {
+	router := newTestRouter(t, &fakeDriver{})
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useAuth } from '@/components/auth/AuthProvider';
+import { useActiveAccess } from '@/components/auth/useActiveAccess';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
 import { ExecutionHistory } from '@/components/history/ExecutionHistory';
 import { JobStatusCard } from '@/components/jobs/JobStatusCard';
@@ -15,9 +15,8 @@ import type { Job } from '@/services/jobs';
 import { runScript } from '@/services/scripts';
 
 export default function ScriptsPage() {
-  const { user } = useAuth();
-  const canUseTools = user?.role === 'admin' || user?.role === 'operator';
   const { active } = useConnections();
+  const { canWrite } = useActiveAccess();
   const [file, setFile] = useState<File | null>(null);
   const [sqlContent, setSqlContent] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
@@ -29,11 +28,11 @@ export default function ScriptsPage() {
   const handleUpdate = useCallback((updated: Job) => setJob(updated), []);
   useJobPolling(job, handleUpdate);
 
-  if (!canUseTools) {
+  if (active && !canWrite) {
     return (
       <PageHeader
         title="Scripts"
-        description="Apenas operadores e administradores podem acessar as ferramentas de scripts."
+        description={`Sua permissão no ambiente da conexão ${active.name} é somente leitura. Selecione uma conexão de um ambiente com permissão de escrita para executar scripts.`}
       />
     );
   }

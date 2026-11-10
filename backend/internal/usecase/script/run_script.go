@@ -62,10 +62,11 @@ func (uc *RunScript) Execute(ctx context.Context, input RunScriptInput) (domain.
 	if actor.ID == 0 && input.ActorUserID != 0 {
 		actor.ID = input.ActorUserID
 	}
-	conn, creds, err := uc.resolver.Execute(ctx, actor, input.ConnectionID)
+	target, err := uc.resolver.Execute(ctx, actor, input.ConnectionID, domain.AccessWrite)
 	if err != nil {
 		return domain.Job{}, err
 	}
+	conn, creds := target.Connection, target.Credentials
 
 	current, err := uc.settings.Get(ctx)
 	if err != nil {

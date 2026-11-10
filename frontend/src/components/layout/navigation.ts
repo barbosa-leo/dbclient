@@ -1,4 +1,5 @@
-import type { Role } from '@/services/auth';
+import { canWriteAnywhere } from '@/components/auth/access';
+import type { User } from '@/services/auth';
 
 export type NavIconName =
   | 'explorer'
@@ -14,7 +15,7 @@ export interface NavItem {
   href: string;
   label: string;
   icon: NavIconName;
-  roles?: Role[];
+  requires?: 'admin' | 'write';
   hiddenInLocalMode?: boolean;
   indicator?: 'unreadUpdates';
   kind?: 'link' | 'explorer';
@@ -36,17 +37,23 @@ export const navSections: NavSection[] = [
   {
     title: 'Ferramentas',
     items: [
-      { href: '/scripts', label: 'Scripts', icon: 'scripts', roles: ['operator', 'admin'] },
-      { href: '/dumps', label: 'Dumps', icon: 'dumps', roles: ['operator', 'admin'] },
+      { href: '/scripts', label: 'Scripts', icon: 'scripts', requires: 'write' },
+      { href: '/dumps', label: 'Dumps', icon: 'dumps' },
     ],
   },
   {
     title: 'Gestão',
     items: [
       { href: '/connections', label: 'Conexões', icon: 'connections' },
-      { href: '/users', label: 'Usuários', icon: 'users', roles: ['admin'], hiddenInLocalMode: true },
-      { href: '/settings', label: 'Configurações', icon: 'settings', roles: ['admin'] },
+      { href: '/users', label: 'Usuários', icon: 'users', requires: 'admin', hiddenInLocalMode: true },
+      { href: '/settings', label: 'Configurações', icon: 'settings', requires: 'admin' },
       { href: '/updates', label: 'Novidades', icon: 'updates', indicator: 'unreadUpdates' },
     ],
   },
 ];
+
+export function isNavItemAllowed(requires: NavItem['requires'], user: User | null): boolean {
+  if (!requires) return true;
+  if (requires === 'admin') return user?.role === 'admin';
+  return canWriteAnywhere(user);
+}

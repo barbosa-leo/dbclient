@@ -32,10 +32,14 @@ type EnvironmentRepository interface {
 	Delete(ctx context.Context, id int64) error
 }
 
+type ConnectionAccessReader interface {
+	UserAccessLevel(ctx context.Context, userID int64, connectionID int64) (AccessLevel, error)
+}
+
 type ConnectionRepository interface {
+	ConnectionAccessReader
 	List(ctx context.Context, environmentID *int64) ([]Connection, error)
 	ListByUser(ctx context.Context, userID int64, environmentID *int64) ([]Connection, error)
-	HasUserAccess(ctx context.Context, userID int64, connectionID int64) (bool, error)
 	FindByID(ctx context.Context, id int64) (Connection, error)
 	Create(ctx context.Context, conn Connection) (Connection, error)
 	Update(ctx context.Context, conn Connection) (Connection, error)

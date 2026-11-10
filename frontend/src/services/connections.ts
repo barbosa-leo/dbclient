@@ -17,6 +17,7 @@ export interface Connection {
   port: number;
   database: string;
   username: string;
+  readOnlyUsername: string;
   sslMode: SslMode;
 }
 
@@ -29,6 +30,8 @@ export interface ConnectionInput {
   username: string;
   password?: string;
   sslMode: SslMode;
+  readOnlyUsername: string;
+  readOnlyPassword?: string;
 }
 
 export function listEnvironments() {

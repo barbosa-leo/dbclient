@@ -1,12 +1,12 @@
 import { apiRequest } from '@/services/api';
-import type { Role, User } from '@/services/auth';
+import type { EnvironmentAccess, Role, User } from '@/services/auth';
 
 export interface UserCreateInput {
   name: string;
   email: string;
   password: string;
   role: Role;
-  environmentIds?: number[];
+  environments: EnvironmentAccess[];
 }
 
 export interface UserUpdateInput {
@@ -14,7 +14,7 @@ export interface UserUpdateInput {
   email: string;
   role: Role;
   password?: string;
-  environmentIds?: number[];
+  environments: EnvironmentAccess[];
 }
 
 export function listUsers() {

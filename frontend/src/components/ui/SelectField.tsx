@@ -4,9 +4,10 @@ import type { SelectHTMLAttributes } from 'react';
 interface SelectFieldProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label: string;
   options: readonly string[];
+  optionLabels?: Readonly<Record<string, string>>;
 }
 
-export function SelectField({ label, options, ...props }: SelectFieldProps) {
+export function SelectField({ label, options, optionLabels, ...props }: SelectFieldProps) {
   const id = useId();
   return (
     <div className="flex flex-col gap-1.5">
@@ -23,7 +24,7 @@ export function SelectField({ label, options, ...props }: SelectFieldProps) {
       >
         {options.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {optionLabels?.[option] ?? option}
           </option>
         ))}
       </select>

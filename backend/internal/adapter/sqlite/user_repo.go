@@ -31,7 +31,7 @@ func (r *UserRepo) FindByID(ctx context.Context, id int64) (domain.User, error) 
 	if err != nil {
 		return domain.User{}, err
 	}
-	u.EnvironmentIDs = envs
+	u.Environments = envs
 	return u, nil
 }
 
@@ -49,7 +49,7 @@ func (r *UserRepo) FindByEmail(ctx context.Context, email string) (domain.User, 
 	if err != nil {
 		return domain.User{}, err
 	}
-	u.EnvironmentIDs = envs
+	u.Environments = envs
 	return u, nil
 }
 
@@ -73,26 +73,29 @@ func (r *UserRepo) List(ctx context.Context) ([]domain.User, error) {
 		}
 		u.Role = domain.Role(role)
 		u.MustChangePassword = mustChange != 0
-		u.EnvironmentIDs = make([]int64, 0)
+		u.Environments = make([]domain.EnvironmentAccess, 0)
 		users = append(users, u)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	envRows, err := r.db.QueryContext(ctx, `SELECT user_id, environment_id FROM user_environments ORDER BY environment_id ASC`)
+	envRows, err := r.db.QueryContext(ctx, `SELECT user_id, environment_id, access_level FROM user_environments ORDER BY environment_id ASC`)
 	if err != nil {
 		return nil, err
 	}
 	defer envRows.Close()
 
-	envMap := make(map[int64][]int64)
+	envMap := make(map[int64][]domain.EnvironmentAccess)
 	for envRows.Next() {
-		var uid, envID int64
-		if err := envRows.Scan(&uid, &envID); err != nil {
+		var uid int64
+		var access domain.EnvironmentAccess
+		var level string
+		if err := envRows.Scan(&uid, &access.EnvironmentID, &level); err != nil {
 			return nil, err
 		}
-		envMap[uid] = append(envMap[uid], envID)
+		access.Level = domain.AccessLevel(level)
+		envMap[uid] = append(envMap[uid], access)
 	}
 	if err := envRows.Err(); err != nil {
 		return nil, err
@@ -100,17 +103,17 @@ func (r *UserRepo) List(ctx context.Context) ([]domain.User, error) {
 
 	for i := range users {
 		if envs, ok := envMap[users[i].ID]; ok {
-			users[i].EnvironmentIDs = envs
+			users[i].Environments = envs
 		}
 	}
 
 	return users, nil
 }
 
-func (r *UserRepo) loadUserEnvironments(ctx context.Context, userID int64) ([]int64, error) {
+func (r *UserRepo) loadUserEnvironments(ctx context.Context, userID int64) ([]domain.EnvironmentAccess, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
-		`SELECT environment_id FROM user_environments WHERE user_id = ? ORDER BY environment_id ASC`,
+		`SELECT environment_id, access_level FROM user_environments WHERE user_id = ? ORDER BY environment_id ASC`,
 		userID,
 	)
 	if err != nil {
@@ -118,15 +121,39 @@ func (r *UserRepo) loadUserEnvironments(ctx context.Context, userID int64) ([]in
 	}
 	defer rows.Close()
 
-	ids := make([]int64, 0)
+	envs := make([]domain.EnvironmentAccess, 0)
 	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
+		var access domain.EnvironmentAccess
+		var level string
+		if err := rows.Scan(&access.EnvironmentID, &level); err != nil {
 			return nil, err
 		}
-		ids = append(ids, id)
+		access.Level = domain.AccessLevel(level)
+		envs = append(envs, access)
 	}
-	return ids, rows.Err()
+	return envs, rows.Err()
+}
+
+func replaceUserEnvironments(ctx context.Context, tx *sql.Tx, user domain.User) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM user_environments WHERE user_id = ?`, user.ID); err != nil {
+		return err
+	}
+	if user.Role == domain.RoleAdmin {
+		return nil
+	}
+	for _, access := range user.Environments {
+		if _, err := tx.ExecContext(
+			ctx,
+			`INSERT INTO user_environments (user_id, environment_id, access_level) VALUES (?, ?, ?)
+			 ON CONFLICT (user_id, environment_id) DO UPDATE SET access_level = excluded.access_level`,
+			user.ID,
+			access.EnvironmentID,
+			string(access.Level),
+		); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *UserRepo) Create(ctx context.Context, user domain.User) (domain.User, error) {
@@ -161,17 +188,8 @@ func (r *UserRepo) Create(ctx context.Context, user domain.User) (domain.User, e
 	}
 	user.ID = id
 
-	if user.Role != domain.RoleAdmin {
-		for _, envID := range user.EnvironmentIDs {
-			if _, err := tx.ExecContext(
-				ctx,
-				`INSERT OR IGNORE INTO user_environments (user_id, environment_id) VALUES (?, ?)`,
-				user.ID,
-				envID,
-			); err != nil {
-				return domain.User{}, err
-			}
-		}
+	if err := replaceUserEnvironments(ctx, tx, user); err != nil {
+		return domain.User{}, err
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -215,21 +233,8 @@ func (r *UserRepo) Update(ctx context.Context, user domain.User) (domain.User, e
 		return domain.User{}, domain.ErrNotFound
 	}
 
-	if _, err := tx.ExecContext(ctx, `DELETE FROM user_environments WHERE user_id = ?`, user.ID); err != nil {
+	if err := replaceUserEnvironments(ctx, tx, user); err != nil {
 		return domain.User{}, err
-	}
-
-	if user.Role != domain.RoleAdmin {
-		for _, envID := range user.EnvironmentIDs {
-			if _, err := tx.ExecContext(
-				ctx,
-				`INSERT OR IGNORE INTO user_environments (user_id, environment_id) VALUES (?, ?)`,
-				user.ID,
-				envID,
-			); err != nil {
-				return domain.User{}, err
-			}
-		}
 	}
 
 	if err := tx.Commit(); err != nil {

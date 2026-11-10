@@ -11,7 +11,10 @@ import (
 
 type migration struct {
 	version int
-	apply   func(ctx context.Context, tx *sql.Tx, hasher domain.PasswordHasher) error
+	// Rebuilding a table referenced by others needs foreign keys off: with them on, DROP TABLE cascades
+	// into the child tables. SQLite ignores this pragma inside a transaction, so it is set on the connection.
+	withoutForeignKeys bool
+	apply              func(ctx context.Context, tx *sql.Tx, hasher domain.PasswordHasher) error
 }
 
 var migrations = []migration{
@@ -264,9 +267,50 @@ CREATE TABLE IF NOT EXISTS update_views (
 			return err
 		},
 	},
+	{
+		version:            9,
+		withoutForeignKeys: true,
+		apply: func(ctx context.Context, tx *sql.Tx, hasher domain.PasswordHasher) error {
+			const schema = `
+ALTER TABLE user_environments ADD COLUMN access_level TEXT NOT NULL DEFAULT 'read'
+	CHECK (access_level IN ('read', 'write'));
+
+UPDATE user_environments SET access_level = 'write'
+WHERE user_id IN (SELECT id FROM users WHERE role = 'operator');
+
+CREATE TABLE users_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	name TEXT NOT NULL,
+	email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+	password_hash TEXT NOT NULL,
+	role TEXT NOT NULL CHECK (role IN ('admin', 'member')),
+	must_change_password INTEGER NOT NULL DEFAULT 1,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO users_new (id, name, email, password_hash, role, must_change_password, created_at)
+SELECT id, name, email, password_hash,
+	CASE WHEN role = 'admin' THEN 'admin' ELSE 'member' END,
+	must_change_password, created_at
+FROM users;
+
+DROP TABLE users;
+ALTER TABLE users_new RENAME TO users;
+
+ALTER TABLE connections ADD COLUMN readonly_username TEXT NOT NULL DEFAULT '';
+ALTER TABLE connections ADD COLUMN readonly_encrypted_password TEXT NOT NULL DEFAULT '';
+`
+			_, err := tx.ExecContext(ctx, schema)
+			return err
+		},
+	},
 }
 
 func runMigrations(ctx context.Context, db *sql.DB, hasher domain.PasswordHasher) error {
+	return runMigrationList(ctx, db, hasher, migrations)
+}
+
+func runMigrationList(ctx context.Context, db *sql.DB, hasher domain.PasswordHasher, list []migration) error {
 	const createTable = `
 CREATE TABLE IF NOT EXISTS schema_migrations (
 	version INTEGER PRIMARY KEY,
@@ -276,7 +320,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 		return err
 	}
 
-	for _, m := range migrations {
+	for _, m := range list {
 		var exists int
 		err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, m.version).Scan(&exists)
 		if err != nil {
@@ -286,25 +330,61 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 			continue
 		}
 
-		tx, err := db.BeginTx(ctx, nil)
-		if err != nil {
-			return err
-		}
-
-		if err := m.apply(ctx, tx, hasher); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("migration %d: %w", m.version, err)
-		}
-
-		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (version) VALUES (?)`, m.version); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("record migration %d: %w", m.version, err)
-		}
-
-		if err := tx.Commit(); err != nil {
+		if err := applyMigration(ctx, db, m, hasher); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func applyMigration(ctx context.Context, db *sql.DB, m migration, hasher domain.PasswordHasher) error {
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	if m.withoutForeignKeys {
+		if _, err := conn.ExecContext(ctx, `PRAGMA foreign_keys = OFF`); err != nil {
+			return err
+		}
+		defer func() {
+			_, _ = conn.ExecContext(context.WithoutCancel(ctx), `PRAGMA foreign_keys = ON`)
+		}()
+	}
+
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if err := m.apply(ctx, tx, hasher); err != nil {
+		return fmt.Errorf("migration %d: %w", m.version, err)
+	}
+
+	if m.withoutForeignKeys {
+		if err := checkForeignKeys(ctx, tx); err != nil {
+			return fmt.Errorf("migration %d: %w", m.version, err)
+		}
+	}
+
+	if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (version) VALUES (?)`, m.version); err != nil {
+		return fmt.Errorf("record migration %d: %w", m.version, err)
+	}
+
+	return tx.Commit()
+}
+
+func checkForeignKeys(ctx context.Context, tx *sql.Tx) error {
+	rows, err := tx.QueryContext(ctx, `PRAGMA foreign_key_check`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		return fmt.Errorf("foreign key violation after migration")
+	}
+	return rows.Err()
 }

@@ -36,12 +36,15 @@ Este documento define as regras estritas de operação, estilo, arquitetura e li
 ### Autenticação e Autorização
 * Módulo próprio: sessão gerenciada pelo backend (cookie `HttpOnly`/`SameSite=Strict`, sem `Secure` por enquanto), expiração em `DBCLIENT_SESSION_TTL` (padrão 12h), senhas com bcrypt.
 * Usuário `admin` inicial criado por migration, com troca de senha obrigatória no primeiro login.
-* Papéis fixos da plataforma: `admin` (gerencia usuários e conexões) e `operator` (usa conexões: explorar, consultar, executar scripts e dumps). O que é permitido dentro do banco depende apenas dos privilégios do usuário da conexão; a plataforma não filtra SQL.
+* Papéis da plataforma: `admin` (gerencia usuários, ambientes, conexões e configurações; acesso de escrita a todos os ambientes) e `member` (acessa apenas os ambientes liberados).
+* Permissão por ambiente (`user_environments.access_level`): `read` (explorar, consultar, testar conexão e exportar dump) ou `write` (também DROP no explorer, scripts e importação de dump). A regra fica em `domain.AccessLevel`; o middleware `RequireConnectionAccess` aplica o nível por rota e o `ResolveCredentials` revalida, de modo que nenhum use case obtém credenciais sem autorização.
+* Nível `read` no editor: transação `READ ONLY` e protocolo estendido (um comando por execução), pois o protocolo simples permitiria `COMMIT` seguido de escrita. Se a conexão tiver credenciais somente leitura, elas são usadas no nível `read`. A plataforma não filtra SQL: o que é permitido dentro do banco depende dos privilégios do usuário da conexão.
 * Formulário de conexão: validação obrigatória no backend e no frontend; dados incompletos não são salvos.
 * Autorização aplicada em middleware, nunca dentro dos handlers.
 * **Modo local (app desktop):** existe apenas em builds com `-tags desktop`; todo código do modo fica em arquivos `//go:build desktop`, de modo que o binário web/Docker não o contenha. Ativado por `DBCLIENT_AUTH_MODE=local`, exige `DBCLIENT_LOCAL_TOKEN` (≥ 32 bytes) e endereço de loopback. Não remove a autenticação: `GET /api/auth/local?token=` cria uma sessão comum para o `admin` inicial, e as rotas de login, logout, troca de senha e usuários não são registradas. O frontend detecta o modo em runtime via `GET /api/app-config` (404 = modo `session`), mantendo um único build.
 
 ### Credenciais
+* Conexões podem ter credenciais somente leitura opcionais (usuário e senha), também encriptadas.
 * Senhas das conexões encriptadas em repouso com AES-256-GCM usando a chave da variável `DBCLIENT_ENCRYPTION_KEY` (32 bytes em base64). A aplicação não inicia sem ela.
 * Credenciais nunca transitam em logs, respostas da API ou argumentos de linha de comando (usar `PGPASSWORD` no ambiente do processo filho).
 

@@ -15,7 +15,7 @@ func NewListEnvironments(environments domain.EnvironmentRepository) *ListEnviron
 }
 
 func (uc *ListEnvironments) Execute(ctx context.Context, actor domain.User) ([]domain.Environment, error) {
-	if actor.Role == domain.RoleAdmin || actor.Role == "" {
+	if actor.Role == domain.RoleAdmin {
 		return uc.environments.List(ctx)
 	}
 	return uc.environments.ListByUser(ctx, actor.ID)

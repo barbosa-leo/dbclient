@@ -5,23 +5,49 @@ import "time"
 type Role string
 
 const (
-	RoleAdmin    Role = "admin"
-	RoleOperator Role = "operator"
-	RoleViewer   Role = "viewer"
+	RoleAdmin  Role = "admin"
+	RoleMember Role = "member"
 )
 
 func (r Role) IsValid() bool {
-	return r == RoleAdmin || r == RoleOperator || r == RoleViewer
+	return r == RoleAdmin || r == RoleMember
+}
+
+type AccessLevel string
+
+const (
+	AccessRead  AccessLevel = "read"
+	AccessWrite AccessLevel = "write"
+)
+
+func (l AccessLevel) IsValid() bool {
+	return l == AccessRead || l == AccessWrite
+}
+
+func (l AccessLevel) Allows(required AccessLevel) bool {
+	switch l {
+	case AccessWrite:
+		return required == AccessRead || required == AccessWrite
+	case AccessRead:
+		return required == AccessRead
+	default:
+		return false
+	}
+}
+
+type EnvironmentAccess struct {
+	EnvironmentID int64       `json:"environmentId"`
+	Level         AccessLevel `json:"level"`
 }
 
 type User struct {
-	ID                 int64   `json:"id"`
-	Name               string  `json:"name"`
-	Email              string  `json:"email"`
-	PasswordHash       string  `json:"-"`
-	Role               Role    `json:"role"`
-	MustChangePassword bool    `json:"mustChangePassword"`
-	EnvironmentIDs     []int64 `json:"environmentIds"`
+	ID                 int64               `json:"id"`
+	Name               string              `json:"name"`
+	Email              string              `json:"email"`
+	PasswordHash       string              `json:"-"`
+	Role               Role                `json:"role"`
+	MustChangePassword bool                `json:"mustChangePassword"`
+	Environments       []EnvironmentAccess `json:"environments"`
 }
 
 type Session struct {
@@ -97,15 +123,21 @@ type Environment struct {
 }
 
 type Connection struct {
-	ID                int64   `json:"id"`
-	EnvironmentID     int64   `json:"environmentId"`
-	Name              string  `json:"name"`
-	Host              string  `json:"host"`
-	Port              int     `json:"port"`
-	Database          string  `json:"database"`
-	Username          string  `json:"username"`
-	EncryptedPassword string  `json:"-"`
-	SSLMode           SSLMode `json:"sslMode"`
+	ID                        int64   `json:"id"`
+	EnvironmentID             int64   `json:"environmentId"`
+	Name                      string  `json:"name"`
+	Host                      string  `json:"host"`
+	Port                      int     `json:"port"`
+	Database                  string  `json:"database"`
+	Username                  string  `json:"username"`
+	EncryptedPassword         string  `json:"-"`
+	ReadOnlyUsername          string  `json:"readOnlyUsername"`
+	EncryptedReadOnlyPassword string  `json:"-"`
+	SSLMode                   SSLMode `json:"sslMode"`
+}
+
+func (c Connection) HasReadOnlyCredentials() bool {
+	return c.ReadOnlyUsername != "" && c.EncryptedReadOnlyPassword != ""
 }
 
 type ConnectionCredentials struct {

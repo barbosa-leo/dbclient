@@ -32,9 +32,9 @@ func (uc *ListColumns) Execute(
 		return nil, domain.NewValidationError("Schema e tabela são obrigatórios")
 	}
 
-	_, creds, err := uc.resolver.Execute(ctx, actor, connectionID)
+	target, err := uc.resolver.Execute(ctx, actor, connectionID, domain.AccessRead)
 	if err != nil {
 		return nil, err
 	}
-	return uc.driver.ListColumns(ctx, creds, schema, table)
+	return uc.driver.ListColumns(ctx, target.Credentials, schema, table)
 }

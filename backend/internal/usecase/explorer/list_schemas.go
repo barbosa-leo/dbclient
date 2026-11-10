@@ -20,9 +20,9 @@ func NewListSchemas(resolver *connection.ResolveCredentials, driver domain.Datab
 }
 
 func (uc *ListSchemas) Execute(ctx context.Context, actor domain.User, connectionID int64) ([]domain.SchemaInfo, error) {
-	_, creds, err := uc.resolver.Execute(ctx, actor, connectionID)
+	target, err := uc.resolver.Execute(ctx, actor, connectionID, domain.AccessRead)
 	if err != nil {
 		return nil, err
 	}
-	return uc.driver.ListSchemas(ctx, creds)
+	return uc.driver.ListSchemas(ctx, target.Credentials)
 }

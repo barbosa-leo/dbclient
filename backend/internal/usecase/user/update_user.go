@@ -8,12 +8,12 @@ import (
 )
 
 type UpdateUserInput struct {
-	ID             int64
-	Name           string
-	Email          string
-	Role           domain.Role
-	Password       string
-	EnvironmentIDs *[]int64
+	ID           int64
+	Name         string
+	Email        string
+	Role         domain.Role
+	Password     string
+	Environments *[]domain.EnvironmentAccess
 }
 
 type UpdateUser struct {
@@ -70,14 +70,15 @@ func (uc *UpdateUser) Execute(ctx context.Context, input UpdateUserInput) (domai
 		existing.MustChangePassword = true
 	}
 
-	if existing.Role == domain.RoleAdmin {
-		existing.EnvironmentIDs = nil
-	} else if input.EnvironmentIDs != nil {
-		if len(*input.EnvironmentIDs) == 0 {
-			return domain.User{}, domain.NewValidationError("Selecione ao menos um ambiente para o usuário")
-		}
-		existing.EnvironmentIDs = *input.EnvironmentIDs
+	requested := existing.Environments
+	if input.Environments != nil {
+		requested = *input.Environments
 	}
+	envs, err := normalizeEnvironments(existing.Role, requested)
+	if err != nil {
+		return domain.User{}, err
+	}
+	existing.Environments = envs
 
 	return uc.users.Update(ctx, existing)
 }

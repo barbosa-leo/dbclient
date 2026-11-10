@@ -39,6 +39,8 @@ function initialValues(
     username: connection?.username ?? '',
     password: '',
     sslMode: connection?.sslMode ?? 'prefer',
+    readOnlyUsername: connection?.readOnlyUsername ?? '',
+    readOnlyPassword: '',
   };
 }
 
@@ -92,25 +94,45 @@ export function ConnectionForm({
       return;
     }
 
+    const target = {
+      host: values.host.trim(),
+      port,
+      database: values.database.trim(),
+      sslMode: values.sslMode,
+    };
+    const readOnlyUsername = values.readOnlyUsername.trim();
+
     setTesting(true);
     try {
       const result = await testConnection({
-        host: values.host.trim(),
-        port,
-        database: values.database.trim(),
+        ...target,
         username: values.username.trim(),
         password: values.password,
-        sslMode: values.sslMode,
       });
-
-      if (result.ok) {
-        setTestResult({ ok: true, message: 'Conexão estabelecida com sucesso!' });
-      } else {
+      if (!result.ok) {
         setTestResult({
           ok: false,
           message: result.error || 'Falha ao conectar com o banco de dados.',
         });
+        return;
       }
+
+      if (readOnlyUsername && values.readOnlyPassword) {
+        const readOnlyResult = await testConnection({
+          ...target,
+          username: readOnlyUsername,
+          password: values.readOnlyPassword,
+        });
+        if (!readOnlyResult.ok) {
+          setTestResult({
+            ok: false,
+            message: `Usuário somente leitura: ${readOnlyResult.error || 'falha ao conectar.'}`,
+          });
+          return;
+        }
+      }
+
+      setTestResult({ ok: true, message: 'Conexão estabelecida com sucesso!' });
     } catch (err) {
       setTestResult({
         ok: false,
@@ -125,7 +147,10 @@ export function ConnectionForm({
     event.preventDefault();
     setSubmitError(null);
 
-    const validation = validateConnection(values, { passwordRequired: !isEditing });
+    const validation = validateConnection(values, {
+      passwordRequired: !isEditing,
+      readOnlyPasswordRequired: !connection?.readOnlyUsername,
+    });
     setErrors(validation);
     if (Object.keys(validation).length > 0) return;
 
@@ -137,7 +162,9 @@ export function ConnectionForm({
       database: values.database.trim(),
       username: values.username.trim(),
       sslMode: values.sslMode,
+      readOnlyUsername: values.readOnlyUsername.trim(),
       ...(values.password ? { password: values.password } : {}),
+      ...(values.readOnlyPassword ? { readOnlyPassword: values.readOnlyPassword } : {}),
     };
 
     setSubmitting(true);
@@ -232,6 +259,37 @@ export function ConnectionForm({
           onChange={(e) => setField('sslMode', e.target.value as SslMode)}
         />
       </div>
+      <fieldset className="mt-5 grid gap-4 border-t border-line pt-4 sm:grid-cols-2">
+        <legend className="sr-only">Credenciais somente leitura</legend>
+        <div className="flex flex-col gap-1 sm:col-span-2">
+          <h3 className="text-xs font-semibold text-ink">Credenciais somente leitura (opcional)</h3>
+          <p className="text-[11px] text-ink-muted">
+            Usadas por quem tem permissão de leitura no ambiente. Use um usuário do banco com apenas
+            SELECT para que o próprio PostgreSQL bloqueie qualquer escrita. Deixe em branco para usar
+            o usuário principal em transações somente leitura.
+          </p>
+        </div>
+        <TextField
+          label="Usuário somente leitura"
+          value={values.readOnlyUsername}
+          onChange={(e) => setField('readOnlyUsername', e.target.value)}
+          autoComplete="off"
+          error={errors.readOnlyUsername}
+        />
+        <TextField
+          label={
+            connection?.readOnlyUsername
+              ? 'Senha somente leitura (deixe em branco para manter)'
+              : 'Senha somente leitura'
+          }
+          type="password"
+          value={values.readOnlyPassword}
+          onChange={(e) => setField('readOnlyPassword', e.target.value)}
+          autoComplete="new-password"
+          disabled={!values.readOnlyUsername.trim()}
+          error={errors.readOnlyPassword}
+        />
+      </fieldset>
       {!isEditing && testResult && (
         <div
           role="status"

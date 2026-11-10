@@ -7,7 +7,8 @@ import type { UserFormErrors, UserFormValues } from '@/components/users/validati
 import { Button } from '@/components/ui/Button';
 import { SelectField } from '@/components/ui/SelectField';
 import { TextField } from '@/components/ui/TextField';
-import type { Role, User } from '@/services/auth';
+import { accessLevelLabels, roleLabels } from '@/components/auth/access';
+import type { AccessLevel, EnvironmentAccess, Role, User } from '@/services/auth';
 import type { Environment } from '@/services/connections';
 import { createUser, updateUser } from '@/services/users';
 
@@ -18,21 +19,49 @@ interface UserFormProps {
   onCancel: () => void;
 }
 
-const roles: readonly Role[] = ['viewer', 'operator', 'admin'];
+const roles: readonly Role[] = ['member', 'admin'];
+const accessLevels: readonly AccessLevel[] = ['read', 'write'];
 
 export function UserForm({ user, environments, onSaved, onCancel }: UserFormProps) {
   const [values, setValues] = useState<UserFormValues>({
     name: user?.name ?? '',
     email: user?.email ?? '',
     password: '',
-    role: user?.role ?? 'viewer',
-    environmentIds:
-      user?.environmentIds ?? (environments.length === 1 ? environments.map((e) => e.id) : []),
+    role: user?.role ?? 'member',
+    environments:
+      user?.environments ??
+      (environments.length === 1
+        ? environments.map((env) => ({ environmentId: env.id, level: 'read' as const }))
+        : []),
   });
   const [errors, setErrors] = useState<UserFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const isEditing = user !== null;
+
+  function levelOf(environmentId: number): AccessLevel | null {
+    return values.environments.find((access) => access.environmentId === environmentId)?.level ?? null;
+  }
+
+  function setEnvironments(next: EnvironmentAccess[]) {
+    setValues((current) => ({ ...current, environments: next }));
+  }
+
+  function toggleEnvironment(environmentId: number) {
+    setEnvironments(
+      levelOf(environmentId)
+        ? values.environments.filter((access) => access.environmentId !== environmentId)
+        : [...values.environments, { environmentId, level: 'read' }],
+    );
+  }
+
+  function setLevel(environmentId: number, level: AccessLevel) {
+    setEnvironments(
+      values.environments.map((access) =>
+        access.environmentId === environmentId ? { ...access, level } : access,
+      ),
+    );
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -49,7 +78,7 @@ export function UserForm({ user, environments, onSaved, onCancel }: UserFormProp
           name: values.name.trim(),
           email: values.email.trim(),
           role: values.role,
-          environmentIds: values.role === 'admin' ? [] : values.environmentIds,
+          environments: values.role === 'admin' ? [] : values.environments,
           ...(values.password ? { password: values.password } : {}),
         });
       } else {
@@ -58,7 +87,7 @@ export function UserForm({ user, environments, onSaved, onCancel }: UserFormProp
           email: values.email.trim(),
           password: values.password,
           role: values.role,
-          environmentIds: values.role === 'admin' ? [] : values.environmentIds,
+          environments: values.role === 'admin' ? [] : values.environments,
         });
       }
       onSaved();
@@ -105,6 +134,7 @@ export function UserForm({ user, environments, onSaved, onCancel }: UserFormProp
         <SelectField
           label="Papel"
           options={roles}
+          optionLabels={roleLabels}
           value={values.role}
           onChange={(e) => setValues({ ...values, role: e.target.value as Role })}
         />
@@ -114,17 +144,22 @@ export function UserForm({ user, environments, onSaved, onCancel }: UserFormProp
             <span className="font-semibold text-ink">Acesso irrestrito:</span> Administradores possuem acesso automático a todos os ambientes e conexões da plataforma.
           </div>
         ) : (
-          <div className="flex flex-col gap-2 sm:col-span-2">
+          <fieldset className="flex flex-col gap-2 sm:col-span-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-ink-secondary">
-                Ambientes permitidos <span className="text-danger">*</span>
-              </label>
+              <legend className="text-xs font-medium text-ink-secondary">
+                Ambientes e permissões <span className="text-danger">*</span>
+              </legend>
               {environments.length > 1 && (
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() =>
-                      setValues({ ...values, environmentIds: environments.map((e) => e.id) })
+                      setEnvironments(
+                        environments.map((env) => ({
+                          environmentId: env.id,
+                          level: levelOf(env.id) ?? 'read',
+                        })),
+                      )
                     }
                     className="cursor-pointer text-[11px] font-medium text-cta hover:underline"
                   >
@@ -133,7 +168,7 @@ export function UserForm({ user, environments, onSaved, onCancel }: UserFormProp
                   <span className="text-ink-muted">·</span>
                   <button
                     type="button"
-                    onClick={() => setValues({ ...values, environmentIds: [] })}
+                    onClick={() => setEnvironments([])}
                     className="cursor-pointer text-[11px] font-medium text-ink-muted hover:text-ink"
                   >
                     Limpar
@@ -145,59 +180,63 @@ export function UserForm({ user, environments, onSaved, onCancel }: UserFormProp
             {environments.length === 0 ? (
               <p className="text-xs text-ink-muted">Nenhum ambiente cadastrado na plataforma ainda.</p>
             ) : (
-              <div className="flex flex-wrap gap-2 pt-1">
+              <ul className="divide-y divide-line rounded-lg border border-line">
                 {environments.map((env) => {
-                  const selected = values.environmentIds?.includes(env.id);
+                  const level = levelOf(env.id);
                   return (
-                    <button
+                    <li
                       key={env.id}
-                      type="button"
-                      onClick={() => {
-                        const current = values.environmentIds ?? [];
-                        const next = current.includes(env.id)
-                          ? current.filter((id) => id !== env.id)
-                          : [...current, env.id];
-                        setValues({ ...values, environmentIds: next });
-                      }}
-                      className={`cursor-pointer inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
-                        selected
-                          ? 'border-cta bg-cta/10 text-ink shadow-sm'
-                          : 'border-line bg-panel text-ink-muted hover:border-line-strong hover:text-ink'
-                      }`}
+                      className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
                     >
-                      <span
-                        className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${
-                          selected ? 'border-cta bg-cta text-cta-fg' : 'border-line bg-subtle'
-                        }`}
+                      <label className="flex min-w-0 cursor-pointer items-center gap-2 text-xs font-medium text-ink">
+                        <input
+                          type="checkbox"
+                          checked={level !== null}
+                          onChange={() => toggleEnvironment(env.id)}
+                          className="h-4 w-4 cursor-pointer accent-cta"
+                        />
+                        <span className="truncate">{env.name}</span>
+                      </label>
+                      <div
+                        role="radiogroup"
+                        aria-label={`Permissão em ${env.name}`}
+                        className={`flex rounded-md bg-muted p-0.5 ${level === null ? 'opacity-40' : ''}`}
                       >
-                        {selected && (
-                          <svg
-                            viewBox="0 0 16 16"
-                            fill="none"
-                            aria-hidden="true"
-                            className="h-3 w-3 stroke-current stroke-2"
+                        {accessLevels.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            role="radio"
+                            aria-checked={level === option}
+                            disabled={level === null}
+                            onClick={() => setLevel(env.id, option)}
+                            className={`cursor-pointer rounded px-2.5 py-1 text-[11px] font-medium transition-colors disabled:cursor-not-allowed ${
+                              level === option
+                                ? 'bg-panel text-ink shadow-card'
+                                : 'text-ink-muted hover:text-ink'
+                            }`}
                           >
-                            <path
-                              d="M3.5 8.5 6.5 11.5 12.5 4.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        )}
-                      </span>
-                      <span>{env.name}</span>
-                    </button>
+                            {accessLevelLabels[option]}
+                          </button>
+                        ))}
+                      </div>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             )}
 
-            {errors.environmentIds && (
+            <p className="text-[11px] text-ink-muted">
+              Leitura: explorar, consultar em transação somente leitura e exportar dumps. Leitura e
+              escrita: também alterar dados e objetos, executar scripts e importar dumps.
+            </p>
+
+            {errors.environments && (
               <p role="alert" className="text-xs text-danger">
-                {errors.environmentIds}
+                {errors.environments}
               </p>
             )}
-          </div>
+          </fieldset>
         )}
       </div>
       {submitError && (

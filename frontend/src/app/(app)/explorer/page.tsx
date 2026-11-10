@@ -7,6 +7,7 @@ import { useActiveAccess } from '@/components/auth/useActiveAccess';
 import { useConnections } from '@/components/connections/ConnectionsProvider';
 import { testConnectionById } from '@/services/connections';
 import { ObjectDefinitionEditor } from '@/components/explorer/ObjectDefinitionEditor';
+import { buildDeleteStatements } from '@/components/explorer/rowDelete';
 import { TableStructure } from '@/components/explorer/TableStructure';
 import type { TableStructureChanges } from '@/components/explorer/TableStructure';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -612,6 +613,42 @@ function ExplorerContent() {
     }
   }
 
+  async function handleDeleteRows(rows: unknown[][]): Promise<boolean> {
+    if (activeId === undefined || !schema || !table || !dataResult) return false;
+    setError(null);
+    try {
+      let colMeta = columns;
+      if (!colMeta) {
+        colMeta = await listColumns(activeId, schema, table);
+        setColumns(colMeta);
+      }
+      const statements = buildDeleteStatements(
+        {
+          schema,
+          table,
+          resultColumns: dataResult.columns,
+          primaryKeyColumns: colMeta.filter((c) => c.isPrimaryKey).map((c) => c.name),
+        },
+        rows,
+      );
+      let deleted = 0;
+      for (const sql of statements) {
+        const res = await executeQuery(activeId, sql, limit);
+        deleted += res.rowsAffected ?? 0;
+      }
+      await loadData(limit, filters, sort);
+      if (deleted !== rows.length) {
+        setError(
+          `${deleted} de ${rows.length} linha(s) excluída(s). As demais já não existiam na tabela.`,
+        );
+      }
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao excluir as linhas');
+      return false;
+    }
+  }
+
   async function handleSaveStructureChanges(changes: TableStructureChanges) {
     if (activeId === undefined || !schema || !table || !columns) return;
     setSavingChanges(true);
@@ -975,6 +1012,7 @@ function ExplorerContent() {
               refreshing={loading}
               onSaveChanges={canEdit && !isView ? handleSaveChanges : undefined}
               savingChanges={savingChanges}
+              onDeleteRows={canEdit && !isView ? handleDeleteRows : undefined}
             />
             {dataResult.columns.length > 0 && (
               <RowLimitSelector

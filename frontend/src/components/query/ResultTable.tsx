@@ -47,6 +47,7 @@ interface ResultTableProps {
   refreshing?: boolean;
   onSaveChanges?: (updates: CellUpdate[]) => Promise<void> | void;
   savingChanges?: boolean;
+  onDeleteRows?: (rows: unknown[][]) => Promise<boolean>;
   maxHeight?: string;
 }
 
@@ -197,6 +198,7 @@ export function ResultTable({
   refreshing = false,
   onSaveChanges,
   savingChanges = false,
+  onDeleteRows,
   maxHeight,
 }: ResultTableProps) {
   const fkByColumn = useMemo(() => {
@@ -222,6 +224,8 @@ export function ResultTable({
   const copyMenuRef = useRef<HTMLDivElement>(null);
   const headerRefs = useRef<Record<string, HTMLTableCellElement | null>>({});
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deletingRows, setDeletingRows] = useState(false);
 
   useEffect(() => {
     setSelectedRows(new Set());
@@ -229,7 +233,17 @@ export function ResultTable({
     setPendingEdits({});
     setCopyMenuOpen(false);
     setColumnWidths({});
+    setConfirmingDelete(false);
   }, [result]);
+
+  useEffect(() => {
+    if (!confirmingDelete) return;
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !deletingRows) setConfirmingDelete(false);
+    }
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [confirmingDelete, deletingRows]);
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -265,6 +279,7 @@ export function ResultTable({
   const canCopy = selectedCount > 0;
   const canSaveOrCancel = Boolean(onSaveChanges) && hasPendingChanges && !savingChanges;
   const canCancel = hasPendingChanges || selectedCount > 0;
+  const canDelete = Boolean(onDeleteRows) && selectedCount > 0;
 
   function toggleAllRows() {
     if (totalRows === 0) return;
@@ -441,6 +456,23 @@ export function ResultTable({
     await onSaveChanges(updates);
   }
 
+  async function handleConfirmDelete() {
+    if (!onDeleteRows) return;
+    const rows = Array.from(selectedRows)
+      .sort((a, b) => a - b)
+      .map((index) => result.rows[index])
+      .filter((row): row is unknown[] => row !== undefined);
+    setDeletingRows(true);
+    try {
+      if (await onDeleteRows(rows)) {
+        setSelectedRows(new Set());
+        setConfirmingDelete(false);
+      }
+    } finally {
+      setDeletingRows(false);
+    }
+  }
+
   async function handleCopyAs(format: CopyFormat) {
     if (selectedCount === 0) return;
     const orderedIndices = Array.from(selectedRows).sort((a, b) => a - b);
@@ -481,7 +513,11 @@ export function ResultTable({
             </span>
           )}
           {selectedCount === 0 && !hasPendingChanges && (
-            <span>Selecione linhas para copiar ou dê duplo clique em uma célula para editar</span>
+            <span>
+              {onDeleteRows
+                ? 'Selecione linhas para copiar ou excluir, ou dê duplo clique em uma célula para editar'
+                : 'Selecione linhas para copiar ou dê duplo clique em uma célula para editar'}
+            </span>
           )}
         </div>
 
@@ -584,6 +620,33 @@ export function ResultTable({
               </div>
             )}
           </div>
+
+          {canDelete && (
+            <button
+              type="button"
+              disabled={savingChanges || deletingRows}
+              aria-label={`Excluir ${selectedCount} linha(s) selecionada(s)`}
+              title="Excluir linhas selecionadas"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setConfirmingDelete(true)}
+              className="flex h-8 w-8 sm:h-7 sm:w-7 cursor-pointer items-center justify-center rounded-md border border-line bg-subtle text-ink transition-colors hover:border-danger/40 hover:bg-danger/10 hover:text-danger disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden="true"
+                className="h-3.5 w-3.5"
+              >
+                <path
+                  d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5l.5 8.5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
 
           <button
             type="button"
@@ -922,7 +985,45 @@ export function ResultTable({
           </p>
         )}
       </div>
+
+      {confirmingDelete && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-rows-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div className="w-full max-w-md rounded-xl border border-line bg-panel p-5 font-sans shadow-card">
+            <h2 id="delete-rows-title" className="text-sm font-semibold text-ink">
+              Excluir {selectedCount} linha(s)
+            </h2>
+            <p className="mt-1.5 text-xs text-ink-secondary">
+              As linhas selecionadas serão removidas de{' '}
+              <strong className="font-mono text-ink">{tableName ?? 'tabela'}</strong>. Esta ação não
+              pode ser desfeita.
+            </p>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                autoFocus
+                disabled={deletingRows}
+                onClick={() => setConfirmingDelete(false)}
+                className="cursor-pointer rounded-md border border-line bg-subtle px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={deletingRows}
+                onClick={() => void handleConfirmDelete()}
+                className="cursor-pointer rounded-md bg-danger px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deletingRows ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
